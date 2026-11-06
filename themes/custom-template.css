@@ -1,0 +1,43 @@
+/*
+ * EDLD — Custom theme template
+ *
+ * Copy this file into a folder named themes/custom/ inside EDLD's data
+ * directory, with any name you like:
+ *   Linux    ~/.local/share/EDLD/themes/custom/my-theme.css
+ *   Windows  %LOCALAPPDATA%\EDLD\themes\custom\my-theme.css
+ *   macOS    ~/Library/Application Support/EDLD/themes/custom/my-theme.css
+ * then set, in config.toml:
+ *   [UI]
+ *   Theme = "custom/my-theme"   (no .css extension)
+ * or pick "Custom: my-theme" under Options -> Appearance.
+ *
+ * These ten colours are the whole theme. EDLD reads them by name and nothing
+ * else in the file, and uses them everywhere a theme reaches: the terminal
+ * dashboard, the desktop window, the overlay when it follows the dashboard,
+ * the dossier, and a paired EDAM device.
+ *
+ * Colours are #rrggbb. A variable left out falls back to the value shown here
+ * (the accent's fallback is grey, #aaaaaa). The zebra stripe on tables and the
+ * overlay's shadow and backing are worked out from these, so there is nothing
+ * else to set.
+ */
+
+:root {
+    /* ── Backgrounds ────────────────────────────────────────────────────── */
+    --bg-deep:   #0d0f12;   /* window background                            */
+    --bg-mid:    #161a1f;   /* block background                             */
+    --bg-panel:  #1c2128;   /* title bars and panel headers                 */
+
+    /* ── Text ───────────────────────────────────────────────────────────── */
+    --fg:        #d8dce5;   /* primary text and values                      */
+    --fg-dim:    #606878;   /* labels and secondary text                    */
+
+    /* ── Accent ─────────────────────────────────────────────────────────── */
+    --accent:    #e07b20;   /* titles, highlights, the selected tab         */
+    --border:    #2a3040;   /* block borders                                */
+
+    /* ── Status ─────────────────────────────────────────────────────────── */
+    --green:     #57e389;   /* good: shields up, hull healthy, ready        */
+    --amber:     #f8e45c;   /* warning: in progress, hull or fuel getting low */
+    --red:       #e05c5c;   /* critical: shields down, hull or fuel critical */
+}

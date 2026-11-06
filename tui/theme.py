@@ -1,0 +1,581 @@
+"""
+tui/theme.py — Textual CSS for the EDLD TUI.
+
+Colours match the theme requested via [UI] Theme config key.
+The DEFAULT_CSS string is always loaded; colour overrides are
+appended per-theme in apply_theme().
+"""
+
+# ── Structural CSS (layout, spacing — no colours) ─────────────────────────────
+#
+# Column layout and block heights come from the shared layout model
+# (core/layout_model.py), so every block's size follows its size class and the
+# Display tab can reassign windows.  Each block's height percentage is generated
+# at build time by _height_css() from the model's per-column apportionment.
+#
+# Textual is fully terminal-resolution aware — at very narrow widths
+# (< 100 cols) the three columns will compress; below the cargo /
+# career blocks' minimum useful width they'll horizontally scroll
+# rather than break, which is preferable to hard-clipping content.
+
+STRUCTURAL_CSS = """
+/* Screen stacks Header / dashboard / Footer vertically. */
+Screen {
+    layout: vertical;
+}
+
+/* Dashboard fills the space between header and footer. */
+#dashboard {
+    layout: horizontal;
+    width: 100%;
+    height: 1fr;
+}
+
+/* Column widths: left 34% : centre 32% : right 34%. */
+#col-left   { width: __COL_A__%; height: 100%; }
+#col-centre { width: __COL_B__%; height: 100%; }
+#col-right  { width: __COL_C__%; height: 100%; }
+
+/* Blocks: no auto-height, no margin (border provides visual separation). */
+TuiBlock {
+    border: solid $border;
+    background: $block-bg;
+    margin: 0;
+    height: auto;
+    padding: 0;
+}
+
+/* Inner scrollable / tabbed content fills remaining space after the title bar. */
+TuiBlock > VerticalScroll { height: 1fr; }
+TuiBlock > TabbedContent  { height: 1fr; }
+
+/* Per-block heights are generated from the shared layout model and appended to
+   the CSS at build time (see build_css / _height_css), so block heights
+   follow the size classes and the Display tab can reassign windows. */
+
+.block-title {
+    background: $title-bg;
+    color: $accent;
+    text-style: bold;
+    padding: 0 1;
+    border-bottom: solid $border;
+}
+
+/* Update-available notice bar — sits between Textual header and dashboard.
+   Height toggled in Python: 0 when empty, 1 when an update is available. */
+#update-notice-bar {
+    height: 0;
+    background: $title-bg;
+    padding: 0 1;
+}
+
+
+.kv-row {
+    height: 1;
+    padding: 0 1;
+}
+
+.key  { color: $dim; width: 1fr; }
+.val  { color: $fg; width: auto; text-align: right; }
+
+.health-good { color: $green;  }
+.health-warn { color: $amber;  }
+.health-crit { color: $red; text-style: bold; }
+
+.status-ready  { color: $green; }
+.status-active { color: $amber; }
+.dim           { color: $fg;    }
+.highlight     { color: $amber; }
+
+.section-hdr {
+    color: $accent;
+    text-style: bold;
+    padding: 0 1;
+    margin-top: 0;
+}
+/* Commander headers are block-title / block-hdr2 — margin handled by class */
+
+.sep {
+    color: $border;
+    padding: 0 1;
+}
+
+.alert-entry { padding: 0 1; height: 1; }
+
+/* ── The Helm panel along the foot (tui/blocks/helm.py) ───────────────────── */
+#block-helm { height: auto; }
+#helm-note { color: $amber; padding: 0 1; height: auto; }
+#helm-status { color: $dim; padding: 0 1; height: 1; }
+#helm-groups { height: auto; grid-gutter: 0 2; padding: 0 1; grid-rows: auto; }
+.helm-group { height: auto; }
+.helm-group-title { color: $accent; text-style: bold; height: 1; }
+.helm-buttons { height: auto; grid-gutter: 0 1; grid-rows: 1; }
+.helm-buttons Button {
+    width: 100%;
+    height: 1;
+    min-width: 4;
+    border: none;
+    padding: 0 1;
+    margin: 0;
+    text-wrap: nowrap;
+    text-overflow: ellipsis;
+    background: $title-bg;
+    color: $fg;
+}
+.helm-buttons Button:hover { background: $border; color: $accent; }
+.helm-buttons Button:focus { text-style: bold; color: $accent; }
+.helm-buttons Button.-disabled { color: $dim; background: $block-bg; }
+
+/* ── Navigation block: compact single-row inputs and buttons ───────────────── */
+/* Textual's default Input/Button are height 3 with a border ("chunky").  In the
+   Navigation routing tabs we collapse them to a single row each. */
+#nav-tabs Input {
+    height: 1;
+    border-top: none;
+    border-bottom: none;
+    border-left: solid $dim;
+    border-right: solid $dim;
+    padding: 0 1;
+    margin: 0 0 1 0;
+    background: $bg;
+}
+#nav-tabs Input:focus {
+    border-left: solid $accent;
+    border-right: solid $accent;
+    background: $bg;
+}
+#nav-tabs Button {
+    height: 1;
+    min-height: 1;
+    border: none;
+    padding: 0 2;
+    margin: 0 0 1 0;
+}
+
+/* ── SepRow colour (resolved here where palette substitution runs) ─────────── */
+SepRow { color: $border; }
+
+/* ── Preferences screen ─────────────────────────────────────────────────────── */
+PreferencesScreen {
+    align: center middle;
+}
+
+#prefs-outer {
+    width: 92%;
+    height: 92%;
+    background: $block-bg;
+    border: solid $accent;
+}
+
+/* The page column down the left and the page beside it. */
+#pref-body { height: 1fr; }
+#pref-nav {
+    width: 18;
+    height: 1fr;
+    padding: 0;
+    border: none;
+    background: $title-bg;
+    color: $dim;
+    scrollbar-size-vertical: 1;
+}
+#pref-nav:focus { border: none; }
+#pref-nav > .option-list--option { padding: 0 1; }
+#pref-nav > .option-list--option-hover { color: $fg; background: $title-bg; }
+#pref-nav > .option-list--option-highlighted {
+    color: $accent;
+    background: $block-bg;
+    text-style: bold;
+}
+#pref-nav:focus > .option-list--option-highlighted {
+    color: $bg;
+    background: $accent;
+    text-style: bold;
+}
+#pref-pages { width: 1fr; height: 1fr; }
+
+#pref-btn-row {
+    height: 3;
+    padding: 0 1;
+    align: right middle;
+}
+
+#pref-restart-note {
+    width: 1fr;
+    color: $amber;
+}
+
+/* The deposit window.  It reuses the preferences row styles, which size the
+   label column at 45% — fine inside #prefs-outer, and a chasm in a modal that
+   had no container rule at all and so filled the terminal.  A fixed, centred
+   box keeps the labels next to their controls at any width. */
+DepositScreen {
+    align: center middle;
+}
+
+#deposit-dialog {
+    width: 76;
+    height: auto;
+    max-height: 90%;
+    padding: 1;
+    background: $block-bg;
+    border: solid $accent;
+}
+
+#deposit-dialog .key { width: 30%; }
+#deposit-fields { height: auto; }
+
+/* Notes: a few wrapped lines, label at the top rather than the middle so it
+   stays beside the first line of text however long the note grows. */
+#deposit-dialog .dep-note-row .key { content-align: left top; }
+#deposit-dialog TextArea.dep-note {
+    width: 1fr;
+    height: 6;
+    background: $bg;
+    color: $fg;
+    border: round $dim;
+}
+#deposit-dialog TextArea.dep-note:focus { border: round $accent; }
+
+/* Radio tab: Add and Edit Station.  Same box as the deposit window, for the same
+   reason; RadioSet's own border is dropped so it sits like the inputs. */
+AddStationScreen, EditStationScreen { align: center middle; }
+#station-dialog {
+    width: 76;
+    max-width: 95%;
+    height: auto;
+    max-height: 90%;
+    padding: 1;
+    background: $block-bg;
+    border: solid $accent;
+}
+#station-dialog .key { width: 30%; }
+#station-scope { width: 1fr; height: auto; border: none; background: $block-bg; }
+
+.pref-title {
+    padding: 0 1;
+    color: $accent;
+    text-style: bold;
+}
+
+.pref-buttons {
+    height: auto;
+    padding: 1 1 0 1;
+    align: right middle;
+}
+
+/* Each pref row is height: auto so text-input rows expand to 3 rows naturally */
+.pref-row {
+    padding: 0 1;
+    layout: horizontal;
+    height: auto;
+}
+
+/* Label in each row: 45% width, text vertically centred within the row */
+.pref-row .key {
+    width: 45%;
+    color: $dim;
+    content-align: left middle;
+}
+
+.pref-section { padding: 0 1; margin-top: 1; color: $accent; text-style: bold; }
+.pref-result { padding: 0 2; width: 100%; height: auto; }
+.pref-note    { padding: 0 1; color: $dim; width: 1fr; }
+
+/* Long text / password inputs: fill remaining width, clearly bordered */
+.pref-input    { width: 1fr; border: round $dim; background: $bg; color: $fg; }
+
+/* Medium inputs: commander names, uploader IDs */
+.pref-input-sm { width: 24; border: round $dim; background: $bg; color: $fg; }
+
+/* Notification level digit (0–3): 1-row, visible via contrasting background */
+.pref-level    { height: 1; width: 3; border: none; background: $border; color: $fg; }
+
+/* Theme selector */
+.pref-select   { width: 1fr; }
+
+/* Accent border on focused input */
+PreferencesScreen Input:focus { border: round $accent; }
+
+/* Notification level selector — compact width, one per event row */
+/* Boolean On/Off selector — just wide enough for "On" / "Off" + arrow */
+.pref-bool-sel  { width: 12; }
+/* Wide enough for the longest option text plus the dropdown arrow.  12 was
+   sized for On/Off and wrapped anything longer — "top-centre" came out as
+   "Cent" / "re" across two lines, and "Reserve" as "Rese" / "rve". */
+.pref-choice    { width: 18; }
+.pref-choice-lg { width: 24; }
+
+/* Notification level selector */
+.pref-notif-sel { width: 22; }
+
+/* Terse hint text below a field */
+.pref-hint { padding: 0 2; color: $dim; height: 1; }
+
+/* Each page's scroll area fills the height beside the column */
+#prefs-outer .pref-page { height: 1fr; }
+
+/* Prevent bare Horizontal containers from expanding inside pref-rows */
+.pref-row > Horizontal { height: auto; width: auto; }
+
+PreferencesScreen Switch { height: 1; }
+PreferencesScreen Button { height: 3; margin-left: 1; }
+
+/* ── Reports screen ──────────────────────────────────────────────────────────── */
+
+#reports-outer {
+    width: 95%;
+    height: 95%;
+    layout: horizontal;
+}
+
+#reports-sidebar {
+    width: 24;
+    height: 100%;
+    background: $block-bg;
+    border: solid $accent;
+}
+
+#reports-sidebar .block-title { width: 100%; }
+
+#reports-content {
+    width: 1fr;
+    height: 100%;
+    background: $block-bg;
+    border: solid $accent;
+}
+
+.reports-sidebar-btn {
+    width: 100%;
+    height: 1;
+    border: none;
+    background: $block-bg;
+    color: $dim;
+    padding: 0 1;
+}
+
+.reports-sidebar-btn:hover    { background: $title-bg; color: $fg; }
+.reports-sidebar-btn.-active  { background: $title-bg; color: $accent; text-style: bold; }
+
+#reports-scroll { height: 1fr; }
+
+/* Section header fused with primary value (HdrRow) */
+.hdr-key {
+    color: $accent;
+    text-style: bold;
+    width: 1fr;
+}
+
+/* Block footer strip — use Static labels, not Buttons */
+.footer-lbl {
+    height: 1;
+    padding: 0 1;
+    color: $dim;
+    background: $title-bg;
+}
+.footer-lbl:hover { color: $accent; }
+
+/* Cargo header: title left, price-source label right — both get block-title bg */
+#cargo-hdr-row {
+    height: auto;
+    layout: horizontal;
+}
+#cargo-title     { width: 1fr; }
+#cargo-price-src { width: auto; text-align: right; }
+
+#cargo-footer, #cmdr-footer, #nav-footer, #radio-footer {
+    height: 1;
+    background: $title-bg;
+}
+
+/* A footer control sizes to its own label.  Without this a Static defaults to
+   filling its Horizontal, so the first control swallows the strip and every
+   control after it is laid out off-screen — visible in the DOM, and reachable
+   by a click test, but never drawn. */
+.footer-lbl { width: auto; }
+
+/* Navigation footer: three controls then a status label taking the slack */
+#nav-follow-lbl { width: 1fr; text-align: right; }
+
+/* Cargo footer: two controls then the target name taking the slack */
+#cargo-target-lbl { width: 1fr; text-align: right; }
+
+/* ── Sell table modal ──────────────────────────────────────────────────────── */
+SellModal { align: center middle; }
+
+#sell-outer {
+    width: 60%;
+    height: 80%;
+    background: $block-bg;
+    border: solid $accent;
+    padding: 1 2;
+}
+
+#sell-title { width: 100%; }
+#sell-hint  { width: 100%; margin-bottom: 1; }
+
+/* The tabs take the slack; each pane's scroller then fills its tab, or the
+   rows are laid out past the bottom of the modal and never drawn. */
+#sell-tabs             { height: 1fr; }
+#sell-tabs TabPane     { height: 1fr; padding: 0; }
+.sell-rows             { height: 1fr; }
+
+.sell-row   { width: 100%; height: 1; background: $block-bg; }
+.sell-name  { width: 1fr; background: transparent; }
+.sell-price { width: 14; text-align: right; background: transparent; }
+
+/* Zebra striping.  $row-alt is derived from $block-bg in core.palette rather
+   than being a palette entry a theme states, so custom themes get it free.
+   It is deliberately NOT $title-bg: that is only six points per channel above
+   the block fill, which a 256-colour terminal quantises onto the same palette
+   entry — the stripe vanished in the terminal while showing perfectly in the
+   Qt window, which is always truecolor.
+
+   The two labels are transparent above so the row's own fill shows through
+   them rather than punching two block-bg holes in the stripe. */
+.sell-row-alt { background: $row-alt; }
+
+/* ── Search modal ──────────────────────────────────────────────────────────── */
+SearchModal { align: center middle; }
+
+#search-outer {
+    width: 70%;
+    height: 70%;
+    background: $block-bg;
+    border: solid $accent;
+    padding: 1 2;
+}
+
+#search-title  { width: 100%; }
+#search-hint   { width: 100%; margin-bottom: 1; }
+#search-input  { width: 100%; margin-bottom: 0; }
+#search-status { width: 100%; height: 1; }
+#search-results { height: 1fr; margin-top: 1; }
+
+.search-result-btn {
+    width: 100%;
+    height: 1;
+    border: none;
+    background: $block-bg;
+    color: $fg;
+    padding: 0 1;
+    text-align: left;
+}
+.search-result-btn:hover { background: $title-bg; color: $accent; }
+
+/* Commander: hdr1 has title-bg but NO bottom border — hdr2 supplies that */
+#cmdr-hdr1 { border-bottom: none; }
+
+/* Crew name row: Horizontal with two Labels acting as block title */
+#crew-name-row {
+    height: auto;
+    background: $title-bg;
+    padding: 0 1;
+    layout: horizontal;
+    border-bottom: solid $border;
+}
+#crew-name-lbl { color: $accent; text-style: bold; width: 1fr; }
+#crew-type-lbl { color: $accent; text-align: right; }
+
+/* Crew rank line: block-title class supplies background + border-bottom */
+#crew-rank-lbl { padding: 0 1; height: 1; }
+
+/* Radio tab.  The station list is collapsed to one row, like the Navigation
+   inputs: the default Select is three rows with a border, which in a centre
+   window leaves no room for the readout beneath it. */
+#radio-panel   { height: 1fr; }
+#radio-select-row { height: auto; margin: 0 0 1 0; }
+#radio-select  { height: auto; width: 1fr; }
+.radio-edit-btn { width: 3; content-align: center middle; }
+#radio-select > SelectCurrent {
+    height: 1;
+    border: none;
+    padding: 0 1;
+    background: $title-bg;
+    color: $accent;
+}
+#radio-select:focus > SelectCurrent { border: none; text-style: bold; }
+#radio-body    { height: 1fr; }
+#radio-problems { height: auto; }
+
+Footer { color: $dim; background: $bg; }
+Header { color: $accent; background: $bg; text-style: bold; }
+
+TabbedContent ContentSwitcher { height: 1fr; }
+TabPane { padding: 0; }
+Tab     { background: $title-bg; color: $dim; }
+Tab.-active { color: $accent; text-style: bold; }
+"""
+
+# ── Colour palettes ────────────────────────────────────────────────────────────
+# The palettes themselves live in core/palette.py so the Qt GUI can render the
+# same themes without importing anything from this module (and therefore
+# without requiring Textual to be installed).  Re-exported under the original
+# private name so nothing else in the TUI needs to change.
+
+from core.palette import PALETTES as _PALETTES  # noqa: E402
+
+
+def _load_custom_palette(css_path) -> dict | None:
+    """Parse a custom theme CSS file and extract a TUI palette dict."""
+    from core.palette import load_custom_palette
+    return load_custom_palette(css_path)
+
+
+def list_custom_themes() -> list[tuple[str, str]]:
+    """Return [(theme_id, stem)] for .css files in themes/custom/."""
+    from core.palette import list_custom_themes as _lct
+    return _lct()
+
+
+def build_css(theme_name: str) -> str:
+    """Return the full CSS string for a given theme name."""
+    # One resolver for both front ends, so a custom theme is found in the same
+    # places — the data directory first — whichever interface is running.
+    from core.palette import palette_for
+    palette = palette_for(theme_name)
+    css = STRUCTURAL_CSS
+    # Column widths come from the layout model so both front ends stay in
+    # step; hard-coding them here let the desktop window drift.
+    from core.layout_model import COLUMN_WIDTH_PCT
+    for col, pct in COLUMN_WIDTH_PCT.items():
+        css = css.replace(f"__COL_{col}__", str(pct))
+    for var, colour in palette.items():
+        css = css.replace(var, colour)
+    return css + "\n" + _height_css()
+
+
+# Map a layout-model window name to its Textual DOM id.  Single source of the
+# id mapping, shared with tui/app.py.
+BLOCK_DOM_ID = {
+    "commander":    "block-commander",
+    "status":       "block-status",
+    "navigation":   "block-nav",
+    "career":       "block-career",
+    "ship_info":    "block-ship",
+    "objectives":   "block-objectives",
+    "exploration":  "block-exploration",
+    # Not a slot of the layout: the Helm panel along the foot (tui/blocks/helm.py).
+    "helm":         "block-helm",
+}
+
+
+def _height_css(assignment=None) -> str:
+    """Per-block ``height`` rules generated from the shared layout model.
+
+    Appended to the themed CSS so block heights follow the standardised size
+    classes and the current position assignment, with each column normalised
+    to 100%.
+    """
+    try:
+        from core import layout_model
+        asn = assignment if assignment is not None else layout_model.load_assignment()
+        cols = layout_model.tui_columns(asn)
+        lines = []
+        for col in layout_model.COLUMNS:
+            for block, pct in cols[col]:
+                dom = BLOCK_DOM_ID.get(block)
+                if dom:
+                    lines.append(f"#{dom} {{ height: {pct}%; }}")
+        return "\n".join(lines)
+    except Exception:
+        return ""

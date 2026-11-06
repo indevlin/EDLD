@@ -1,0 +1,680 @@
+# ==============================================================================
+# ED Live Dashboard (EDLD) - config.toml
+# ==============================================================================
+#
+# HOT-RELOAD: EDLD monitors this file for changes while running.
+# Settings marked [HOT] take effect within ~1 second of saving.
+# Settings marked [RESTART] require restarting EDLD to take effect.
+# ==============================================================================
+
+[Settings]
+
+# [RESTART] Path to Elite Dangerous journal folder.
+# Blank (the default) finds the game's own folder: Saved Games\Frontier
+# Developments\Elite Dangerous on Windows, and the same inside the Steam/Proton
+# prefix on Linux.  Set it for any other place — a network share, a copy, a
+# second account.  Change requires restart as the file handle must reopen.
+# JournalFolder = '\\SOMENETWORKSHARE\Users\me\Saved Games\Frontier Developments\Elite Dangerous'
+# JournalFolder = "/home/username/games/ED-Logs/EDP1"
+# JournalFolder = "C:/Users/YourName/Saved Games/Frontier Developments/Elite Dangerous"
+JournalFolder = ""
+
+# [HOT] Use UTC timestamps instead of local time (Default: false)
+UseUTC = false
+
+# [HOT] Send a warning if kills/hour drop below this amount (Default: 20)
+WarnKillRate = 20
+
+# [HOT] Minutes since last kill before sending a no-kill warning (Default: 20)
+WarnNoKills = 20
+
+# [HOT] Before the session's first kill: minutes at a combat site (RES, nav
+# beacon, conflict zone) without a kill before warning (Default: 5; 0 = off).
+# Timed from the drop, and only while you stay at that site.
+WarnNoKillsInitial = 5
+
+# [HOT] Minutes between repeated inactivity / kill-rate alerts (Default: 15)
+WarnCooldown = 15
+
+# [HOT] Mission stack size that triggers the "stack full" announcement (Default: 20)
+FullStackSize = 20
+
+# [HOT] Maximum number of characters to show in pilot/ship names (Default: 30)
+TruncateNames = 30
+
+# [HOT] Show faction name on each kill (Default: false)
+BountyFaction = false
+
+# [HOT] Show credits earned on each kill (Default: false)
+BountyValue = false
+
+# [HOT] Show extra stats e.g. kill counts and faction tallies (Default: false)
+ExtendedStats = false
+
+# [HOT] Show pirate pilot names in kill/scan messages (Default: false)
+PirateNames = false
+
+# [HOT] Minimum scan stage required to log an outgoing scan (Default: 1)
+MinScanLevel = 1
+
+# [RESTART] Set to false on a second machine reading the same journals: it then
+# uploads nothing to EDDN, EDSM, EDAstro or Inara and draws no overlay, so
+# those services do not get every event twice. The machine running the game
+# should always be true (Default: true). See docs/guides/REMOTE_ACCESS.md.
+PrimaryInstance = true
+
+[Discord]
+
+# [RESTART] Discord webhook URL.
+# The webhook object is built once at startup and cannot be changed on the fly.
+# WebhookURL = 'https://discord.com/api/webhooks/1234567890/your-webhook-token-here'
+WebhookURL = ''
+
+# [RESTART] Your Discord user ID for pings (numbers only).
+# Used to build ping strings at startup. Change requires restart.
+# UserID = 123456789098765432
+UserID = 0
+
+# [RESTART] Set true if the webhook targets a forum channel (enables thread support)
+ForumChannel = false
+
+# [RESTART] Append a timestamp to Discord messages (Default: true)
+Timestamp = true
+
+# [RESTART] Use EDLD's default webhook name and avatar (Default: true)
+# Set false to use the name/avatar configured in Discord's webhook settings.
+Identity = true
+
+# [HOT] Prepend the commander name to every Discord message (Default: false)
+PrependCmdrName = false
+
+# [RESTART] Use commander names as forum thread names (Default: false)
+ThreadCmdrNames = false
+
+[LogLevels]
+# All notification levels are [HOT] - changes take effect on the next matching event.
+#
+# 0 = None
+# 1 = Local only (no Discord)
+# 2 = Local + Discord
+# 3 = Local + Discord with @mention ping
+
+RewardEvent      = 2   # Each kill — bounty or combat bond
+FighterDamage    = 2   # Fighter hull integrity loss (~20% increments)
+FighterLost      = 3   # Fighter destroyed
+ShieldEvent      = 3   # Ship shield dropped or raised
+HullEvent        = 3   # Ship hull damage
+Died             = 3   # Ship destroyed
+CargoLost        = 3   # Cargo stolen
+CapiAuthRequired = 3   # Notifies on expired CAPI Authorization
+LowCargoValue    = 2   # NPC declined to attack due to low cargo value
+PoliceScan       = 2   # Security vessel scanned your ship
+PoliceAttack     = 3   # Security vessel is attacking you
+FuelStatus       = 1   # Routine fuel level report
+FuelWarning      = 2   # Fuel below warning threshold
+FuelCritical     = 3   # Fuel below critical threshold
+MissionUpdate    = 2   # Mission accepted, completed, redirected, or removed
+AllMissionsReady = 3   # All active massacre missions ready to turn in
+MeritEvent       = 0   # Individual merit gain from a kill (powerplay only)
+InactiveAlert    = 3   # No kills for the configured time period
+RateAlert        = 3   # Kill rate below the configured threshold
+InboundScan      = 1   # Incoming cargo scan from a pirate
+RouteWarning     = 2   # Route warnings: wrong target, permit, no scoop, dry stretch, re-plot
+SurveyArrival    = 1   # Arriving at a survey-route system: what is left to do
+ExploTarget      = 1   # Targeted system: unreported, unscanned or done
+FirstsWatch      = 2   # Firsts: undiscovered, first mapped, untrodden; and your unsold discoveries scanned by someone else
+MiningCallout    = 1   # Prospector hits, motherlodes and rings you watch for
+MiningWarning    = 2   # Limpets forgotten, hold nearly full
+ExobioCallout    = 1   # Safe to sample; a species new to your codex here
+ExobioWarning    = 2   # Leaving an unfinished sample run
+CarrierUpkeep    = 3   # Carrier upkeep running low
+Automation       = 1   # Auto honk and auto-target reports
+PeriodicKills    = 2   # Kill count in the quarter-hour summary
+PeriodicFaction  = 0   # Faction kill breakdown in the quarter-hour summary
+PeriodicCredits  = 2   # Credits earned in the quarter-hour summary
+PeriodicMerits   = 2   # Merits earned in the quarter-hour summary (powerplay only)
+
+# Fleet / squadron carrier jump lifecycle.  A scheduled jump locks the carrier
+# down for ~15 minutes: nothing can dock, and anyone aboard is going with it.
+CarrierJumpScheduled = 3   # Jump scheduled — carrier, destination, countdown
+CarrierJumpCancelled = 3   # A scheduled jump was cancelled
+CarrierJumpComplete  = 2   # Carrier arrived at its destination
+
+# ── CAPI ─────────────────────────────────────────────────────────────────────
+# Frontier's Companion API.  Enable it from Options rather than here: the
+# OAuth flow has to run to obtain a token, and the key below only gates
+# whether EDLD polls once one exists.
+#
+[CAPI]
+Enabled = false
+
+# ── Colonisation ─────────────────────────────────────────────────────────────
+# Local tracking of construction site requirements and delivery progress needs
+# no key.  Supplying a Raven Colonial key additionally syncs your
+# contributions with that community project.  Experimental.
+#
+[Colonisation]
+ApiKey = ""
+
+# ── UI ───────────────────────────────────────────────────────────────────────
+# The EDLD dashboard.  Four interfaces over the same windows and data:
+#   edcars    desktop window, EDCARS layout (default; needs PySide6)
+#   gui       desktop window, Dashboard layout (needs PySide6)
+#   textual   terminal dashboard
+#   terminal  plain scrolling output
+# (and headless, for running as a service).
+#
+[UI]
+Interface    = "edcars"        # what EDLD opens when started without a flag:
+                               # edcars | gui | textual | terminal | headless
+                               # Starting an interface by its flag or shortcut
+                               # sets this too, so a plain launch opens the one
+                               # you used last (headless and -s alone excepted).
+                               # CLI: --edcars | --dashg or --gui |
+                               #      --dasht or --tui | --term or --text
+                               # (or --mode edcars|gui|textual|terminal|headless)
+                               # Replaces the old Mode and Style keys.
+Theme        = "default"       # built-in: "elite-orange", "default",
+                               #           "default-dark", "default-light",
+                               #           "default-blue", "default-green",
+                               #           "default-purple", "default-red",
+                               #           "default-yellow", "order",
+                               #           "rebel", "rogue"
+                               # custom:   "custom/mytheme"
+                               #           (copy themes/custom-template.css to
+                               #            <data>/themes/custom/mytheme.css;
+                               #            see docs/THEMING.md)
+EdcarsAlerts = "pulse"         # EDCARS, on a new urgent alert: "pulse" the
+                               # Alerts pill, or "switch" to the Alerts section
+                               # as well
+Console      = "edcars"        # EDCARS, the console it is drawn as: "edcars",
+                               # "order" (Imperial steel), "rebel" (Rebel
+                               # consoles) or "rogue" (a freighter's
+                               # cockpit).  Each of the last three has a theme
+                               # of the same name.  Used from the next start
+HelmPanel    = true            # the Dashboard layouts: the Helm panel (the
+                               # game's controls and EDLD's automation) along
+                               # the foot while [Automation] is on.  EDCARS
+                               # always has it, as a section.
+# ==============================================================================
+# Data contributions (opt-in)
+# ==============================================================================
+# These sections enable uploading your journal data to community databases.
+# All are opt-in and disabled by default.
+# All require a restart when changed.
+# ==============================================================================
+
+# ── EDDN (Elite Dangerous Data Network) ─────────────────────────────────────
+# Contributes exploration, market, outfitting, and shipyard data to the shared
+# EDDN relay used by EDSM, Inara, and most third-party tools.
+
+[EDDN]
+Enabled    = false
+# Overrides the anonymised uploader id EDLD derives from your commander name.
+# Leave blank unless you have a reason to pin it.
+UploaderID = ""
+TestMode   = false   # send to /test schemas only (development use)
+
+# ── EDSM (Elite Dangerous Star Map) ─────────────────────────────────────────
+# Uploads your flight log and discoveries to edsm.net.
+# Requires an EDSM account.  Generate your API key at:
+#   https://www.edsm.net/en/settings/api
+
+[EDSM]
+Enabled       = false
+ApiKey        = ""                 # from EDSM Settings → API Key
+# Commander name is sourced from your journal — no CommanderName setting.
+
+# ── EDAstro ──────────────────────────────────────────────────────────────────
+# Uploads exploration, Odyssey organic scan, and fleet carrier data to edastro.com.
+# Anonymous — no account or API key required.
+
+[EDAstro]
+Enabled             = false
+UploadCarrierEvents = false   # set true to include CarrierStatus / CarrierJumpRequest
+                              # note: this shares your carrier's location with EDAstro
+
+# ── Inara ────────────────────────────────────────────────────────────────────
+# Uploads commander stats, market visits, and fleet data to inara.cz.
+# Requires an Inara account.  Generate your API key at:
+#   https://inara.cz/elite/settings-api/
+
+[Inara]
+Enabled       = false
+ApiKey        = ""                 # from Inara Settings → API Key
+# Commander name is sourced from your journal — no CommanderName setting.
+
+# ==============================================================================
+# Session Management  [SessionMgmt]      ⚠  SOLO MODE ONLY
+# ==============================================================================
+# Optional and opt-in. Terminates the Elite Dangerous process when a trigger
+# below fires. HARD-GATED to Solo play — it never acts in Open or Private Group
+# (force-quitting in multiplayer is combat-logging). Off by default; set the
+# master switch to enable. Toggle at runtime with Ctrl+K.
+# See docs/guides/SESSION_MANAGEMENT.md   [HOT] all keys re-read live.
+# ==============================================================================
+[SessionMgmt]
+# Master enable — leave false to keep every trigger inert.
+Enabled                = false
+
+# Triggers, each off until set:
+QuitOnSLFDead          = false   # quit when your ship-launched fighter dies in a fight
+QuitOnLowFuel          = false   # quit on low main-tank fuel
+QuitOnLowFuelPercent   = 20      # fire at/below this fuel %
+QuitOnLowFuelMinutes   = 0       # also require <= this burn-time (min); 0 = % only
+QuitFuelSCGraceSeconds = 60      # no fuel quit in supercruise / this long after exit
+QuitOnLowHull          = false   # quit on low hull (the SRV's while driving)
+QuitOnLowHullThreshold = 10      # fire at/below this hull %
+QuitOnNoKillsMinutes   = 0       # quit after this many minutes at a RES without a kill; 0 = off
+
+# Remote termination — for a [REMOTE]-style monitor instance that kills the game
+# on another machine over SSH. Blank host terminates locally.
+RemoteKillHost         = ""
+RemoteKillUser         = ""
+
+# To enable it for one commander only, set it in that profile (bottom of file).
+
+# ── Surface Mining Survey ─────────────────────────────────────────────────────
+# Planetary mining deposits are recorded automatically as you work them — the
+# game emits no event carrying a position, so EDLD joins each refine to where
+# Status.json says you were standing.  None of that needs configuring.
+#
+# This section is the optional other half: publishing your survey to a Google
+# Sheet and reading back what other commanders found.  Setup is in
+# sheets/README.md — you need a sheet with sheets/Loader.gs pasted into its
+# Apps Script, and the URL and token it gives you.  The sheet upgrades itself
+# from its own ED Dashboard > Upgrade menu.  Experimental.
+#
+[SurfaceSurvey]
+Enabled          = false   # master switch for sharing; recording works regardless
+
+WebAppURL       = ""      # "https://script.google.com/macros/s/.../exec"
+Token           = ""      # the sheet's shared secret (ED Dashboard > Set sheet token); treat it as a password
+ReporterName    = ""      # fills the reported_by column; blank publishes anonymously
+
+Fetch           = true    # read other commanders' deposits on arriving at a body
+MarkFindsAsTest = false   # flag everything recorded from now on as test data
+IncludeTest     = false   # publish flagged rows too
+BatchSize       = 200     # deposits per request; Sheets allows ~60 writes/minute
+
+AutoConfirm     = true    # driving onto a known deposit refreshes its date
+ConfirmMetres   = 25.0    # how close that has to be
+
+# ── Streamer Stats Overlay ────────────────────────────────────────────────────
+# Small always-on-top windows drawn over the game — the subset of the dashboard
+# worth putting on camera.  Off by default.
+#
+# Linux needs a running compositor (picom or equivalent) for transparency; i3
+# and other non-compositing window managers do not start one, and without it the
+# overlay paints an opaque panel instead.  Supported on X11, experimental on
+# Windows, and impossible on Wayland, which does not let a client request
+# always-on-top.  Nothing draws over exclusive fullscreen on any platform — run
+# the game borderless windowed.
+#
+# Check what a machine can do:  edld.py --overlay-probe
+# Ask why nothing is showing:   edld.py --overlay-doctor
+#
+[Overlay]
+Enabled       = false
+
+# Placement.  Margin is the gap between the monitor edge and the window; Pad is
+# the gap inside it, between the window edge and the text.  Window height is not
+# a setting — each window grows to fit what it is drawing.
+Anchor         = "top-centre"   # top-left|top-centre|top-right|bottom-left|bottom-centre|bottom-right
+Monitor        = 0              # 0-indexed; clamps to the last screen
+Width          = 720            # width of the top bar, which sets where its zones align
+MarginX        = 0
+MarginY        = 40
+PadX           = 16
+PadY           = 8
+DockWidth      = 260            # width of the left/right docked windows
+DockTop        = 140            # monitor top edge to the top of a dock
+
+# Appearance.
+ColourTheme    = "elite-orange" # any EDLD palette, a custom theme ("custom/name"),
+                                # "dashboard" to follow the dashboard's, or "custom" to use
+                                # the three colours under [OverlayPanels]
+FontFamily     = ""             # any installed family, plus anything in fonts/ or <data>/fonts/
+Opacity        = 0.85
+Scale          = 1.0
+ShadowOffset   = 1              # 0-2 px; 0 disables the text shadow
+ShadowStrength = 0.85           # multiplied by Opacity
+
+# Visibility tweaks, for text hard to read over the game.  All off by default.
+Outline         = false         # a ring round every letter
+BackingPanel    = false         # a translucent panel behind each overlay panel
+SolidText       = false         # Opacity fades the backing, never the text
+ContrastFloor   = false         # lift any colour too faint to read, keeping its hue
+EmphasiseValues = false         # values in the value colour, bold
+
+# Auto-hide: the whole overlay steps aside while any of these holds.
+HideInCombat   = false
+HideDocked     = false
+HideOnFoot     = false
+
+# Survey compass, when that panel is shown.
+MaxTargets     = 4              # nearest deposits listed in it, 1-9
+
+# ── Overlay panels ────────────────────────────────────────────────────────────
+# Which panels appear, where, and what they show.  Easier to set in
+# Options → Overlay than by hand — it lists every panel your components
+# offer, which is not a fixed set.
+#
+# One key per panel per attribute:
+#   PanelZone_<panel>   left | centre | right | dock-left | dock-right
+#   PanelMode_<panel>   on | off | auto   (auto lets the panel decide if it applies)
+#   PanelOrder_<panel>  1-9, position within its zone
+#   PanelScope_<panel>  session | career | both   (only where both figures exist)
+#
+[OverlayPanels]
+HideMode    = "reserve"   # reserve keeps a hidden panel's space; collapse closes it up
+
+# Type, used by every panel.
+TitleSize   = 12
+BodySize    = 13
+
+# Only consulted when ColourTheme is "custom".
+TitleColour = "#7aa2d2"
+LabelColour = "#9aa4b2"
+ValueColour = "#cfd6e4"
+
+# The four panels EDLD itself offers, as they start: placed, and off.
+PanelZone_cargo           = "left"
+PanelMode_cargo           = "off"
+PanelOrder_cargo          = 1
+PanelZone_commander       = "left"
+PanelMode_commander       = "off"
+PanelOrder_commander      = 2
+PanelZone_ship            = "right"
+PanelMode_ship            = "off"
+PanelOrder_ship           = 1
+PanelZone_survey_compass  = "centre"
+PanelMode_survey_compass  = "off"
+PanelOrder_survey_compass = 1
+
+# Components add panels of their own (combat, income, mining…), off until
+# placed.  For example, income on the right, career with the session beside it:
+# PanelZone_income  = "right"
+# PanelMode_income  = "on"
+# PanelOrder_income = 2
+# PanelScope_income = "both"     # session | career | both
+
+# ── Radio ────────────────────────────────────────────────────────────────────
+# Stations for the Radio tab in the Crew / Alerts window.  [HOT] — the station
+# list updates within a second of saving.  Nothing plays until you press play.
+#
+# The + and − beside the tab's station list add and delete stations here for
+# you, touching only those stations' lines.  Or edit by hand, as follows.
+#
+# Two keys per station, joined by an Id of your choosing (letters, digits,
+# _ and -; no spaces):
+#   Name_<Id>   what the station list shows
+#   Url_<Id>    the stream address (http:// or https://; .m3u/.pls also work)
+#
+# Streams must be MP3, Ogg Vorbis or FLAC.  AAC and Opus stations are listed
+# but report "not supported" when played.
+#
+# To add a station, add a pair here, or in a profile to have it only there:
+#   [EDP1]
+#   Radio.Name_MyStation = "My Station"
+#   Radio.Url_MyStation  = "https://example.org:8000/stream"
+#
+# To hide a station, set its Url to "".  Deleting the lines is not enough for
+# the three below: EDLD puts missing defaults back into this section.
+#
+[Radio]
+Name_RadioSidewinder = "Radio Sidewinder"
+Url_RadioSidewinder  = "https://radiosidewinder.out.airtime.pro:8000/radiosidewinder_b"
+Name_HuttonOrbital   = "Hutton Orbital Radio"
+Url_HuttonOrbital    = "https://quincy.torontocast.com/hutton"
+Name_RadioSkvortsov  = "Radio Skvortsov"
+Url_RadioSkvortsov   = "https://cast1.torontocast.com:3225/stream"
+
+# ==============================================================================
+# [Server] — the EDAM mobile client
+# ==============================================================================
+# Lets paired phones and tablets show this EDLD's commander, ship, session and
+# career figures.  Off unless Enabled is true or EDLD is started with -s.
+# Pair a device with:  edld --pair   (list with --paired, remove with --unpair)
+# Nothing is sent to any device you have not paired.  See docs/SERVER.md.
+#
+# Port            the TCP port devices connect to.  To use the app away from
+#                 home, forward this port on your router to this computer.
+#                 Two profiles running at once need two different ports.
+# BindAddress     blank listens on every interface, IPv6 and IPv4.
+# ExternalHost    how devices reach you from outside, e.g. yourname.duckdns.org
+#                 or yourname.duckdns.org:28510.  Only written into pairing
+#                 codes; EDLD never looks it up or connects to it.
+# AllowEndSession let a paired device end the game session.  Solo mode only,
+#                 the same rule as session management's own triggers.
+# PortMapping     ask the router to forward Port to this computer, by UPnP or
+#                 NAT-PMP, and remove the forward when EDLD exits.  Instead of
+#                 setting up port forwarding by hand; it does nothing if your
+#                 router has UPnP switched off.
+# DuckDNSDomain   keep a DuckDNS name (yourname, or yourname.duckdns.org)
+# DuckDNSToken    pointed at this connection.  Leave both blank if your router
+#                 or DuckDNS's own updater already does it.  With a domain and
+#                 no ExternalHost, pairing codes use yourname.duckdns.org.
+[Server]
+Enabled         = false
+Port            = 28510
+BindAddress     = ""
+ExternalHost    = ""
+AllowEndSession = false
+PortMapping     = false
+DuckDNSDomain   = ""
+DuckDNSToken    = ""
+
+# ==============================================================================
+# [Dossier] — documents about this commander  [HOT]
+# ==============================================================================
+# A web page and Markdown files under <data>/commanders/<FID>/dossier/: the
+# commander record, the fleet with every ship's fitting, stored modules,
+# engineering, fleet carrier, survey and mining, and on-foot kit.  Rewritten
+# as things change.  See docs/DOSSIER.md.
+#
+# Enabled                 write the dossier at all
+# IncludeCurrentLocation  where you, your current ship and your fleet carrier
+#                         are now, and the carrier's jump history.  Stored
+#                         ships are always listed where they are kept.
+# IncludeBalance          credit balance, total wealth and the carrier's bank
+[Dossier]
+Enabled                = true
+IncludeCurrentLocation = false
+IncludeBalance         = false
+
+# ==============================================================================
+# [Navigation] — following a route  [HOT]
+# ==============================================================================
+# Checks on the route being followed, whether EDLD or the game plotted it.
+# Where each message goes is set by RouteWarning and SurveyArrival under
+# [LogLevels].
+[Navigation]
+AutoReplot      = true    # plot FSD, exact and neutron routes again from where you
+                          # are after leaving the route or changing ship
+WarnWrongTarget = true    # say so when the system targeted is not the next on the route
+CheckPermits    = true    # look a plotted route's systems up for permit locks
+SurveyArrival   = true    # on arriving at a survey stop, say what is left to do there
+
+# ==============================================================================
+# [Callouts] — spoken-style notices and their chimes  [HOT]
+# ==============================================================================
+# Each callout's switch.  Where it goes (terminal, Discord, ping) is its level
+# under [LogLevels]: FirstsWatch, ExploTarget, ExobioCallout, ExobioWarning,
+# MiningCallout, MiningWarning.
+[Callouts]
+Sounds        = true      # play a short chime with a callout
+Volume        = 70        # chime volume, %
+TargetSound   = true      # a chime on targeting a system: new · unscanned · done
+
+# Exploration
+FirstsWatch   = true      # undiscovered systems, unmapped worlds, untrodden ground
+
+# Exobiology
+CodexCallout  = true      # a genus new to your codex in this region
+UnfinishedRun = true      # leaving a body with a sample run unfinished
+SafeToSample  = true      # far enough from earlier samples for the next
+
+# Mining
+ProspectorMinerals = "Platinum, Painite, Low Temperature Diamonds, Tritium, Osmium, Palladium, Gold"
+ProspectorPercent  = 20   # call out a watched mineral at this share or more
+Motherlodes        = true # call out motherlodes (core material)
+HoldWarning        = true # the hold nearly full, and full
+RingCallout        = true # describe a ring on dropping into it
+
+# Limpets: undocking with a limpet controller fitted and no limpets aboard.
+# A ship with no controller is never reminded; each type has its own switch,
+# whatever its size and class.
+LimpetReminder        = true
+LimpetProspector      = true
+LimpetCollection      = true
+LimpetMining          = true   # mining multi-limpet
+LimpetOperations      = true   # operations multi-limpet
+LimpetRescue          = true   # rescue multi-limpet
+LimpetXeno            = true   # xeno multi-limpet
+LimpetUniversal       = true   # universal multi-limpet
+LimpetRepair          = true
+LimpetFuelTransfer    = true
+LimpetHatchBreaker    = true
+LimpetDecontamination = true
+LimpetRecon           = true
+LimpetResearch        = true
+
+# ==============================================================================
+# [Automation] — pressing the game's keys  [HOT]
+# ==============================================================================
+# Off until Enabled is true.  Presses your own bindings, read from the game's
+# files — keys, and mouse buttons 1-5 while the pointer is over the game — and
+# only while the game has the focus.  Options → Automation → Check bindings
+# says what each feature needs and what to change.  The Helm panel puts these
+# and the game's own controls on buttons.  See docs/AUTOMATION.md.
+[Automation]
+Enabled       = false
+AssumeFocus   = false          # for desktops that cannot say which window is in front
+BindingsDir   = ""             # blank: found from the journal folder
+
+# Auto honk, only in systems you have never honked or mapped.
+AutoHonk      = false
+HonkTrigger   = "PrimaryFire"  # PrimaryFire | SecondaryFire
+HonkFireGroup = 0              # the scanner's fire group, 1-8; 0 = the one selected
+
+# Neutron routes: after a supercharge, plot the galaxy map to the next stop.
+AutoTarget    = false
+PlotScript    = ""             # blank: the built-in galaxy-map sequence
+
+# The Helm panel, on EDAM: let paired devices press keys too.  EDLD's own
+# Helm panel needs only Enabled.
+AllowControl  = false          # let paired devices press keys
+
+# ==============================================================================
+# [Backups] — journal backups  [HOT]
+# ==============================================================================
+# A compressed copy of every journal, at startup, hourly and when the game
+# shuts down.  Copies are never deleted.
+[Backups]
+Enabled = true
+Folder  = ""                   # blank: journal-backups in EDLD's data folder
+
+# ==============================================================================
+# [EDSMGaps] — filling gaps in the EDSM flight log
+# ==============================================================================
+# Options → EDSM Log → Find and fill gaps compares your journals' jumps with
+# EDSM's flight log over this many days and sends EDSM the ones it lacks.
+[EDSMGaps]
+Days = 30
+
+# ==============================================================================
+# Custom profiles (advanced)
+# ==============================================================================
+# Profiles override any setting above for a specific commander or use case.
+# Load a profile with:  edld.py -p ProfileName
+# Or name the profile after your commander for automatic selection at startup.
+# A profile holds only what differs; everything else comes from above.  Write
+# each setting as Section.Key.  (A [Profile.Section] table works too, and EDLD
+# turns it into Section.Key lines on its next start, keeping your comments.)
+#
+# [RESTART] Profile selection requires a restart.
+# Individual settings within a profile follow the same HOT/RESTART rules above.
+# ==============================================================================
+
+# Windows example:
+[EDP1]
+Settings.JournalFolder = "C:/Users/YourName/Saved Games/Frontier Developments/Elite Dangerous"
+Discord.UserID         = 123456789098765432
+Discord.WebhookURL     = 'https://discord.com/api/webhooks/1234567890/your-webhook-token-here'
+# Session management for this commander only:
+SessionMgmt.Enabled              = false   # true to turn it on for EDP1 alone
+SessionMgmt.QuitOnLowFuel        = true
+SessionMgmt.QuitOnLowFuelPercent = 15
+
+# Linux example:
+[EDP2]
+Settings.JournalFolder = "/home/username/games/ED-Logs/EDP1"
+Discord.UserID         = 123456789098765432
+Discord.WebhookURL     = 'https://discord.com/api/webhooks/1234567890/your-webhook-token-here'
+# Server.Port          = 28511   # two profiles serving at once need two ports
+
+
+# ==============================================================================
+# [REMOTE] profile — dashboard front-end for remote monitoring
+# ==============================================================================
+# Used when running EDLD on a second machine (e.g. a laptop) against a game
+# machine's journal directory, mounted via sshfs.
+#
+# Discord is intentionally disabled — the game machine's EDLD instance handles
+# all webhook output — and PrimaryInstance = false stops this instance repeating
+# the game machine's EDDN, EDSM, EDAstro and Inara uploads. Every notification
+# is kept to this machine's terminal (level 1) or off (0).  The game machine
+# runs the automation and the backups; this one does neither.
+#
+# See docs/guides/REMOTE_ACCESS.md for full setup instructions.
+# ==============================================================================
+
+[REMOTE]
+Settings.JournalFolder   = "/home/username/mnt/ed-journals"
+Settings.PrimaryInstance = false   # no EDDN/EDSM/EDAstro/Inara uploads, no overlay
+UI.Interface             = "textual"   # a remote dashboard in a terminal
+UI.Theme                 = "default"
+Discord.WebhookURL       = ""
+Discord.UserID           = 0
+Discord.Identity         = false
+Automation.Enabled       = false
+Backups.Enabled          = false
+Callouts.Sounds          = false
+LogLevels.InboundScan          = 1
+LogLevels.RewardEvent          = 1
+LogLevels.FighterDamage        = 1
+LogLevels.FighterLost          = 1
+LogLevels.ShieldEvent          = 1
+LogLevels.HullEvent            = 1
+LogLevels.Died                 = 1
+LogLevels.CargoLost            = 1
+LogLevels.LowCargoValue        = 1
+LogLevels.PoliceScan           = 1
+LogLevels.PoliceAttack         = 1
+LogLevels.FuelStatus           = 1
+LogLevels.FuelWarning          = 1
+LogLevels.FuelCritical         = 1
+LogLevels.MissionUpdate        = 1
+LogLevels.AllMissionsReady     = 1
+LogLevels.MeritEvent           = 1
+LogLevels.InactiveAlert        = 1
+LogLevels.RateAlert            = 1
+LogLevels.PeriodicKills        = 1
+LogLevels.PeriodicFaction      = 0
+LogLevels.PeriodicCredits      = 1
+LogLevels.PeriodicMerits       = 1
+LogLevels.CapiAuthRequired     = 1
+LogLevels.CarrierJumpScheduled = 1
+LogLevels.CarrierJumpCancelled = 1
+LogLevels.CarrierJumpComplete  = 1
+LogLevels.RouteWarning         = 1
+LogLevels.SurveyArrival        = 1
+LogLevels.ExploTarget          = 1
+LogLevels.FirstsWatch          = 1
+LogLevels.MiningCallout        = 1
+LogLevels.MiningWarning        = 1
+LogLevels.ExobioCallout        = 1
+LogLevels.ExobioWarning        = 1
+LogLevels.CarrierUpkeep        = 1
+LogLevels.Automation           = 1

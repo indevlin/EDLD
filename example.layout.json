@@ -1,0 +1,32 @@
+{
+  "_comment": [
+    "Example window arrangement, in the same format as the windows.json EDLD",
+    "writes to your commander's data directory. Copy it there to use it, or",
+    "arrange the windows in Options → Display and let EDLD write its own.",
+    "",
+    "Slots are addressed <column><position>: A/B/C left to right, numbered top",
+    "to bottom. A window may only occupy a slot of its own size class -- panel,",
+    "compact or anchor -- so Alerts and Crew/SLF (compact) belong in B2/B3 and",
+    "Commander (anchor) in B1. Anything invalid is dropped on load and the slot",
+    "falls back to its default.",
+    "",
+    "The set below is the shipped default: the left column split evenly between",
+    "Exploration and Navigation, both of which grow large in use.",
+    "",
+    "Several windows no longer exist on their own, having been folded into",
+    "others -- Assets into Commander's tabs, Exobiology into Exploration, the",
+    "massacre stack into Session, and Colonisation into Cargo. Naming one of",
+    "those here does nothing. Windows left unlisted are simply not shown;",
+    "Options → Display lists everything available."
+  ],
+  "version": 2,
+  "slots": {
+    "A1": "exploration",
+    "A2": "navigation",
+    "B1": "commander",
+    "B2": "status",
+    "B3": "objectives",
+    "C1": "ship_info",
+    "C2": "career"
+  }
+}

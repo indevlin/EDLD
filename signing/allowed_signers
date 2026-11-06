@@ -1,0 +1,12 @@
+# Keys that sign EDLD release manifests, in OpenSSH allowed_signers format.
+#
+#   ssh-keygen -Y verify -f signing/allowed_signers -I indevlin-vcs@indevlin.com \
+#       -n edld.release -s EDLD-<version>.sha256.sig < EDLD-<version>.sha256
+#
+# The principal is a label, not a mailbox that is checked: a signature names a
+# key and a namespace, never a person, so relabelling a key changes nothing
+# about what it has already signed. A retired key stays listed here for as
+# long as releases it signed are on the releases page; the key that signs new
+# releases is also signing/id_ed25519_signing.pub. See docs/SIGNING.md.
+indevlin-vcs@indevlin.com namespaces="edld.release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA31v6nruDArxZPO43F99b5gH4PkPWLuoOsYa+4gOZ9Z indevlin-edld-release
+indevlin-vcs@indevlin.com namespaces="edld.release" ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAICtVVgtwv5YgR2sR5BHjd2Naea3la3aAcyxrOh4txOL8 indevlin-vcs@indevlin.com

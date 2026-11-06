@@ -1,0 +1,455 @@
+/**
+ * EDLD surface survey — Google Sheets receiver.
+ *
+ * Deploy this bound to the spreadsheet you want deposits written to. EDLD
+ * POSTs batches of deposits here; this script decides what is new, what has
+ * changed, and what to ignore.
+ *
+ * Not pasted into a sheet on its own any more. This file, Dashboard.gs and
+ * Upgrade.gs are bundled by build_dashboard.py into edld_sheet.js, which
+ * Loader.gs — the one file a sheet owner pastes — installs and upgrades from
+ * the sheet's own menu. Setup is in sheets/README.md.
+ *
+ * Why the dedupe lives here rather than in EDLD
+ * ---------------------------------------------
+ * A squadron sheet has several commanders writing to it, and none of them can
+ * see the others' local stores. Only the sheet knows what is already in the
+ * sheet. Put the check on the client and two commanders who find the same
+ * deposit in the same evening both append it, because each was right about
+ * what it had seen. Here, LockService serialises them and the second one
+ * updates the first one's row.
+ *
+ * Matching is exact string equality on deposit_id. EDLD works out the geometry
+ * — same system, same body, same commodity, within 200 m — and hands over a
+ * stable id. This script never needs to know a deposit has moved a few metres.
+ */
+
+// ── Configuration ────────────────────────────────────────────────────────────
+
+/**
+ * Shared secret. EDLD sends it as "Authorization: Bearer <token>"; Apps Script
+ * strips that header from web app requests, so it is re-sent in the body too
+ * and read from there.
+ *
+ * It lives in the script's properties, set from the sheet with ED Dashboard >
+ * Set sheet token, not in this file. An upgrade replaces this file, and a
+ * token written into it would be replaced along with it — every commander's
+ * configured token would stop working at once. Change it to revoke access:
+ * anyone holding the old one stops being able to write, and the URL does not
+ * have to change.
+ */
+var TOKEN_PROPERTY = 'EDLD_TOKEN';
+
+function _token() {
+  return String(PropertiesService.getScriptProperties()
+                  .getProperty(TOKEN_PROPERTY) || '');
+}
+
+/** Sheet tab that deposits are written to. Created if absent. */
+var SHEET_NAME = 'Deposits';
+
+/**
+ * Column order. This is a contract with core/sheets_publish.py — the client
+ * sends objects, this array decides where each value lands, so adding a field
+ * means appending here and in the client's COLUMNS. Never reorder: existing
+ * rows are positional.
+ */
+var COLUMNS = [
+  'deposit_id',
+  'system',
+  'system_address',
+  'body',
+  'body_id',
+  'planet_class',
+  'gravity',
+  'body_radius_m',
+  'atmosphere',
+  'volcanism',
+  'signal_no',
+  'commodity',
+  'latitude',
+  'longitude',
+  'density_claimed',
+  'density_observed',
+  'amount',
+  'rigs',
+  'refine_count',
+  'first_seen',
+  'last_confirmed',
+  'reported_by',
+  'is_test',
+  'depleted_on',
+  'notes',
+  'notes_updated',
+  'assessment_updated'
+];
+
+/**
+ * Fields a later report is allowed to overwrite on an existing row.
+ *
+ * notes is not here. It is a commander's writing rather than an observation,
+ * so a newer sighting of the site says nothing about whether the note is
+ * current; it has its own timestamp, notes_updated, and _update() lets the
+ * newer of those win outright — even when the newer note is blank, because
+ * that is how its author withdraws it.
+ */
+var MUTABLE = [
+  'rigs', 'refine_count',
+  'last_confirmed', 'signal_no', 'planet_class', 'gravity', 'body_radius_m',
+  'atmosphere', 'volcanism', 'system', 'body'
+];
+
+/**
+ * Assessments: what the HUD said the site holds. A later report fills them
+ * only where they are blank. They are replaced only by a correction — a
+ * report whose assessment_updated is newer than the row's — so a commander
+ * who merely drives onto a site cannot put back a value somebody fixed.
+ *
+ * Nothing here is ever "Depleted". A worked-out site is recorded by its
+ * depleted_on date alone, and the latest date wins; older sheets that wrote
+ * the word into amount have it cleared the next time the row is touched.
+ */
+var ASSESSED = ['amount', 'density_observed', 'density_claimed'];
+
+// ── Entry points ─────────────────────────────────────────────────────────────
+
+function doPost(e) {
+  try {
+    var body = JSON.parse((e && e.postData && e.postData.contents) || '{}');
+
+    var token = _token();
+    if (!token) {
+      return _json({ ok: false, error: 'server token not configured — in the ' +
+                     'sheet, run ED Dashboard > Set sheet token' });
+    }
+    if (String(body.token || '') !== token) {
+      return _json({ ok: false, error: 'bad token' });
+    }
+
+    if (body.ping) {
+      // What is installed, so EDLD's Test connection can say which side is
+      // behind rather than only that something is.
+      return _json({
+        ok: true, pong: true, columns: COLUMNS.length,
+        version: typeof EDLD_VERSION === 'undefined' ? '' : EDLD_VERSION,
+        sheet_version: Number(PropertiesService.getDocumentProperties()
+                                .getProperty('EDLD_SHEET_VERSION') || 0)
+      });
+    }
+
+    // Read: everything this sheet knows about one body.
+    //
+    // The write half alone made the survey a place to send data and never a
+    // place to get any, which left the in-game compass pointing only at
+    // deposits the commander had already found — something the game's own HUD
+    // already shows them. The point of a shared sheet is the deposits somebody
+    // else found.
+    if (body.fetch) {
+      return _json(_read(body.fetch));
+    }
+
+    // Removal. EDLD only ever asks for this when the commander is standing at
+    // the deposit, which is the closest thing to proof that they know what
+    // they are removing.
+    if (body.delete) {
+      return _json(_remove(body.delete));
+    }
+
+    var deposits = body.deposits;
+    if (!deposits || !deposits.length) {
+      return _json({ ok: true, added: 0, updated: 0, unchanged: 0 });
+    }
+
+    return _json(_write(deposits));
+  } catch (err) {
+    // Returned rather than thrown: a thrown error becomes an HTML error page
+    // that the client cannot parse, so the failure would reach EDLD as
+    // "unreadable response" instead of as what actually went wrong.
+    return _json({ ok: false, error: String(err) });
+  }
+}
+
+function doGet() {
+  return _json({ ok: true, service: 'EDLD surface survey', columns: COLUMNS.length });
+}
+
+// ── Writing ──────────────────────────────────────────────────────────────────
+
+function _read(query) {
+  var sheet = _sheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, deposits: [] };
+
+  var sysCol = COLUMNS.indexOf('system_address');
+  var bodyCol = COLUMNS.indexOf('body_id');
+  var testCol = COLUMNS.indexOf('is_test');
+
+  var wantSys = String(query.system_address || '');
+  var wantBody = String(query.body_id || '');
+  if (!wantSys || !wantBody) return { ok: false, error: 'system_address and body_id required' };
+
+  // One read of the whole range, then filter here. A getRange per row is the
+  // difference between this answering instantly and timing out once the sheet
+  // has a few thousand rows in it.
+  var values = sheet.getRange(2, 1, lastRow - 1, COLUMNS.length).getValues();
+  var out = [];
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    if (String(row[sysCol]) !== wantSys) continue;
+    if (String(row[bodyCol]) !== wantBody) continue;
+    if (testCol >= 0 && String(row[testCol]) === '1') continue;
+    var dep = {};
+    for (var c = 0; c < COLUMNS.length; c++) dep[COLUMNS[c]] = row[c];
+    // As EDLD would have sent them: a day rather than whatever Sheets made of
+    // a date it parsed, and no amount of "Depleted" from an older sheet.
+    dep.depleted_on = _day(dep.depleted_on);
+    if (String(dep.amount) === 'Depleted') dep.amount = '';
+    out.push(dep);
+  }
+  return { ok: true, deposits: out };
+}
+
+
+function _remove(query) {
+  var lock = LockService.getDocumentLock();
+  if (!lock.tryLock(30000)) return { ok: false, error: 'sheet busy, try again' };
+  try {
+    var id = String(query.deposit_id || '').trim();
+    if (!id) return { ok: false, error: 'deposit_id required' };
+    var sheet = _sheet();
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { ok: true, added: 0, updated: 0, unchanged: 0 };
+
+    var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+    for (var i = ids.length - 1; i >= 0; i--) {
+      if (String(ids[i][0] || '').trim() === id) {
+        sheet.deleteRow(i + 2);
+        return { ok: true, added: 0, updated: 1, unchanged: 0 };
+      }
+    }
+    return { ok: true, added: 0, updated: 0, unchanged: 0 };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+
+function _write(deposits) {
+  // Thirty seconds is long enough for a batch and short enough that a stuck
+  // lock surfaces as an error rather than a hang.
+  var lock = LockService.getDocumentLock();
+  if (!lock.tryLock(30000)) {
+    return { ok: false, error: 'sheet busy, try again' };
+  }
+  try {
+    var sheet = _sheet();
+    var lastRow = sheet.getLastRow();
+    var added = 0, updated = 0, unchanged = 0;
+
+    // Row index by deposit_id, read once. Column A only — pulling the whole
+    // sheet to find one column is the difference between this finishing and
+    // this timing out once the sheet has a few thousand rows in it.
+    var index = {};
+    if (lastRow > 1) {
+      var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        var id = String(ids[i][0] || '').trim();
+        if (id) index[id] = i + 2;
+      }
+    }
+
+    var appends = [];
+    for (var d = 0; d < deposits.length; d++) {
+      var dep = deposits[d];
+      var depId = String(dep.deposit_id || '').trim();
+      if (!depId) continue;
+
+      var row = index[depId];
+      if (!row) {
+        appends.push(_toRow(dep));
+        // Guard against the same id appearing twice inside one batch.
+        index[depId] = -1;
+        added++;
+        continue;
+      }
+      if (row < 0) continue;  // already queued for append in this batch
+
+      if (_update(sheet, row, dep)) updated++; else unchanged++;
+    }
+
+    if (appends.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, appends.length, COLUMNS.length)
+           .setValues(appends);
+    }
+    return { ok: true, added: added, updated: updated, unchanged: unchanged };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function _update(sheet, row, dep) {
+  var current = sheet.getRange(row, 1, 1, COLUMNS.length).getValues()[0];
+  var changed = false;
+
+  for (var m = 0; m < MUTABLE.length; m++) {
+    var field = MUTABLE[m];
+    var col = COLUMNS.indexOf(field);
+    if (col < 0) continue;
+    if (!(field in dep)) continue;
+
+    var incoming = dep[field];
+    if (incoming === null || incoming === undefined || incoming === '') continue;
+
+    // A blank stored value is always filled in. A populated one is only
+    // replaced when the report is newer than what is on the row, so a
+    // commander replaying an old session cannot walk back a fresher reading.
+    var existing = current[col];
+    if (String(existing) === String(incoming)) continue;
+    if (existing !== '' && existing !== null && !_isNewer(dep, current)) continue;
+
+    sheet.getRange(row, col + 1).setValue(_cell(incoming));
+    current[col] = incoming;
+    changed = true;
+  }
+
+  // Assessments: fill blanks; replace only on a newer correction.
+  var aCol = COLUMNS.indexOf('assessment_updated');
+  var aStamp = String(dep.assessment_updated || '');
+  var corrected = aCol >= 0 && aStamp !== '' &&
+                  aStamp > String(current[aCol] || '');
+  for (var a = 0; a < ASSESSED.length; a++) {
+    var aField = ASSESSED[a];
+    var ac = COLUMNS.indexOf(aField);
+    var held = String(current[ac] === null ? '' : current[ac]);
+    var legacy = held === 'Depleted';
+    var sent = (aField in dep && dep[aField] !== null && dep[aField] !== undefined)
+               ? String(dep[aField]) : '';
+    if (sent === '') {
+      if (legacy) { sheet.getRange(row, ac + 1).setValue(''); current[ac] = ''; changed = true; }
+      continue;
+    }
+    if (sent === held) continue;
+    if (held !== '' && !legacy && !corrected) continue;
+    sheet.getRange(row, ac + 1).setValue(_cell(sent));
+    current[ac] = sent;
+    changed = true;
+  }
+  if (corrected) {
+    sheet.getRange(row, aCol + 1).setValue(aStamp);
+    current[aCol] = aStamp;
+    changed = true;
+  }
+
+  // Depletion: the latest date wins. Sites refill and are worked out again,
+  // so the most recent emptying is the one that describes the site now.
+  var dCol = COLUMNS.indexOf('depleted_on');
+  var day = _day(dep.depleted_on);
+  if (dCol >= 0 && day && day > _day(current[dCol])) {
+    sheet.getRange(row, dCol + 1).setValue("'" + day);
+    current[dCol] = day;
+    changed = true;
+  }
+
+  // Notes: last writer wins, by notes_updated. Equal stamps are the same note
+  // coming back round; an older one is somebody re-sending a copy they
+  // imported before its author changed it.
+  var noteCol = COLUMNS.indexOf('notes');
+  var stampCol = COLUMNS.indexOf('notes_updated');
+  var stamp = String(dep.notes_updated || '');
+  if (noteCol >= 0 && stampCol >= 0 && stamp &&
+      stamp > String(current[stampCol] || '')) {
+    var note = String(dep.notes || '');
+    if (String(current[noteCol] || '') !== note) {
+      sheet.getRange(row, noteCol + 1).setValue(_cell(note));
+      current[noteCol] = note;
+    }
+    sheet.getRange(row, stampCol + 1).setValue(stamp);
+    current[stampCol] = stamp;
+    changed = true;
+  }
+  return changed;
+}
+
+function _isNewer(dep, currentRow) {
+  var col = COLUMNS.indexOf('last_confirmed');
+  if (col < 0) return true;
+  var theirs = String(dep.last_confirmed || '');
+  var ours = String(currentRow[col] || '');
+  if (!ours) return true;
+  return theirs >= ours;
+}
+
+function _toRow(dep) {
+  var row = [];
+  for (var c = 0; c < COLUMNS.length; c++) {
+    var v = dep[COLUMNS[c]];
+    if (v === null || v === undefined) v = '';
+    // A bare day is text, not a date: Sheets would otherwise parse it into
+    // its own timezone and hand back something else on the next read.
+    else if (COLUMNS[c] === 'depleted_on' && v !== '') v = "'" + _day(v);
+    else v = _cell(v);
+    row.push(v);
+  }
+  return row;
+}
+
+/** A depletion date as YYYY-MM-DD, from text or from a date Sheets parsed. */
+function _day(v) {
+  if (v === null || v === undefined || v === '') return '';
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    return Utilities.formatDate(v, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(v).slice(0, 10);
+}
+
+/**
+ * A value as it should be written to a cell.
+ *
+ * Sheets reads a string starting with = + - or @ as a formula, and notes are
+ * free text from anyone holding the token. Unescaped, "=IMPORTXML(...)" in a
+ * note would run in every reader's copy of the sheet. A leading apostrophe
+ * makes Sheets store the text as typed; it is not part of the value, so
+ * getValues() — and so _read() — returns the note exactly as it was sent.
+ * A string that itself starts with an apostrophe gets a second one, or Sheets
+ * would take the first as that marker and drop it. Numbers arrive as numbers
+ * and are left alone.
+ */
+function _cell(v) {
+  if (typeof v === 'string' && /^[=+\-@']/.test(v)) return "'" + v;
+  return v;
+}
+
+function _sheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
+
+  // A sheet created before a column was added keeps its old header, and the
+  // header is only written when the sheet is empty — so an existing squadron
+  // sheet would have silently dropped every value past its last column. Widen
+  // it in place instead. Columns are only ever appended, never reordered, so
+  // the existing data stays where it is.
+  var have = sheet.getLastColumn();
+  if (have > 0 && have < COLUMNS.length) {
+    sheet.getRange(1, have + 1, 1, COLUMNS.length - have)
+         .setValues([COLUMNS.slice(have)])
+         .setFontWeight('bold');
+  }
+
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, COLUMNS.length).setValues([COLUMNS]);
+    sheet.setFrozenRows(1);
+    sheet.getRange(1, 1, 1, COLUMNS.length).setFontWeight('bold');
+    // Latitude and longitude need the decimal places. Sheets rounds them for
+    // display by default, which makes a coordinate look wrong when copied out
+    // even though the stored value is fine.
+    var latCol = COLUMNS.indexOf('latitude') + 1;
+    sheet.getRange(2, latCol, sheet.getMaxRows() - 1, 2).setNumberFormat('0.000000');
+  }
+  return sheet;
+}
+
+function _json(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj))
+                       .setMimeType(ContentService.MimeType.JSON);
+}

@@ -1,0 +1,109 @@
+# -*- mode: python ; coding: utf-8 -*-
+"""PyInstaller spec for the EDLD binary.
+
+Build with:
+    pyinstaller packaging/edld.spec --noconfirm --clean
+
+One binary carries every interface (core/modes.py).  It opens EDCARS, the
+desktop window, by default; --dashg / --gui, --dasht / --tui and --term /
+--text open the others.  On Windows the binary adds a Start-menu shortcut for
+each (core/shortcuts.py), and the terminal ones open a console of their own.
+
+The console setting is the one genuine platform difference.  A Windows GUI
+build with console=True pops a terminal window behind the dashboard, and one
+with console=False cannot write to stdout at all — which would break
+--term.  EDLD ships console=True on Linux and macOS, where a terminal
+launch is normal and a desktop launcher hides the console anyway, and
+console=False on Windows, where src/win_console.py reattaches stdout on demand
+for the terminal modes.
+"""
+
+import os
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(SPECPATH)))
+from build_common import ROOT, VERSION_FILE, analysis_kwargs  # noqa: E402
+
+# EDLD_VARIANT=server builds EDLD-server: the same program without either
+# dashboard, for running as a service beside the game.  See docs/SERVER.md.
+VARIANT = os.environ.get("EDLD_VARIANT", "full").strip() or "full"
+APP_NAME = "EDLD-server" if VARIANT == "server" else "EDLD"
+ICON = ROOT / "packaging" / "icons" / "edld.ico"
+ICNS = ROOT / "packaging" / "icons" / "edld.icns"
+
+a = Analysis(**analysis_kwargs(variant=VARIANT))
+pyz = PYZ(a.pure)
+
+icon = None
+if sys.platform == "win32" and ICON.is_file():
+    icon = str(ICON)
+elif sys.platform == "darwin" and ICNS.is_file():
+    icon = str(ICNS)
+
+# See the module docstring: Windows is windowed so the GUI has no stray
+# console; the other two keep a console so --term and --dasht work when the
+# binary is run from a shell.
+_console = sys.platform != "win32"
+
+# One file by default, as released.  EDLD_ONEDIR=1 builds the directory layout
+# instead, for inspecting what went into the bundle.  It has to be chosen here:
+# PyInstaller refuses --onedir/--onefile on the command line when given a spec,
+# which is how scripts/build_local.sh --dir used to fail before building
+# anything.
+_onedir = os.environ.get("EDLD_ONEDIR") == "1"
+
+# Onefile packs binaries and data into the executable; onedir leaves them for
+# COLLECT to lay out beside it.
+_packed = [] if _onedir else [a.binaries, a.datas]
+
+exe = EXE(
+    pyz,
+    a.scripts,
+    *_packed,
+    [],
+    exclude_binaries=_onedir,
+    name=APP_NAME,
+    debug=False,
+    bootloader_ignore_signals=False,
+    strip=False,
+    upx=False,          # UPX corrupts signed Qt libraries on Windows
+    runtime_tmpdir=None,
+    console=_console,
+    # A windowed build that raises during startup shows the traceback in a
+    # modal dialog and waits for someone to dismiss it. On a CI runner nobody
+    # ever does, so the process sits there until the job is cancelled — a crash
+    # that presents as a hang, with the real error hidden inside a window no
+    # one can see. Suppressing the dialog turns that back into a normal
+    # non-zero exit with the traceback on stderr, where the smoke test and the
+    # logs can both see it.
+    disable_windowed_traceback=True,
+    argv_emulation=False,
+    target_arch=None,
+    codesign_identity=None,
+    entitlements_file=None,
+    icon=icon,
+)
+
+if _onedir:
+    coll = COLLECT(exe, a.binaries, a.datas, strip=False, upx=False,
+                   name=APP_NAME)
+
+if sys.platform == "darwin" and not _onedir and VARIANT == "full":
+    app = BUNDLE(
+        exe,
+        name=f"{APP_NAME}.app",
+        icon=icon,
+        bundle_identifier="com.indevlin.edld",
+        info_plist={
+            "CFBundleName": APP_NAME,
+            "CFBundleDisplayName": "ED Live Dashboard",
+            "CFBundleShortVersionString": VERSION_FILE.read_text().strip(),
+            "NSHighResolutionCapable": True,
+            "LSMinimumSystemVersion": "11.0",
+            "NSHumanReadableCopyright": (
+                "© 2026 Indevlin, LLC. MIT licensed. "
+                "Uses Qt for Python under the LGPL v3."
+            ),
+        },
+    )
