@@ -6,37 +6,42 @@ Last updated: 20261106
 
 ## 20261106-dev — added, unreleased
 
-### Added: kills made against the massacre stack
+### Changed: the Missions tab shows every mission, a table for each kind
 
-The Missions tab now shows, beside each source faction and the stack height,
-the kills made against the kills needed — `002 / 045` under a Kills heading
-split CUR / TOT — in the desktop window, EDCARS, the terminal dashboard and
-EDAM alike.
+Massacres come first, by source faction, under MASSACRE SOURCE FACTION with
+KILLS, MISSIONS and REWARD columns and a Totals row; MISSIONS is missions done
+of missions held, two digits each (`01 / 05`), and a faction turns green when
+all of its missions are ready. The two summary lines above the table ("Active
+1/20", the redirected count) are gone: the table says the same, and "Active
+1/20" sat in the Kills column, where it read as a kill count. Every other
+kind follows in a table of its own — DELIVERY COMMODITY with tons delivered of
+tons asked for (`1120 / 2890`), COURIER DESTINATION, PASSENGER DESTINATION,
+ASSASSINATION TARGET, DONATION FACTION and the rest — each with the time it
+has left, READY once it can be turned in, and its reward.
 
-Counting kills was tried before and dropped, because a count of `Bounty`
-events never matched the game, and nobody could say why. Measured against
-every massacre stack in the journals (178 redirects), the reason is that the
-game credits kills the journal never writes a `Bounty` for: the bounties
-covered about seven kills in ten, and a mission often redirected with no
-`Bounty` at that moment at all. So the count is anchored on
-`MissionRedirected`, which is exact: kills rise with each qualifying bounty,
-held one short of a mission's count, snap to the exact figure at every
-redirect, and raise every faction that was held as long, since each source
-faction sees the same kills. Handing a redirect's uncovered kills straight to
-the other factions was tried too and dropped: measured the same way it read
-high. The rule kept never read high on any of the 178, was exactly right
-just before 101 of them (a bounty count managed 46), and otherwise read on
-average under two kills low; on the Wolf 359 stack it was checked against it
-matched the game's mission screen exactly.
-`core/massacre.py` holds the logic and docs/MISSION_BOOTSTRAP.md the reasoning.
-The count is rebuilt from the journals at every login, so it is right however
-long EDLD was not running, and a restart never counts a kill twice.
+Kills made are not shown. Counting them was tried a second time today and
+dropped again for the reason it was dropped the first time: the figure fell
+behind the mission screen (10 of 45 against the game's 12). The journal writes
+a `Bounty` for only about seven in ten of the kills the game credits, and the
+rest leave no trace in it at all; docs/MISSION_BOOTSTRAP.md has the numbers.
+A redirect is exact, so the stack reports those.
 
-### Changed: the mission count is no longer a cell under Kills
+### Fixed: missions from an earlier session vanished from the Missions tab
 
-"Active 1/20" sat in the Kills column, where it read as a kill count. It is
-now a row of its own above the table, "Missions accepted 1 of 20", and
-"Redirected" is "Ready to turn in", shown in green when the whole stack is.
+The general mission board was filled only from `MissionAccepted` as it
+happened, and emptied at every `LoadGame`. After a relog or a restart it held
+nothing accepted before it, so the Missions tab only ever showed massacres,
+which had a journal backfill of their own; it looked like the tab was never
+meant to show anything else. The board is now rebuilt from the journals at
+every login: each active mission's acceptance, then its redirects and cargo
+depot updates up to the login, so deliveries show their progress and
+redirected missions show as ready however long EDLD was closed. A failure to
+read that history is logged rather than swallowed.
+
+### Fixed: the wing marker was missing from the terminal dashboard
+
+A wing mission was labelled `[W]`, which the terminal dashboard read as markup
+and dropped. It is now `(Wing)`, in every front end.
 
 ### Fixed: a massacre redirect or turn-in did nothing until the next login
 
@@ -48,7 +53,7 @@ complete", and a turned-in mission stayed on the stack with its reward still
 counted. It looked right after every restart, because the login snapshot
 rebuilt the stack from scratch, which is why it went unnoticed. Each event now
 has one arm doing both jobs. A redirect made while EDLD was closed is now
-picked up at login, so "Ready to turn in" is right too. The journal backfill
+picked up at login, so the stack's MISSIONS count is right too. The journal backfill
 for the stack's details also swallowed any failure (`except: pass`); it now
 logs it.
 

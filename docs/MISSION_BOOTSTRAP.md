@@ -1,10 +1,22 @@
 # EDLD Mission Bootstrap
 
 EDLD tracks two mission views. The general board records every mission you
-accept, of any type, and drops it when it is completed, failed or abandoned;
-that needs no bootstrap because it is rebuilt from the journal as it replays.
-The massacre stack is the one that does, because it has to know reward values
-to be useful.
+have, of any type: what it asks for, where, by when, and whether it is ready
+to turn in. The massacre stack sums the massacres by source faction. Both
+need a bootstrap, because the game's `Missions` event at login lists each
+active mission's ID, name and time left, and nothing else.
+
+At every `Missions` snapshot the board is rebuilt from the journal index:
+each active mission's `MissionAccepted`, wherever in the journals it is, then
+every `MissionRedirected` and `CargoDepot` for those missions since, up to the
+snapshot. What follows the snapshot is replayed or arrives live. So a
+delivery shows the tons delivered so far and a redirected mission shows as
+ready, however long EDLD was closed. A mission whose acceptance is no longer
+in the journals still appears, from what the snapshot says: its name, its
+type, and its deadline. Before this, the board was filled only from
+`MissionAccepted` as it happened, and emptied at every `LoadGame`, so after
+a relog or a restart it held nothing accepted in an earlier session, which
+is why the Missions tab only ever showed massacres.
 
 When EDLD starts, it needs to know which massacre missions you have active and what they're worth. The game's `Missions` journal event at login contains the active mission list but frequently omits reward values — and if EDLD is launched mid-session, that event may not appear in the current journal at all.
 
@@ -14,50 +26,24 @@ This means your stack value and completion count are accurate from the moment mo
 
 ---
 
-## Kills against the stack
+## Why the stack does not count kills
 
-The Missions tab shows, for each source faction and for the stack as a whole,
-the kills made against the kills needed: `002 / 045`. It took two attempts to
-get this right, and the reason is worth keeping.
+The massacre table reports missions done of missions held (`01 / 05`), not
+kills made. Counting kills was tried twice, and both times the figure fell
+behind the game's own mission screen.
 
-The game credits a kill of the target faction, in the target system, to one
-mission per source faction: the oldest of that faction's missions still short
-of its count. Every source faction sees the same kill, which is why a stack
-completes when its tallest faction does. Over every massacre stack in the
-journals the feature was built against (178 redirects), missions from one
-faction always completed in the order they were accepted.
+The game credits a kill to the oldest unfinished mission of each source
+faction, and writes a `Bounty` for only some of the kills it credits. Over
+every massacre stack in the journals the second attempt was checked against
+(178 redirects), the bounties covered about seven kills in ten; at the moment
+a mission redirected there was often no `Bounty` at all. The kills without
+one leave no other trace either: across all those journals, a ship of a
+target faction seen at zero hull without a bounty happened once. On the Wolf
+359 stack of 6 November the game showed 12 of 45 while the journal held 10
+bounties, one of them that single zero-hull sighting and the other nothing at
+all.
 
-The obvious way to count, adding one for every `Bounty` against the target
-faction, does not match the game, and that is why the first attempt was
-dropped. The game credits kills the journal never writes a `Bounty` for: over
-those same stacks the `Bounty` events accounted for about seven kills in ten,
-and at the moment a mission redirected there was often no `Bounty` at all,
-only the target lock dropping. A count of bounties is a floor, nothing more.
-
-`MissionRedirected` is exact. When a faction's third mission redirects, that
-faction has been credited with exactly its first three missions' kill counts.
-So EDLD anchors the count on redirects: each mission's kills rise with every
-qualifying `Bounty`, held one short of its count, and snap to the exact figure
-when it redirects. Every source faction sees every kill, so a faction whose
-missions were held from the moment kills became possible for another (when
-you arrived in the target system, not when you accepted them) is never shown
-fewer kills than that other; that is how the kills a redirect uncovers reach
-the rest of the stack.
-
-Two stronger rules were tried and dropped because, measured the same way,
-they read high: handing a redirect's uncovered kills straight to every other
-faction's current mission. A figure that runs ahead of the game is worse than
-one that lags it.
-
-The rule kept never read high over those 178 redirects: no `Bounty` ever met
-a mission already at its cap unless that mission redirected within three
-seconds. Between redirects it can read low; just before a mission redirected
-it read on average under two kills short, and was exactly right for 101 of
-the 178 (a plain count of bounties managed 46). On the Wolf 359 stack this
-was written against, it matched the game's own mission screen exactly.
-
-The count is not stored. It is rebuilt from the journals, through the journal
-index, at every login's `Missions` snapshot, and fed live from there, so it is
-right however long EDLD was not running, and a restart never counts a kill
-twice. A redirect EDLD missed while it was closed is picked up by the rebuild,
-so the "Ready to turn in" count is right as well.
+`MissionRedirected` is exact: it is written the moment a mission reaches its
+count. So that is what the stack reports. Anchoring a kill count on redirects
+was tried too: it never read high, but with one 45-kill mission there is no
+redirect until the end, so it could still only lag.

@@ -69,21 +69,17 @@ def test_engineering_reaches_the_device_as_pages():
     assert any("Iron" in (r["label"] + r["value"]) for r in raw)
 
 
-def test_missions_stack_is_a_kills_and_reward_table_with_a_warning():
+def test_missions_stack_is_a_kills_missions_reward_table_with_a_warning():
     core = _core(mission_detail_map={
         1: {"faction": "A", "kill_count": 10, "reward": 5_000_000, "target_faction": "X"},
         2: {"faction": "B", "kill_count": 6, "reward": 3_000_000, "target_faction": "Y"},
     }, active_missions=[1, 2])
     rows = _panels(core)["missions.missions"]["rows"]
-    heads = [[c.strip() for c in r["cells"]] for r in rows if r["kind"] == "head"]
-    assert heads == [["Kills", "Reward"], ["CUR / TOT", ""]]
-    stack = next(r for r in rows if r["label"] == "Stack height")
-    assert stack["cells"] == ["000 / 010", "8.0M"]
-    # The mission count is a row of its own, before the table, not a cell
-    # under Kills.
-    count = next(r for r in rows if r["label"] == "Missions accepted")
-    assert count["kind"] == "kv" and count["value"] == "2 of 20"
-    assert rows.index(count) < next(i for i, r in enumerate(rows) if r["kind"] == "head")
+    head = next(r for r in rows if r["kind"] == "head")
+    assert head["label"] == "MASSACRE SOURCE FACTION"
+    assert head["cells"] == ["KILLS", "MISSIONS", "REWARD"]
+    totals = next(r for r in rows if r["label"] == "Totals")
+    assert totals["cells"] == ["10", "00 / 02", "8.0M"]
     warn = [r for r in rows if r.get("tone") == "warn"]
     assert warn and "Mixed targets" in warn[0]["value"]
 

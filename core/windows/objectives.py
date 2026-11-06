@@ -2,16 +2,18 @@
 core/windows/objectives.py — the Objectives window: the mission board and
 colonisation construction sites.
 
-Missions: how many massacre missions are held and how many are ready to turn
-in, then the stack summarised by source faction — kills made against kills
-needed (CUR / TOT), and reward — with its height and any mixed targets, then
-every other mission grouped by category. The mission count is a row of its
-own above the table, not a cell in it: in the Kills column it read as a kill
-count. Colonisation: active sites grouped by system,
+Missions: every active mission, one table per kind. Massacres first, by
+source faction — kills needed, missions done of missions held, reward — with
+a Totals row and any mixed targets; then deliveries, collections, couriers,
+passengers and the rest, each by what it is about (commodity, destination,
+target, faction), with what it asks for, the time it has left (READY once it
+can be turned in) and its reward. Colonisation: active sites grouped by system,
 each with what it still needs and how much of that is in the hold; a system
 or a site can be collapsed by clicking its heading.
 """
 from __future__ import annotations
+
+from datetime import datetime, timezone
 
 from core.windows import R, Tab
 
@@ -34,92 +36,163 @@ def strip_target_type(raw: str) -> str:
     return s.strip()
 
 
-def kills_cell(cur: int, tot: int, width: int) -> str:
-    """Kills made against kills needed, zero-padded to one width so the
-    column lines up: 003 / 045."""
-    return f"{int(cur):0{width}d} / {int(tot):0{width}d}"
+def missions_cell(done: int, held: int) -> str:
+    """Missions complete of missions held, two digits each: 01 / 20."""
+    return f"{int(done):02d} / {int(held):02d}"
 
 
-def missions(core) -> Tab:
+def time_left(expiry: str, now: datetime | None = None) -> str:
+    """6d 21h · 21h 02m · 45m · EXPIRED; blank when there is no deadline."""
+    if not expiry:
+        return ""
+    try:
+        end = datetime.fromisoformat(str(expiry).replace("Z", "+00:00"))
+    except ValueError:
+        return ""
+    secs = int((end - (now or datetime.now(timezone.utc))).total_seconds())
+    if secs <= 0:
+        return "EXPIRED"
+    d, h, m = secs // 86400, secs % 86400 // 3600, secs % 3600 // 60
+    if d:
+        return f"{d}d {h:02d}h"
+    if h:
+        return f"{h}h {m:02d}m"
+    return f"{m}m"
+
+
+def _tons(m: dict) -> str:
+    """Delivered of asked for: 0120 / 2890. Nothing is delivered until a
+    cargo depot says so."""
+    asked = int(m.get("total") or m.get("count") or 0)
+    if not asked:
+        return ""
+    return f"{int(m.get('delivered', 0) or 0):0{len(str(asked))}d} / {asked}"
+
+
+def _destination(m: dict) -> str:
+    station, system = m.get("dest_station", ""), m.get("dest_system", "")
+    if station and system and station != system:
+        return f"{station} · {system}"
+    return station or system or m.get("name") or "Mission"
+
+
+#: Kind → (heading: what each row is, the asked-for column, what labels a
+#: row, what fills the asked-for column). Kinds not here get the name and no
+#: asked-for column. Listed in the order the tables appear.
+_KINDS = {
+    "Delivery":      ("DELIVERY COMMODITY", "TONS",
+                      lambda m: m.get("commodity") or m.get("name"), _tons),
+    "Collection":    ("COLLECTION COMMODITY", "TONS",
+                      lambda m: m.get("commodity") or m.get("name"), _tons),
+    "Mining":        ("MINING COMMODITY", "TONS",
+                      lambda m: m.get("commodity") or m.get("name"), _tons),
+    "Salvage":       ("SALVAGE COMMODITY", "UNITS",
+                      lambda m: m.get("commodity") or m.get("name"),
+                      lambda m: str(m.get("count", "")) if m.get("count") else ""),
+    "Smuggling":     ("SMUGGLING COMMODITY", "TONS",
+                      lambda m: m.get("commodity") or m.get("name"), _tons),
+    "Courier":       ("COURIER DESTINATION", None, _destination, None),
+    "Passenger":     ("PASSENGER DESTINATION", "PAX", _destination,
+                      lambda m: str(m.get("passengers", "")) if m.get("passengers") else ""),
+    "Rescue":        ("RESCUE DESTINATION", None, _destination, None),
+    "Scan":          ("SCAN DESTINATION", None, _destination, None),
+    "Assassination": ("ASSASSINATION TARGET", None,
+                      lambda m: m.get("target") or m.get("name"), None),
+    "Donation":      ("DONATION FACTION", "CREDITS",
+                      lambda m: m.get("faction") or m.get("name"),
+                      lambda m: fmt_reward(int(m.get("donation", 0) or 0))),
+}
+
+
+def _kind_table(category: str, ms: list, now) -> list:
+    heading, qty_head, label_of, qty_of = _KINDS.get(
+        category, (f"{category.upper()} MISSION", None, lambda m: m.get("name") or "Mission", None))
+    ready = [m.get("status") == "Ready" for m in ms]
+    qty = [qty_of(m) if qty_of else "" for m in ms]
+    left = ["READY" if r else time_left(m.get("expiry", ""), now) for m, r in zip(ms, ready)]
+    cols = []
+    if qty_head:
+        cols.append((qty_head, max([len(qty_head)] + [len(q) for q in qty])))
+    cols.append(("EXPIRES", 7))
+    cols.append(("REWARD", 6))
+    rows = [R.table(heading, tuple(cols))]
+    for m, r, q, t in zip(ms, ready, qty, left):
+        # Not "[W]": the terminal dashboard reads that as markup and drops it.
+        label = str(label_of(m) or "Mission") + ("  (Wing)" if m.get("wing") else "")
+        values = ([q] if qty_head else []) + [t, fmt_reward(int(m.get("reward", 0) or 0))]
+        rows.append(R.cells(label, values, "val health-good" if r else "val"))
+    if len(ms) > 1:
+        rows.append(R.rule())
+        total = sum(int(m.get("reward", 0) or 0) for m in ms)
+        tq = ""
+        if qty_head in ("TONS", "UNITS", "PAX"):
+            asked = sum(int(m.get("total") or m.get("count") or m.get("passengers") or 0) for m in ms)
+            if qty_head == "TONS" and asked:
+                tq = f"{sum(int(m.get('delivered', 0) or 0) for m in ms):0{len(str(asked))}d} / {asked}"
+            else:
+                tq = str(asked) if asked else ""
+        elif qty_head == "CREDITS":
+            tq = fmt_reward(sum(int(m.get("donation", 0) or 0) for m in ms))
+        rows.append(R.cells("Totals", ([tq] if qty_head else []) + ["", fmt_reward(total)]))
+    return rows
+
+
+def missions(core, now: datetime | None = None) -> Tab:
     s = core.state
     detail = getattr(s, "mission_detail_map", {}) or {}
     rows: list = []
     if detail:
+        # Done is redirects only. Kills made are not shown: the journal
+        # records only about seven in ten of the kills the game credits, so
+        # a running count always fell behind the mission screen.
+        finished = getattr(s, "massacre_redirected", set()) or set()
         factions: dict[str, dict] = {}
         target_factions, target_types = set(), set()
-        total_reward = 0
-        for info in detail.values():
+        for mid, info in detail.items():
             src = info.get("faction", "Unknown")
-            f = factions.setdefault(src, {"kill_count": 0, "reward": 0})
+            f = factions.setdefault(src, {"kill_count": 0, "reward": 0, "held": 0, "done": 0})
             f["kill_count"] += int(info.get("kill_count", 0))
             f["reward"] += int(info.get("reward", 0))
-            total_reward += int(info.get("reward", 0))
+            f["held"] += 1
+            f["done"] += mid in finished
             if info.get("target_faction"):
                 target_factions.add(info["target_faction"])
             tt = strip_target_type(info.get("target_type", ""))
             if tt:
                 target_types.add(tt)
-        # Kills made, per source faction (core/massacre.py): none yet when
-        # nothing has been counted.
-        ledger = getattr(s, "massacre_ledger", None)
-        made = ledger.by_source() if ledger is not None else {}
-        for name, f in factions.items():
-            f["made"] = min(made.get(name, (0, 0))[0], f["kill_count"])
-        height = max((f["kill_count"] for f in factions.values()), default=0)
-        made_total = max((f["made"] for f in factions.values()), default=0)
-        width = max(3, len(str(height)))
-        kills_w = 2 * width + 3
-
-        n = len(getattr(s, "active_missions", []) or [])
-        done = getattr(s, "missions_complete", 0)
-        full = (getattr(core, "app_settings", None) or {}).get("FullStackSize", 20)
-        rows.append(R.kv("Missions accepted", f"{n} of {full}"))
-        if done > 0:
-            rows.append(R.kv("Ready to turn in", f"{done} of {n}",
-                             "val health-good" if done >= n else "val"))
-        rows.append(R.table("", (("Kills".center(kills_w), kills_w), ("Reward", 6))))
-        rows.append(R.table("", (("CUR / TOT".center(kills_w), kills_w), ("", 6))))
-        rows.append(R.hdr("By Source Faction"))
+        kills_w = max(5, len(str(sum(f["kill_count"] for f in factions.values()))))
+        rows.append(R.table("MASSACRE SOURCE FACTION",
+                            (("KILLS", kills_w), ("MISSIONS", 8), ("REWARD", 6))))
         for name in sorted(factions, key=lambda k: -factions[k]["kill_count"]):
             f = factions[name]
-            rows.append(R.cells(name, [kills_cell(f["made"], f["kill_count"], width),
-                                       fmt_reward(f["reward"])]))
+            rows.append(R.cells(name, [str(f["kill_count"]), missions_cell(f["done"], f["held"]),
+                                       fmt_reward(f["reward"])],
+                                "val health-good" if f["done"] == f["held"] else "val"))
         rows.append(R.rule())
-        rows.append(R.cells("Stack height", [kills_cell(made_total, height, width),
-                                             fmt_reward(total_reward)]))
+        done = sum(f["done"] for f in factions.values())
+        held = sum(f["held"] for f in factions.values())
+        rows.append(R.cells("Totals", [str(max(f["kill_count"] for f in factions.values())),
+                                       missions_cell(done, held),
+                                       fmt_reward(sum(f["reward"] for f in factions.values()))],
+                            "val health-good" if done == held else "val"))
         if len(target_factions) > 1:
             rows.append(R.text(f"[yellow]⚠ Mixed targets: {', '.join(sorted(target_factions))}[/yellow]"))
         if len(target_types) > 1:
             rows.append(R.text(f"[yellow]⚠ Mixed types: {', '.join(sorted(target_types))}[/yellow]"))
 
-    # Every other mission. Massacres are summarised above, so listing them
-    # again would repeat the stack.
+    # Every other mission, a table per kind.
     board = getattr(s, "all_missions", {}) or {}
-    others = {mid: m for mid, m in board.items() if m.get("category") != "Massacre"}
-    if others:
-        by_category: dict = {}
-        for m in others.values():
-            by_category.setdefault(m.get("category", "Other"), []).append(m)
-        rows.append(R.hdr(f"Other Missions ({len(others)})"))
-        for category in sorted(by_category):
-            rows.append(R.text(category, "dim"))
-            for m in sorted(by_category[category], key=lambda m: -int(m.get("reward", 0) or 0)):
-                label = f"  {m.get('name') or 'Mission'}" + ("  [W]" if m.get("wing") else "")
-                rows.append(R.kv(label, fmt_reward(int(m.get("reward", 0) or 0))))
-                bits = []
-                if m.get("count"):
-                    bits.append(f"x{m['count']}")
-                for key in ("commodity", "target", "target_faction"):
-                    if m.get(key):
-                        bits.append(str(m[key]))
-                if m.get("passengers"):
-                    bits.append(f"{m['passengers']} pax")
-                if m.get("destination"):
-                    bits.append(f"→ {m['destination']}")
-                if m.get("status") and m["status"] != "Active":
-                    bits.append(f"[green]{m['status']}[/green]")
-                if bits:
-                    rows.append(R.text("      " + "  ·  ".join(bits), "dim"))
+    by_kind: dict[str, list] = {}
+    for mid, m in board.items():
+        if m.get("category") == "Massacre" or mid in detail:
+            continue
+        by_kind.setdefault(m.get("category") or "Other", []).append(m)
+    order = [k for k in _KINDS if k in by_kind] + sorted(k for k in by_kind if k not in _KINDS)
+    for kind in order:
+        if rows:
+            rows.append(R.text(""))
+        ms = sorted(by_kind[kind], key=lambda m: -int(m.get("reward", 0) or 0))
+        rows.extend(_kind_table(kind, ms, now))
     if not rows:
         rows = [R.text("No active missions", "dim")]
     return Tab("missions", "Missions", rows)
