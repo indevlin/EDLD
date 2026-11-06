@@ -45,7 +45,7 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 | | |
 |--|--|
 | 💥 **Combat Tracking** | Kills, bounties, combat bonds, deaths, and fighter losses with per-kill timing and faction tally |
-| 🎯 **Objectives Window** | The mission board and colonisation in one place — every accepted mission grouped by type, the massacre stack summarised by source faction with its value and completion status, and construction sites with their outstanding requirements |
+| 🎯 **Objectives Window** | The mission board and colonisation in one place — every accepted mission grouped by type, the massacre stack summarised by source faction with kills made against kills needed, its value and completion status, and construction sites with their outstanding requirements |
 | 📊 **Session Statistics** | Tabbed activity dashboard — Combat, Trade, Mining, Exploration, Missions, Exobiology, Odyssey (on foot, SRV, settlements, taxis), PowerPlay and Income — showing totals and /hr rates |
 | 🖵 **Terminal Dashboard** | Full terminal dashboard with all panels. Runs on any machine with Python and a modern terminal |
 | 🖥️ **Desktop Window** | The same dashboard as a native PySide6 window on Linux, Windows and macOS, with resizable columns, real menus, and full platform window controls |

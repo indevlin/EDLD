@@ -19,12 +19,21 @@ On the Missions bulk event:
     backfill scans backwards through journals to populate it.
   - Any stored detail for a MissionID no longer in Active is discarded.
 
-Kill counting per mission is tracked via MissionRedirected (which carries
-MissionID), so per-mission redirect status is also persisted.
+Kills against the stack
+───────────────────────
+state.massacre_ledger (core/massacre.py) holds the kills credited to each
+massacre mission. It is not persisted: it is rebuilt from the journals at the
+Missions snapshot on every login (and on every start, since preload replays
+the current journal through it), then fed live from MissionAccepted, Bounty,
+MissionRedirected and the end of each mission. So it is right however long
+EDLD was not running, and a start never counts a kill twice. Why the count is
+anchored on redirects rather than a tally of Bounty events is explained in
+core/massacre.py.
 """
 
 from core.plugin_loader import BasePlugin
-from core.emit import Terminal, fmt_credits
+from core.emit import fmt_credits
+from core import massacre as _massacre
 
 
 #: Journal mission names look like "Mission_Massacre_Wing_name".  These map
@@ -61,7 +70,7 @@ class MissionsPlugin(BasePlugin):
     PLUGIN_NAME    = "missions"
     PLUGIN_DISPLAY = "Massacre Mission Stack"
     PLUGIN_DESCRIPTION = "Active massacre mission stack — progress, value, and completion tracking."
-    PLUGIN_VERSION = "1.2.0"
+    PLUGIN_VERSION = "1.3.0"
 
     SUBSCRIBED_EVENTS = [
         "Missions",
@@ -71,6 +80,10 @@ class MissionsPlugin(BasePlugin):
         "MissionCompleted",
         "MissionFailed",
         "Bounty",
+        # Where the pilot is: a kill counts only in the mission's system.
+        "FSDJump",
+        "Location",
+        "CarrierJump",
     ]
 
     DEFAULT_COL    = 0
@@ -130,17 +143,63 @@ class MissionsPlugin(BasePlugin):
 
     # ── Kill counting ─────────────────────────────────────────────────────────
 
-    def _session_kills_against(self, victim_faction: str) -> None:
-        """Attribute a kill to all active missions targeting victim_faction.
+    def _ledger(self) -> "_massacre.MassacreLedger":
+        state = self.core.state
+        if getattr(state, "massacre_ledger", None) is None:
+            state.massacre_ledger = _massacre.MassacreLedger()
+            for mid, info in state.mission_detail_map.items():
+                state.massacre_ledger.accept(
+                    mid, info.get("faction", ""), info.get("kill_count", 0),
+                    info.get("target_faction", ""), info.get("target_system", ""),
+                    info.get("accepted_at", ""))
+            for mid in self._redirected:
+                state.massacre_ledger.mark_done(mid)
+        return state.massacre_ledger
 
-        Increments a per-mission kill counter so the dashboard can show live
-        progress within a session.  Not persisted — resets on restart;
-        MissionRedirected is the authoritative completion signal.
+    def _rebuild_ledger(self, until: str) -> None:
+        """The ledger for the active stack, from the journals up to the
+        login snapshot at ``until``; what follows is fed to it as it comes.
+
+        A failure is logged, not swallowed: the stack then counts only from
+        here, and the log says why.
         """
         state = self.core.state
+        active = list(state.mission_detail_map)
+        ledger, system, rebuilt = _massacre.MassacreLedger(), None, False
+        jdir = getattr(self.core, "journal_dir", None)
+        if active and jdir:
+            try:
+                ledger, system = _massacre.rebuild(
+                    _massacre.journal_events_since_oldest(jdir, active), active, until)
+                rebuilt = True
+            except Exception as exc:
+                from core import debug as _dbg
+                _dbg.exception("[Missions] massacre kill history not rebuilt; "
+                               "counting from now", exc)
+                ledger = _massacre.MassacreLedger()
+        # Every active mission is on it, whether or not its acceptance is
+        # still in the journals.
         for mid, info in state.mission_detail_map.items():
-            if info.get("target_faction", "") == victim_faction:
-                info["kills_this_session"] = info.get("kills_this_session", 0) + 1
+            ledger.accept(mid, info.get("faction", ""), info.get("kill_count", 0),
+                          info.get("target_faction", ""), info.get("target_system", ""),
+                          info.get("accepted_at", ""))
+        if rebuilt:
+            # The journals say which missions were complete at the snapshot,
+            # including any redirected while EDLD was not running. Redirects
+            # remembered from after it are left for the replay to bring:
+            # marked done now, the kills replayed before them would go to
+            # the next mission instead.
+            done = {mid for mid, m in ledger.missions.items() if m.done}
+            if not done <= self._redirected:
+                self._redirected |= done
+                state.missions_complete = len(self._redirected)
+                self._persist()
+        else:
+            for mid in self._redirected:
+                ledger.mark_done(mid)
+        state.massacre_ledger = ledger
+        if system and not getattr(self, "_system", None):
+            self._system = system
 
     # ── Events ────────────────────────────────────────────────────────────────
 
@@ -172,6 +231,7 @@ class MissionsPlugin(BasePlugin):
                                or event.get("TargetType", "")),
             "wing":           event.get("Wing", False),
             "reward":         reward,
+            "accepted_at":    event.get("timestamp", ""),
         }
         self._persist()
         if not state.in_preload:
@@ -232,7 +292,6 @@ class MissionsPlugin(BasePlugin):
         core     = self.core
         gq       = core.gui_queue
         notify   = core.notify_levels
-        settings = core.app_settings
         ev       = event.get("event")
 
         match ev:
@@ -305,10 +364,14 @@ class MissionsPlugin(BasePlugin):
                                                                or _ev.get("TargetType", "")),
                                             "wing":           _ev.get("Wing", False),
                                             "reward":         _ev.get("Reward", 0),
+                                            "accepted_at":    _ev.get("timestamp", ""),
                                         }
                                         needs_backfill.discard(_mid)
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        # Was ``except: pass`` — a stack shown with no kill
+                        # counts and no word of why.
+                        from core import debug as _dbg
+                        _dbg.exception("[Missions] massacre mission backfill failed", exc)
 
                 state.active_missions   = list(live_ids)
                 state.missions_complete = len(self._redirected)
@@ -325,6 +388,7 @@ class MissionsPlugin(BasePlugin):
                 }
                 state.missions = True
                 self._persist()
+                self._rebuild_ledger(str(event.get("timestamp", "")))
 
                 core.emitter.emit(
                     msg_term=(
@@ -336,23 +400,26 @@ class MissionsPlugin(BasePlugin):
                 )
                 if gq: gq.put(("mission_update", None))
 
+            case "FSDJump" | "Location" | "CarrierJump":
+                self._system = event.get("StarSystem") or getattr(self, "_system", None)
+                if state.mission_detail_map:
+                    _massacre.apply(self._ledger(), event, None)
+
             case "MissionAccepted":
                 # Every mission type, not just massacres.  The general board
                 # backs the Session window's Missions tab; the massacre
                 # bookkeeping below still runs for those.
                 self._track_mission(state, event)
                 if gq: gq.put(("mission_update", None))
-                if "Mission_Massacre" in event.get("Name", ""):
+                if _massacre.is_massacre(event.get("Name")):
                     self._on_massacre_accepted(event, state, core, gq, notify)
-
-            case "MissionCompleted" | "MissionFailed" | "MissionAbandoned":
-                # Off the board however it ended.
-                mid = event.get("MissionID")
-                if mid is not None and int(mid) in state.all_missions:
-                    state.all_missions.pop(int(mid), None)
-                    if gq: gq.put(("mission_update", None))
+                    _massacre.apply(self._ledger(), event, None)
 
             case "MissionRedirected":
+                # One arm for every mission.  There used to be two, the
+                # general one first: a match takes the first arm that fits,
+                # so the massacre arm after it never ran — a redirect never
+                # marked a massacre complete or said so, live.
                 mid = event.get("MissionID")
                 entry = (state.all_missions.get(int(mid))
                          if mid is not None else None)
@@ -361,65 +428,80 @@ class MissionsPlugin(BasePlugin):
                     entry["destination"] = (event.get("NewDestinationSystem")
                                             or entry.get("destination", ""))
                     if gq: gq.put(("mission_update", None))
-
-            case "MissionRedirected" if "Mission_Massacre" in event.get("Name", ""):
-                mid = int(event["MissionID"])
-                if mid in state.mission_detail_map:
-                    self._redirected.add(mid)
-                    state.missions_complete = len(self._redirected)
-                    self._persist()
-                    if not state.in_preload:
-                        total = len(state.active_missions)
-                        done  = state.missions_complete
-                        if done < total:
-                            log      = notify["MissionUpdate"]
-                            msg_term = (f"Mission {done} of {total} complete "
-                                        f"({total - done} remaining)")
-                        else:
-                            log      = notify["AllMissionsReady"]
-                            msg_term = f"All {total} missions complete — ready to turn in!"
-                        core.emitter.emit(
-                            msg_term=msg_term, emoji="✅", sigil="*  MISS",
-                            timestamp=event.get("_logtime"), loglevel=log,
-                        )
-                    if gq: gq.put(("mission_update", None))
+                if mid is not None and _massacre.is_massacre(event.get("Name")):
+                    self._on_massacre_redirected(event, state, core, gq, notify)
 
             case "Bounty" if state.active_missions:
-                # Attribute kill to matching target-faction missions for
-                # live in-session kill counting.
-                victim = event.get("VictimFaction", "")
-                if victim:
-                    self._session_kills_against(victim)
+                # A kill of the stack's target faction, in its system, counts
+                # against it (core/massacre.py says how, and why a Bounty is
+                # only part of the count).
+                if self._ledger().kill(event.get("VictimFaction", ""),
+                                       getattr(self, "_system", None)):
                     if gq: gq.put(("mission_update", None))
 
-            case "MissionAbandoned" | "MissionCompleted" | "MissionFailed" if (
-                state.missions
-            ):
-                # Preload guard removed intentionally: completions, abandonments, and
-                # failures must be processed during preload so that _redirected is
-                # drained of turned-in missions.  Notifications are suppressed during
-                # preload via the inner guard below.
-                mid = int(event.get("MissionID", 0))
-                if mid not in state.active_missions:
-                    return
-                reward = state.mission_value_map.pop(mid, 0)
-                if reward:
-                    state.stack_value -= reward
-                state.mission_target_faction_map.pop(mid, None)
-                state.mission_detail_map.pop(mid, None)
-                self._redirected.discard(mid)
-                state.active_missions = [m for m in state.active_missions if m != mid]
-                state.missions_complete = len(self._redirected)
-                self._persist()
-                if not state.in_preload:
-                    event_label = ev[7:].lower()
-                    core.emitter.emit(
-                        msg_term=(f"Massacre mission {event_label} "
-                                  f"(active: {len(state.active_missions)})"),
-                        emoji="📋", sigil="*  MISS",
-                        timestamp=event.get("_logtime"), loglevel=notify["MissionUpdate"],
-                    )
+            case "MissionCompleted" | "MissionFailed" | "MissionAbandoned":
+                # Off the board however it ended.  Likewise one arm: the
+                # massacre arm that came after this one never ran, so a
+                # turned-in massacre stayed on the stack, its reward still
+                # counted, until the next login's Missions snapshot.
+                mid = event.get("MissionID")
+                if mid is not None and int(mid) in state.all_missions:
+                    state.all_missions.pop(int(mid), None)
                     if gq: gq.put(("mission_update", None))
+                if mid is not None and state.missions:
+                    self._on_massacre_ended(ev, event, state, core, gq, notify)
+
+    def _on_massacre_redirected(self, event, state, core, gq, notify) -> None:
+        mid = int(event["MissionID"])
+        if mid not in state.mission_detail_map:
+            return
+        _massacre.apply(self._ledger(), event, None)
+        if mid in self._redirected:
+            return                      # replayed: already counted and said
+        self._redirected.add(mid)
+        state.missions_complete = len(self._redirected)
+        self._persist()
+        if not state.in_preload:
+            total = len(state.active_missions)
+            done  = state.missions_complete
+            if done < total:
+                log      = notify["MissionUpdate"]
+                msg_term = (f"Mission {done} of {total} complete "
+                            f"({total - done} remaining)")
+            else:
+                log      = notify["AllMissionsReady"]
+                msg_term = f"All {total} missions complete — ready to turn in!"
+            core.emitter.emit(
+                msg_term=msg_term, emoji="✅", sigil="*  MISS",
+                timestamp=event.get("_logtime"), loglevel=log,
+            )
+        if gq: gq.put(("mission_update", None))
+
+    def _on_massacre_ended(self, ev, event, state, core, gq, notify) -> None:
+        # Processed during preload too, so that _redirected is drained of
+        # turned-in missions; only the notification waits for live events.
+        mid = int(event.get("MissionID", 0))
+        if mid not in state.active_missions:
+            return
+        reward = state.mission_value_map.pop(mid, 0)
+        if reward:
+            state.stack_value -= reward
+        state.mission_target_faction_map.pop(mid, None)
+        state.mission_detail_map.pop(mid, None)
+        self._redirected.discard(mid)
+        self._ledger().remove(mid)
+        state.active_missions = [m for m in state.active_missions if m != mid]
+        state.missions_complete = len(self._redirected)
+        self._persist()
+        if not state.in_preload:
+            event_label = ev[7:].lower()
+            core.emitter.emit(
+                msg_term=(f"Massacre mission {event_label} "
+                          f"(active: {len(state.active_missions)})"),
+                emoji="📋", sigil="*  MISS",
+                timestamp=event.get("_logtime"), loglevel=notify["MissionUpdate"],
+            )
+        if gq: gq.put(("mission_update", None))
 
     def get_summary_line(self) -> str | None:
         state = self.core.state

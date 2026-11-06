@@ -355,6 +355,9 @@ class MonitorState:
         self.last_shutdown_time      = None
         self.mission_value_map       = {}
         self.mission_detail_map      = {}
+        # Kills credited against the massacre stack (core/massacre.py),
+        # kept by components/missions.py and drawn by the Objectives window.
+        self.massacre_ledger         = None
         # Every mission the commander currently holds, of any type — the
         # detail map above only ever covered massacres, because that is all
         # the stack view needed.  Keyed by MissionID.
@@ -529,6 +532,7 @@ class MonitorState:
         self.stack_value                = 0
         self.mission_value_map          = {}
         self.mission_detail_map         = {}
+        self.massacre_ledger            = None
         self.all_missions               = {}
         self.mission_target_faction_map = {}
 

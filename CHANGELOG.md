@@ -1,6 +1,68 @@
 # EDLD CHANGELOG
 
-Last updated: 20261105
+Last updated: 20261106
+
+---
+
+## 20261106-dev — added, unreleased
+
+### Added: kills made against the massacre stack
+
+The Missions tab now shows, beside each source faction and the stack height,
+the kills made against the kills needed — `002 / 045` under a Kills heading
+split CUR / TOT — in the desktop window, EDCARS, the terminal dashboard and
+EDAM alike.
+
+Counting kills was tried before and dropped, because a count of `Bounty`
+events never matched the game, and nobody could say why. Measured against
+every massacre stack in the journals (178 redirects), the reason is that the
+game credits kills the journal never writes a `Bounty` for: the bounties
+covered about seven kills in ten, and a mission often redirected with no
+`Bounty` at that moment at all. So the count is anchored on
+`MissionRedirected`, which is exact: kills rise with each qualifying bounty,
+held one short of a mission's count, snap to the exact figure at every
+redirect, and raise every faction that was held as long, since each source
+faction sees the same kills. Handing a redirect's uncovered kills straight to
+the other factions was tried too and dropped: measured the same way it read
+high. The rule kept never read high on any of the 178, was exactly right
+just before 101 of them (a bounty count managed 46), and otherwise read on
+average under two kills low; on the Wolf 359 stack it was checked against it
+matched the game's mission screen exactly.
+`core/massacre.py` holds the logic and docs/MISSION_BOOTSTRAP.md the reasoning.
+The count is rebuilt from the journals at every login, so it is right however
+long EDLD was not running, and a restart never counts a kill twice.
+
+### Changed: the mission count is no longer a cell under Kills
+
+"Active 1/20" sat in the Kills column, where it read as a kill count. It is
+now a row of its own above the table, "Missions accepted 1 of 20", and
+"Redirected" is "Ready to turn in", shown in green when the whole stack is.
+
+### Fixed: a massacre redirect or turn-in did nothing until the next login
+
+The mission component had two arms for `MissionRedirected` and two for the
+end of a mission: a general one for the mission board, then a massacre one.
+A `match` takes the first arm that fits, so the massacre arms never ran. A
+redirect neither counted the mission as complete nor said "Mission 1 of 2
+complete", and a turned-in mission stayed on the stack with its reward still
+counted. It looked right after every restart, because the login snapshot
+rebuilt the stack from scratch, which is why it went unnoticed. Each event now
+has one arm doing both jobs. A redirect made while EDLD was closed is now
+picked up at login, so "Ready to turn in" is right too. The journal backfill
+for the stack's details also swallowed any failure (`except: pass`); it now
+logs it.
+
+### Added: Settings on the EDCARS rail
+
+The last pill on the EDCARS rail is Settings, as on EDAM. It opens Options,
+the same as `Ctrl+O` or File → Options…, over the section showing, and is
+drawn by all four consoles.
+
+### Fixed: the Sheets template was a version behind
+
+`sheets/Mining_Dashboard.xlsx` still said 20261105 after the version moved to
+20261106, which two tests caught (the generated sheet script is checked
+against it). It is rebuilt.
 
 ---
 

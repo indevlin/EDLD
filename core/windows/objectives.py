@@ -2,9 +2,12 @@
 core/windows/objectives.py — the Objectives window: the mission board and
 colonisation construction sites.
 
-Missions: the massacre stack summarised by source faction — kills and reward
-in two columns — with its height and any mixed targets, then every other
-mission grouped by category. Colonisation: active sites grouped by system,
+Missions: how many massacre missions are held and how many are ready to turn
+in, then the stack summarised by source faction — kills made against kills
+needed (CUR / TOT), and reward — with its height and any mixed targets, then
+every other mission grouped by category. The mission count is a row of its
+own above the table, not a cell in it: in the Kills column it read as a kill
+count. Colonisation: active sites grouped by system,
 each with what it still needs and how much of that is in the hold; a system
 or a site can be collapsed by clicking its heading.
 """
@@ -31,6 +34,12 @@ def strip_target_type(raw: str) -> str:
     return s.strip()
 
 
+def kills_cell(cur: int, tot: int, width: int) -> str:
+    """Kills made against kills needed, zero-padded to one width so the
+    column lines up: 003 / 045."""
+    return f"{int(cur):0{width}d} / {int(tot):0{width}d}"
+
+
 def missions(core) -> Tab:
     s = core.state
     detail = getattr(s, "mission_detail_map", {}) or {}
@@ -50,20 +59,33 @@ def missions(core) -> Tab:
             tt = strip_target_type(info.get("target_type", ""))
             if tt:
                 target_types.add(tt)
-        heights = sorted((v["kill_count"] for v in factions.values()), reverse=True)
+        # Kills made, per source faction (core/massacre.py): none yet when
+        # nothing has been counted.
+        ledger = getattr(s, "massacre_ledger", None)
+        made = ledger.by_source() if ledger is not None else {}
+        for name, f in factions.items():
+            f["made"] = min(made.get(name, (0, 0))[0], f["kill_count"])
+        height = max((f["kill_count"] for f in factions.values()), default=0)
+        made_total = max((f["made"] for f in factions.values()), default=0)
+        width = max(3, len(str(height)))
+        kills_w = 2 * width + 3
+
         n = len(getattr(s, "active_missions", []) or [])
         done = getattr(s, "missions_complete", 0)
         full = (getattr(core, "app_settings", None) or {}).get("FullStackSize", 20)
-        rows.append(R.table("", (("Kills", 5), ("Reward", 8))))
-        rows.append(R.cells("Active", [f"{n}/{full}", ""]))
+        rows.append(R.kv("Missions accepted", f"{n} of {full}"))
         if done > 0:
-            rows.append(R.cells("Redirected", [f"{done}/{n}", ""]))
+            rows.append(R.kv("Ready to turn in", f"{done} of {n}",
+                             "val health-good" if done >= n else "val"))
+        rows.append(R.table("", (("Kills".center(kills_w), kills_w), ("Reward", 6))))
+        rows.append(R.table("", (("CUR / TOT".center(kills_w), kills_w), ("", 6))))
         rows.append(R.hdr("By Source Faction"))
         for name in sorted(factions, key=lambda k: -factions[k]["kill_count"]):
-            rows.append(R.cells(name, [str(factions[name]["kill_count"]),
-                                       fmt_reward(factions[name]["reward"])]))
+            f = factions[name]
+            rows.append(R.cells(name, [kills_cell(f["made"], f["kill_count"], width),
+                                       fmt_reward(f["reward"])]))
         rows.append(R.rule())
-        rows.append(R.cells("Stack height", [str(heights[0] if heights else 0),
+        rows.append(R.cells("Stack height", [kills_cell(made_total, height, width),
                                              fmt_reward(total_reward)]))
         if len(target_factions) > 1:
             rows.append(R.text(f"[yellow]⚠ Mixed targets: {', '.join(sorted(target_factions))}[/yellow]"))
