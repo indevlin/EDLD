@@ -202,7 +202,8 @@ class EdldWindow(QMainWindow):
             ui_cfg = getattr(getattr(core, "cfg", None), "ui_cfg", None) or {}
             self._edcars = EdcarsShell(core, theme, _BLOCK_CLASSES, BLOCK_ID,
                                        on_clear_alerts=self.action_clear_alerts,
-                                       console=_edcars.console_of(ui_cfg))
+                                       console=_edcars.console_of(ui_cfg),
+                                       on_options=self.action_options)
             # Dialogs opened from here — message boxes too — wear the console.
             self.setStyleSheet(self._sheet(theme))
             self._blocks = self._edcars.blocks

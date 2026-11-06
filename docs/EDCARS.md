@@ -83,6 +83,11 @@ strip until you open the Alerts section.
 | Career | `Ctrl+6` | Session / Career |
 | Alerts | `Ctrl+7` | The alert feed, with its Clear button |
 
+Under the sections, the last pill on the rail is **Settings**, as on EDAM. It
+is not a section: it opens Options (`Ctrl+O`, or **File → Options…**) over
+whichever section is showing, and leaves that section showing when Options
+closes.
+
 <div align="center">
 <img src="../images/edcars-exploration.png" alt="EDCARS, Exploration section" width="900"/>
 <br><em>Exploration — the system's bodies beside the route plotter</em>
@@ -244,8 +249,8 @@ Navigation forms after Route, the Engineering locker's own tabs, tables in
 columns, values in the desktop's colours, and the buttons along a window's
 foot — with two differences: the radio strip along the
 desktop window's foot is not there (the ad banner is), and the band carries
-EDAM's connection status beside the clock, with a Settings pill at the end
-of the rail. The Helm section draws the controls EDLD lets the device press
+EDAM's connection status beside the clock, and the Settings pill at the end
+of the rail opens EDAM's own settings rather than EDLD's Options. The Helm section draws the controls EDLD lets the device press
 (Options → Automation → *Allow paired devices to press keys*), in the same
 groups as the desktop; with none, it says why. An urgent alert flashes the Alerts pill for ten seconds and then
 holds it red until Alerts is opened, as on the desktop. Both draw EDCARS's

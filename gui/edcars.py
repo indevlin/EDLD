@@ -354,7 +354,15 @@ class RailPill(QPushButton):
 
 
 class EdcarsRail(QWidget):
-    def __init__(self, ink: Ink, on_pick: Callable[[str], None]) -> None:
+    """The section pills, then Settings — the last pill, as on EDAM's rail —
+    then the rail running on down to its foot.
+
+    Settings is not a section: it opens Options (``on_settings``) and leaves
+    the section showing as it was, so it is not one of the checkable pills.
+    """
+
+    def __init__(self, ink: Ink, on_pick: Callable[[str], None],
+                 on_settings: Optional[Callable[[], None]] = None) -> None:
         super().__init__()
         self.setFixedWidth(RAIL_W)
         lay = QVBoxLayout(self)
@@ -372,6 +380,16 @@ class EdcarsRail(QWidget):
             b.clicked.connect(lambda _c=False, sid=sec.id: on_pick(sid))
             lay.addWidget(b)
             self.pills[sec.id] = b
+        self.settings: Optional[RailPill] = None
+        if on_settings is not None:
+            b = RailPill("SETTINGS", ink)
+            b.setObjectName("edcarsPill")
+            b.setFont(caps_font(12))
+            b.setToolTip("Options  (Ctrl+O)")
+            b.setCursor(Qt.PointingHandCursor)
+            b.clicked.connect(lambda _c=False: on_settings())
+            lay.addWidget(b)
+            self.settings = b
         self.fill = _RailFill(ink)
         lay.addWidget(self.fill, 1)
 
@@ -604,7 +622,8 @@ class EdcarsShell(QWidget):
     PULSE_MS = 550
 
     def __init__(self, core, theme: str, block_classes: dict, block_ids: dict,
-                 on_clear_alerts: Callable[[], None], console: str = H.EDCARS_ID) -> None:
+                 on_clear_alerts: Callable[[], None], console: str = H.EDCARS_ID,
+                 on_options: Optional[Callable[[], None]] = None) -> None:
         super().__init__()
         self.setObjectName("edcars")
         # Worn before anything is built: sizes, margins and faces come from it.
@@ -629,7 +648,7 @@ class EdcarsShell(QWidget):
         body = QHBoxLayout()
         body.setContentsMargins(0, 0, 0, 0)
         body.setSpacing(0)
-        self.rail = EdcarsRail(self.ink, self.show_section)
+        self.rail = EdcarsRail(self.ink, self.show_section, on_settings=on_options)
         body.addWidget(self.rail, 0)
         self.stack = QStackedWidget()
         content = QWidget()
@@ -825,7 +844,8 @@ class EdcarsShell(QWidget):
         ink = Ink(theme)
         self.ink = ink
         for w in [self.header, self.rail.fill] + self.findChildren(EdcarsFrame) \
-                + self.findChildren(EdcarsAlerts) + list(self.rail.pills.values()):
+                + self.findChildren(EdcarsAlerts) + list(self.rail.pills.values()) \
+                + ([self.rail.settings] if self.rail.settings is not None else []):
             w.ink = ink
         self.setStyleSheet(_qss(ink))
         self.update()
