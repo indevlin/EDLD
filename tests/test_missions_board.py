@@ -271,3 +271,35 @@ def test_settings_is_the_last_pill_and_opens_options_without_leaving_the_section
     rail.settings.click()
     assert opened == [1] and rail.pills["objectives"].isChecked()
     assert EdcarsRail(Ink("default"), lambda _sid: None).settings is None
+
+
+# ── A table's heading row is a heading ────────────────────────────────────────
+
+def test_a_table_heading_is_drawn_as_a_heading_on_the_desktop():
+    """It was a dim line; EDAM draws it in the accent, and now so do these."""
+    pytest.importorskip("PySide6")
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    from PySide6.QtWidgets import QApplication
+    QApplication.instance() or QApplication([])
+    from core.windows import R
+    from gui.block_base import GuiBlock, TableHdr
+    from core.palette import rgb
+    block = GuiBlock.__new__(GuiBlock)
+    block.palette_map = rgb("default")
+    out = block.render_rows([R.table("Massacre Source Faction",
+                                     (("KILLS", 5), ("MISSIONS", 8), ("REWARD", 6)))])
+    hdr = out[0]
+    assert isinstance(hdr, TableHdr)
+    assert hdr._key.property("role") == "section"
+    assert "MASSACRE SOURCE FACTION" in hdr._key.text()
+    assert hdr._val.property("role") == "highlight" and hdr._val.property("col") == "value"
+
+
+def test_a_table_heading_is_drawn_as_a_heading_in_the_terminal():
+    pytest.importorskip("textual")
+    from core.windows import R
+    from tui.block_base import TableHdr, TuiBlock
+    out = TuiBlock.render_rows(TuiBlock.__new__(TuiBlock),
+                               [R.table("Courier Destination", (("EXPIRES", 7), ("REWARD", 6)))])
+    assert isinstance(out[0], TableHdr)
+    assert out[0]._key_text == "COURIER DESTINATION" and out[0]._val_cls == "val hdr-val"

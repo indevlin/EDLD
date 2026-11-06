@@ -38,6 +38,15 @@ depot updates up to the login, so deliveries show their progress and
 redirected missions show as ready however long EDLD was closed. A failure to
 read that history is logged rather than swallowed.
 
+### Fixed: a table's heading row was a dim line on the desktop and terminal
+
+A table's heading — MASSACRE SOURCE FACTION and its KILLS, MISSIONS and REWARD
+titles, and the cargo manifest's — was drawn as a dim row, where EDAM draws it
+in the accent. Both now draw it as a section header, the column titles in the
+same accent and still lined up over the figures. On the desktop the accent
+value style also painted a dark box behind its text; it no longer does, which
+also clears it from the Exploration window's highlighted values.
+
 ### Fixed: the wing marker was missing from the terminal dashboard
 
 A wing mission was labelled `[W]`, which the terminal dashboard read as markup
