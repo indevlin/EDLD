@@ -132,6 +132,24 @@ class KVRow(QWidget):
         _apply_classes(self._val, classes)
 
 
+class TableHdr(KVRow):
+    """A table's heading row: what each row is, on the left, as a section
+    header; the column headings over the values, in the same accent and in
+    the value column's monospace face so they line up with the figures.
+    EDAM draws its head rows the same way."""
+
+    def __init__(self, key: str = "", value: str = "",
+                 palette: dict | None = None, parent: QWidget | None = None) -> None:
+        super().__init__(key, value, "val highlight", palette, parent)
+        self._key.setProperty("role", "section")
+        _restyle(self._key)
+        # The section style pads its top; sit the headings on the same line.
+        self._val.setAlignment(Qt.AlignRight | Qt.AlignBottom)
+
+    def set_key(self, text: str) -> None:
+        self._key.setText(to_html((text or "").upper(), self._palette))
+
+
 class SecHdr(QLabel):
     """Bold, accent-coloured section header."""
 
@@ -371,7 +389,8 @@ class GuiBlock(QFrame):
                 key = {"system_name": row[3]} if row[2] == "system" else {"market_id": row[3]}
                 out.append(ClickableHdr(row[1], self.palette_map, on_toggle, **key))
             elif kind == "table":
-                out.append(self.kv(row[1], table_text(row[2]), "val dim"))
+                # A heading, not a dim line: in the accent, as EDAM draws it.
+                out.append(TableHdr(row[1], table_text(row[2]), palette=self.palette_map))
             elif kind == "cells":
                 out.append(self.kv(row[1], cells_text(widths, row[2]),
                                    row[3] if len(row) > 3 else "val"))

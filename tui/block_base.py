@@ -113,7 +113,17 @@ class HdrRow(Widget):
 
     def compose(self) -> ComposeResult:
         yield Label(self._key_text, classes="hdr-key")
-        yield Label(self._val_text, id=f"hdrval-{self.id}", classes="val")
+        yield Label(self._val_text, id=f"hdrval-{self.id}", classes=self._val_cls)
+
+    _val_cls = "val"
+
+
+class TableHdr(HdrRow):
+    """A table's heading row: what each row is as a section header on the
+    left, the column headings over the values in the same accent. EDAM
+    draws its head rows the same way."""
+
+    _val_cls = "val hdr-val"
 
     def set_value(self, text: str, classes: str = "val") -> None:
         try:
@@ -181,7 +191,8 @@ class TuiBlock(Widget):
                     hdr.market_id = row[3]  # type: ignore[attr-defined]
                 out.append(hdr)
             elif kind == "table":
-                out.append(KVRow(row[1], table_text(row[2]), val_classes="val dim"))
+                # A heading, not a dim line: in the accent, as EDAM draws it.
+                out.append(TableHdr(row[1], table_text(row[2])))
             elif kind == "cells":
                 out.append(KVRow(row[1], cells_text(widths, row[2]),
                                  val_classes=row[3] if len(row) > 3 else "val"))

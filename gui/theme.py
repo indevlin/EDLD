@@ -156,7 +156,7 @@ QLabel[role="hdrkey"] {{
 QLabel[health="good"] {{ color: {c['green']}; }}
 QLabel[health="warn"] {{ color: {c['amber']}; }}
 QLabel[health="crit"] {{ color: {c['red']}; }}
-QLabel[role="highlight"] {{ color: {c['accent']}; }}
+QLabel[role="highlight"] {{ color: {c['accent']}; background: transparent; }}
 
 QFrame[role="rule"] {{
     background-color: {c['border']};

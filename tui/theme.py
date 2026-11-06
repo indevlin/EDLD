@@ -364,6 +364,11 @@ PreferencesScreen Button { height: 3; margin-left: 1; }
     text-style: bold;
     width: 1fr;
 }
+/* A table heading's column titles (TableHdr): the header's accent. */
+.hdr-val {
+    color: $accent;
+    text-style: bold;
+}
 
 /* Block footer strip — use Static labels, not Buttons */
 .footer-lbl {

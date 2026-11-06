@@ -310,8 +310,11 @@ def test_the_headings_land_over_their_columns_in_pixels(qapp):
     assert len(rows) >= 3, "expected a heading, a commodity and a totals row"
 
     heading, commodity = rows[0], rows[1]
-    assert heading._val.property("role") == "dim", \
-        "the heading is no longer the dimmed case this guards"
+    # A heading wears a colour role (it was "dim"; it is now the accent, as
+    # EDAM draws it), which is exactly the case that used to cost the value
+    # column its monospace face.
+    assert heading._val.property("role") == "highlight", \
+        "the heading is no longer the coloured case this guards"
     assert right_edges(heading) == right_edges(commodity), (
         f"headings {right_edges(heading)} do not sit over the row "
         f"{right_edges(commodity)}")
