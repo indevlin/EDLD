@@ -1,15 +1,4 @@
-"""
-tests/test_carrier_display.py — Assets Carrier tab data.
-
-The tab used to read three keys no parser produced — ``reserve_balance``,
-``coreCost`` and a ``capacity`` sub-dict — so Reserve, Upkeep and both Cargo
-rows were permanently blank while roughly twenty parsed fields had nowhere to
-appear.  Three separate parsers populate ``state.assets_carrier`` and they did
-not agree on key names, so a CAPI-sourced carrier and a journal-sourced one
-rendered differently.
-
-These tests fix the contract between the parsers and the display.
-"""
+"""tests/test_carrier_display.py — Assets Carrier tab data."""
 
 from __future__ import annotations
 
@@ -74,11 +63,7 @@ def _value(sections, label) -> str:
 
 
 def _strip_comments_and_docstrings(path: Path) -> str:
-    """Return a module's source with comments and docstrings removed.
-
-    Used so a scan for dead key names inspects executable code rather than
-    prose that explains why those names are gone.
-    """
+    """Return a module's source with comments and docstrings removed."""
     import ast
     import io
     import tokenize
@@ -114,7 +99,7 @@ def test_finance_and_cargo_rows_are_populated(carrier):
 
 
 def test_no_row_renders_as_a_bare_dash():
-    """Absent data drops its row rather than rendering an empty column."""
+    """Absent data drops its row."""
     sections = carrier_display_sections(CAPI)
     for _title, rows in sections:
         for label, value in rows:
@@ -139,7 +124,7 @@ def test_journal_and_capi_agree_on_shared_values():
         assert _value(j, label) == _value(c, label), f"{label} differs by source"
 
 
-# ── Normalisation ─────────────────────────────────────────────────────────────
+# ── Normalization ─────────────────────────────────────────────────────────────
 
 def test_cargo_total_derived_when_absent():
     """CAPI never reports TotalCapacity; it has to come from used + free."""
@@ -240,11 +225,7 @@ def test_no_carrier_still_shows_squadron():
 
 @pytest.mark.parametrize("dead_key", ["reserve_balance", "coreCost"])
 def test_display_layer_does_not_read_keys_no_parser_writes(dead_key):
-    """These were read by the blocks and produced by nothing.
-
-    Comments are stripped before scanning — the module docstring in
-    ui_helpers.py names both keys while explaining why they were removed.
-    """
+    """These were read by the blocks and produced by nothing."""
     # The Assets windows were folded into Commander's tabs, so the carrier
     # rows now render from there.
     for path in (ROOT / "tui" / "blocks" / "commander.py",
@@ -272,7 +253,7 @@ def test_parsers_and_display_share_a_key_vocabulary():
         text = path.read_text(encoding="utf-8")
         produced |= set(re.findall(r'"(\w+)":\s', text[text.index(marker):][:3400]))
 
-    # Keys normalise_carrier synthesises rather than reading from a parser,
+    # Keys normalise_carrier synthesizes rather than reading from a parser,
     # and the jump cooldown, which the arrival of a jump sets.
     derived = {"hull_value", "is_squadron", "carrier_state", "cargo_total",
                "cargo_free", "available", "carrier_type", "cooldown_until"}

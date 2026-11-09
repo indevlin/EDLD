@@ -1,8 +1,4 @@
-"""
-tests/test_gui_combo_arrow.py — drop-downs in the desktop window have an arrow.
-
-The style sheet styled ``QComboBox::drop-down``, which stops Qt drawing the
-platform's arrow, and gave it no image, so every drop-down read as a text box.
+"""tests/test_gui_combo_arrow.py — drop-downs in the desktop window have an arrow.
 """
 from __future__ import annotations
 

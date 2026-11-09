@@ -1,10 +1,4 @@
-"""
-tests/test_deposit_screen_fit.py — the deposit form fits a short terminal.
-
-The form was one fixed box taller than a 40-row terminal, so on anything
-shorter the bottom was cut off, Save and Cancel first; and the button row was
-three rows high with a row of padding, which clipped every button to two rows
-at any size. The fields now scroll and the buttons stay put.
+"""tests/test_deposit_screen_fit.py — the deposit form fits a short terminal.
 """
 from __future__ import annotations
 

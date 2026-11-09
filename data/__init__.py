@@ -6,8 +6,8 @@ touching any plugin or UI logic.
 
 Modules
 -------
-ships       Ship type → display name, fighter type/loadout names, normalise helpers
-modules     Module internal → display name, class/rating/mount/size maps, normalise helper
+ships       Ship type → display name, fighter type/loadout names, normalize helpers
+modules     Module internal → display name, class/rating/mount/size maps, normalize helper
 ranks       Rank name tables (combat, trade, explore, …) and CAPI skill manifest
 engineering Engineering blueprint → display name, experimental effect → display name
 status_flags  Status.json Flags / Flags2 / GuiFocus bit constants

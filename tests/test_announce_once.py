@@ -1,9 +1,4 @@
-"""
-tests/test_announce_once.py — "Monitoring Active" is posted once per run.
-
-monitor_journal runs again for every journal the game opens, and each run used
-to post the banner and its Discord embed again. Starting EDLD before the game
-posted the launch summary twice, a minute apart, with the same figures.
+"""tests/test_announce_once.py — "Monitoring Active" is posted once per run.
 """
 from __future__ import annotations
 

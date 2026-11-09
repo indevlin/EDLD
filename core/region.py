@@ -1,15 +1,10 @@
-"""
-core/region.py — which of the galaxy's 42 regions a position is in.
+"""core/region.py — which of the galaxy's 42 regions a position is in.
 
 The codex is kept per region: a species logged in the Inner Orion Spur is new
-again in the Norma Arm. The journal names the region only on a CodexEntry, so
-for any other system it is worked out with the map in data/regions.py
-(klightspeed's EliteDangerousRegionMap, MIT).
+again in the Norma Arm.
 
 The game places a system by its boxel — the cube its SystemAddress encodes —
-not by its own coordinates. Against every CodexEntry in a commander's
-journals the boxel gives the game's region 253 times in 253; the coordinates
-miss a system on a region border. So the address is used whenever known.
+not by its own coordinates.
 """
 from __future__ import annotations
 

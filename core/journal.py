@@ -14,13 +14,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 # psutil backs one defensive fallback below (scanning process names to decide
-# whether the game is running) and is otherwise unused here.  The call site is
+# whether the game is running) and is otherwise unused here. The call site is
 # already wrapped in try/except, so a missing psutil should degrade that single
 # check rather than stop EDLD from starting — which is what an unguarded import
 # at module scope would do, since this module is imported during startup.
-#
-# It is documented as a distro-package install because of its C extensions, so
-# a source install legitimately may not have it.
 try:
     import psutil
 except ImportError:            # pragma: no cover - environment dependent
@@ -73,13 +70,7 @@ _GAME_EXE = "elitedangerous64.exe"
 
 
 def _is_game_cmdline(args) -> bool:
-    """Whether a process's argument list is the game itself.
-
-    Matched on the last component of any argument, with either separator: under
-    Proton argv[0] is a Windows path such as ``Z:\\...\\EliteDangerous64.exe``.
-    Only an argument that *is* the executable counts, so a launcher that merely
-    mentions the game somewhere in a longer argument does not.
-    """
+    """Whether a process's argument list is the game itself."""
     for arg in args or ():
         tail = str(arg).replace("\\", "/").rsplit("/", 1)[-1].strip().lower()
         if tail == _GAME_EXE:
@@ -90,15 +81,7 @@ def _is_game_cmdline(args) -> bool:
 def _game_process_running() -> bool | None:
     """Whether the game's process is running here, or None if that cannot be told.
 
-    Matched on the command line, not the process name.  Under Proton the kernel
-    keeps only the first fifteen characters of a process name, so the game runs
-    as ``EliteDangerous6`` and a name check can never succeed — which is how a
-    commander sitting at the main menu was told the game was not running.
-    Session management's kill has always searched the command line, which is
-    why it worked where this did not.
-
-    Without psutil — it is a distro package for source installs, and a
-    virtualenv may not see it — Linux's /proc gives the same answer.
+    Matched on the command line, not the process name.
     """
     if psutil is not None:
         try:
@@ -131,8 +114,6 @@ def _game_process_running() -> bool | None:
 
 def _ed_client_running(journal_dir: Path | None = None) -> bool:
     """Return True if Elite Dangerous appears to be running.
-
-    Two signals, either of which is enough:
 
     * Status.json written within the last 90 seconds.  The game rewrites it
       whenever anything it reports changes, which in flight is constantly —
@@ -216,8 +197,7 @@ def _poll_status_json(
       Flags   (int)   — bit 0x08: ShieldsUp, bit 0x2000000: InFighter
       Balance (int)   — live credit balance; updates immediately on spend
 
-    Status.json does NOT expose hull integrity (Health).  Hull is tracked
-    exclusively from HullDamage journal events and repair journal events.
+    Status.json does NOT expose hull integrity (Health).
     """
     status_path  = journal_dir / "Status.json"
     last_flags   = None
@@ -331,12 +311,6 @@ def _poll_status_json(
                         gui_queue.put(("slf_update",    None))
                         gui_queue.put(("plugin_refresh", "assets"))
         except Exception as exc:
-            # This was `except Exception: pass`, which is why a Status.json the
-            # poller could never parse looked exactly like a game that was not
-            # running: no hull, no fuel, no balance, no position, and nothing
-            # anywhere saying why.  A torn read of a file the game rewrites
-            # twice a second is normal and must not flood the log, so the first
-            # of each distinct fault is reported and repeats are counted.
             sig = f"{type(exc).__name__}: {exc}"
             if sig != last_error_sig:
                 if last_error_sig is not None and error_repeats:
@@ -447,8 +421,6 @@ def bootstrap_slf(state: MonitorState, journal_dir: Path, trace_mode: bool = Fal
             slf_state_known = True
 
         # LaunchFighter (NPC-controlled) is most authoritative for type.
-        # Already handled above when slf_state_known was set.
-        # Fallback: RestockVehicle if no LaunchFighter found yet.
         if not slf_type_known and ev == "RestockVehicle":
             ft  = je.get("Type", "")
             lo  = je.get("Loadout", "")
@@ -466,15 +438,7 @@ def bootstrap_slf(state: MonitorState, journal_dir: Path, trace_mode: bool = Fal
 
 
 def wage_already_counted(state, timestamp) -> bool:
-    """Whether a NpcCrewPaidWage is one bootstrap_crew already counted.
-
-    The bootstrap counts every wage in every journal, the current one
-    included; the start-up replay of the current journal then handed the
-    same wages to the crew handlers, which counted them again — 48.6M cr
-    too much in one case, and only in whichever interface happened to
-    replay after the bootstrap ran, so the desktop window and the terminal
-    dashboard showed different figures for the same crew member.
-    """
+    """Whether a NpcCrewPaidWage is one bootstrap_crew already counted."""
     through = getattr(state, "crew_paid_through", None)
     if through is None or not timestamp:
         return False
@@ -488,9 +452,7 @@ def bootstrap_crew(state: MonitorState, journal_dir: Path, trace_mode: bool = Fa
     """Recover crew name, hire date, rank, and total paid from journal history.
 
     Whatever ship is flown at start-up: crew are paid whichever ship the
-    commander flies. It used to do nothing unless that ship had a fighter
-    bay, so starting in one without left the paid figure at this session's
-    wages alone — "≥ 48.6M cr" for a crew member paid 798M.
+    commander flies.
     """
     from core.journal_index import index_for
     idx = index_for(journal_dir)
@@ -589,27 +551,13 @@ def bootstrap_last_session_end(
 ) -> None:
     """Find when the previous play session ended, from earlier journals.
 
-    A session ends when the commander stops playing, which the journal records
-    three different ways:
-
       * ``Shutdown``                     — a clean quit to desktop
       * ``Music`` with ``MainMenu``      — exited to the main menu
       * the last event in the file       — the client crashed, so neither of
                                            the above was ever written
 
-    Only a marker with no ``LoadGame`` after it ends the session: dropping to
-    the main menu and picking a mode again is a bounce mid-session, not an
-    end, and dating the session's end to that bounce counts everything played
-    afterwards as idle time.
-
-    None of these can be seen from the file being preloaded: Elite opens a new
-    journal on every launch, so the marker always lives in an earlier one.  In
-    a 269-journal capture, a ``LoadGame`` never once followed a ``Shutdown``
-    within the same file, which is why the gap test that reads only the
-    current journal could never fire.
-
     Sets ``state.last_shutdown_time`` so the ``LoadGame`` handler can compare
-    against it.  Left as None when no earlier journal exists.
+    against it. Left as None when no earlier journal exists.
     """
     try:
         journals = sorted(journal_dir.glob("Journal*.log"))
@@ -667,14 +615,9 @@ def bootstrap_hull(state: MonitorState, journal_dir: Path, trace_mode: bool = Fa
     """Recover hull integrity from journal history.
 
     The game does not write current hull to the current session's journal at
-    login — only HullDamage events do.  If damage occurred in a previous
-    session, we scan backwards through recent journals to find the last
-    meaningful hull event (HullDamage, RepairAll, Resurrect, Repair).
-    Only called when the current-session preload produced no HullDamage.
+    login — only HullDamage events do.
     """
-    # ship_hull is initialised to 100 in MonitorState.__init__.
-    # If any HullDamage fired during preload it will have set a real value;
-    # in that case hull < 100 and we can skip the expensive journal scan.
+    # ship_hull is initialized to 100 in MonitorState.__init__.
     if state.ship_hull < 100:
         trace("hull bootstrap: current session has hull data, skipping", trace_mode)
         return
@@ -686,12 +629,9 @@ def bootstrap_hull(state: MonitorState, journal_dir: Path, trace_mode: bool = Fa
     files = idx.files()
     newest = files[-1] if files else None
 
-    # HullDamage is also written for an SRV, and an SRV's damage is not
-    # the ship's: an SRV rolled down a hill at 20% left the ship reading
-    # 20% on the next start. Walking backwards, a DockSRV means the events
-    # before it were in the SRV, and its LaunchSRV — or a LoadGame that
-    # resumed in one — is where that ends. The newest journal starts from
-    # wherever the commander is now; each older one from the ship.
+    # HullDamage is also written for an SRV, and an SRV's damage is not the
+    # ship's: an SRV rolled down a hill at 20% left the ship reading 20% on the
+    # next start.
     current = None
     in_srv = False
     for fname, je in idx.events(RESET_EVENTS | DAMAGE_EVENTS |
@@ -732,7 +672,6 @@ def bootstrap_hull(state: MonitorState, journal_dir: Path, trace_mode: bool = Fa
                 return
 
     trace("hull bootstrap: no hull history found, leaving at 100", trace_mode)
-
 
 
 def bootstrap_burn_rate(
@@ -871,14 +810,7 @@ def bootstrap_missions(
 def build_dispatch_map(plugins: list) -> dict:
     """Build an event_name -> [plugin, ...] lookup from a list of loaded plugins.
 
-    Called once after PluginLoader.load_all() completes.  The resulting dict
-    is passed into monitor_journal / run_monitor as plugin_dispatch.
-
-    Wildcard subscriptions: a plugin may include the sentinel ``"*"`` in its
-    SUBSCRIBED_EVENTS list to receive every journal event.  Wildcard
-    subscribers are stored under the literal ``"*"`` key and dispatched
-    after name-specific subscribers, with deduplication so a plugin
-    declaring both "*" and a specific event name only fires once.
+    Called once after PluginLoader.load_all() completes.
     """
     dispatch: dict = {}
     for plugin in plugins:
@@ -1032,8 +964,6 @@ def handle_event(
         state.prev_event = ev_name
         return
 
-    # Legacy path: no plugin_dispatch provided.
-    # plugin_call is a no-op in this path — plugin calls become no-ops.
     def plugin_call(_name, _method, *_a, **_kw):  # noqa: E306
         return None
 
@@ -1395,9 +1325,9 @@ def handle_event(
                     state.session_start_time = logtime
                     state.last_periodic_summary = time.monotonic()
                 if gui_queue: gui_queue.put(("vessel_update", None))
-                # The game now writes LoadGame before Rank and Progress, so
-                # on the first LoadGame of a run the rank is not known yet;
-                # it is left out rather than shown as "None +None%".
+                # The game now writes LoadGame before Rank and Progress, so on
+                # the first LoadGame of a run the rank is not known yet; it is
+                # left out.
                 _rank = combat_rank_text(state)
                 cmdrinfo = (
                     f"{suit_display(j.get('Ship'), j.get('Ship_Localised')) if _on_foot else state.pilot_ship}"
@@ -1412,8 +1342,6 @@ def handle_event(
                 )
 
             case "Loadout":
-                # More fuel than the new tank holds is the last ship's
-                # (components/commander.py says why).
                 _main = float((j.get("FuelCapacity") or {}).get("Main") or 0)
                 if (state.fuel_current is not None and _main >= 2
                         and state.fuel_current > _main + 0.01):
@@ -1650,18 +1578,7 @@ def handle_event(
 def _complete_line(pending: list, chunk: str) -> str | None:
     """Join a journal line read in pieces; None until the line is complete.
 
-    The game does not always write a line in one go: a long event — FSDJump
-    with its factions and conflicts runs to several kilobytes — can reach the
-    file in two writes, and a read between them returns the first half with
-    no newline. Parsed as it stood, that half was rejected and skipped, then
-    the second half was rejected and skipped too: the event was lost, with a
-    warning printed to a terminal the dashboards had sent to /dev/null. The
-    commonest casualty was the jump itself, which is why the location stayed
-    on the system just left.
-
-    ``pending`` is a one-element list holding the part read so far. A chunk
-    without a trailing newline is added to it and None is returned; the chunk
-    that ends the line returns the whole of it.
+    ``pending`` is a one-element list holding the part read so far.
     """
     if not chunk.endswith("\n"):
         pending[0] += chunk
@@ -1742,8 +1659,6 @@ def _announce_monitoring(state: MonitorState, emitter: Emitter) -> None:
             value=combat_rank_text(state) or "Unknown", inline=True,
         )
 
-        # Credits on hand, cargo aboard and fuel say what shape the
-        # commander is starting in; the embed never reported any of it.
         _balance = getattr(state, "assets_balance", None)
         if _balance:
             embed.add_embed_field(
@@ -1820,8 +1735,6 @@ def monitor_journal(
     print(f"{Terminal.YELL}Journal file:{Terminal.END} {jfile}")
     state.in_preload = True
 
-    # The marker that closes the previous session is always in an earlier
-    # journal, so it has to be recovered before this one is replayed.
     bootstrap_last_session_end(state, journal_dir, jfile, trace_mode)
 
     # A line the game has only half written is held back until the rest
@@ -1960,7 +1873,6 @@ def monitor_journal(
                     state.offline_since_mono = None
 
 
-
                 continue
 
             handle_event(
@@ -2009,9 +1921,7 @@ def run_monitor(
 
     except KeyboardInterrupt:
         print("\nExiting...")
-        # Read the clock before sessionend() clears it.  The guard used to be
-        # state.session_start_time, which the line above had just set to None,
-        # so the session was never actually saved.
+        # Read the clock before sessionend() clears it.
         _sess = (core._plugins.get("session_stats")
                  if core is not None else None)
         _session_start = (getattr(_sess, "_session_start_time", None)

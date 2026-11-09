@@ -1,13 +1,4 @@
-"""
-tui/deposit_screen.py — Add or edit the surface deposit you are parked on.
-
-One screen for both, because the commander does not know which they are doing
-until EDLD has looked at where they are standing. ``form_for_here()`` answers
-that and supplies the contents; this only draws them.
-
-The fields come from ``core.deposit_form.FIELDS`` rather than being listed
-here, so this screen and the GUI dialog cannot drift apart on what a deposit
-has.
+"""tui/deposit_screen.py — Add or edit the surface deposit you are parked on.
 """
 
 from __future__ import annotations
@@ -26,20 +17,21 @@ class DepositScreen(ModalScreen):
 
     BINDINGS = [("escape", "dismiss", "Close")]
 
-    def __init__(self, core, plugin) -> None:
+    def __init__(self, core, plugin, dep_id: str | None = None) -> None:
+        """``dep_id`` None: the deposit underfoot (form_for_here / submit_form)."""
         super().__init__()
         self._core = core
         self._plugin = plugin
-        self._form, self._heading = plugin.form_for_here()
+        self._dep_id = dep_id
+        self._form, self._heading = (plugin.form_for(dep_id) if dep_id
+                                     else plugin.form_for_here())
 
     def compose(self) -> ComposeResult:
         with Vertical(id="deposit-dialog"):
             yield Label("SURFACE DEPOSIT", classes="pref-title")
             yield Label(self._heading, id="deposit-heading", classes="pref-note")
 
-            # The fields scroll; the heading and the buttons do not. The form
-            # is taller than a 40-row terminal, and as one fixed box it was cut
-            # off at the bottom — Save and Cancel first.
+            # The fields scroll; the heading and the buttons do not.
             with VerticalScroll(id="deposit-fields"):
                 for field in FIELDS:
                     current = str(self._form.get(field.key, "") or "")
@@ -51,26 +43,8 @@ class DepositScreen(ModalScreen):
                     with Horizontal(classes="pref-row"):
                         yield Label(field.label, classes="key")
                         if field.kind == "choice":
-                            # The value is omitted entirely when there is nothing
-                            # to select, rather than passed as None or BLANK.
-                            #
-                            # Textual validates a Select's value on mount, not on
-                            # construction, so a None here raised
-                            # InvalidSelectValueError the moment the screen was
-                            # pushed — and an unhandled exception in a mount
-                            # handler takes the whole app down. That is why this
-                            # presented as EDLD vanishing on a keypress rather than
-                            # as one broken field. Every field is blank on a new
-                            # deposit, so it was certain to happen the first time
-                            # anyone added one.
-                            #
-                            # The blank sentinel has moved between Textual releases
-                            # — it is Select.NULL in some and Select.BLANK in
-                            # others, and in at least one version BLANK is a plain
-                            # False that the validator then rejects. Leaving the
-                            # argument off uses whichever default that release
-                            # considers blank, across the range requirements.txt
-                            # allows.
+                            # The value is omitted entirely when there is
+                            # nothing to select.
                             kwargs = {"id": f"dep-{field.key}",
                                       "classes": "pref-choice",
                                       "allow_blank": True}
@@ -94,7 +68,9 @@ class DepositScreen(ModalScreen):
                                          classes="pref-choice", allow_blank=False)
                         else:
                             yield Input(value=current, placeholder=field.hint,
-                                        id=f"dep-{field.key}", classes="pref-input")
+                                        id=f"dep-{field.key}", classes="pref-input",
+                                        disabled=bool(self._dep_id)
+                                        and field.key == "commodity")
 
             yield Label("", id="deposit-result", classes="pref-note")
             with Horizontal(classes="pref-buttons"):
@@ -123,13 +99,6 @@ class DepositScreen(ModalScreen):
     @staticmethod
     def _note_area(field, current: str) -> TextArea:
         """A few lines of wrapping text, whatever Textual release is installed.
-
-        TextArea's constructor has grown keywords across the releases
-        requirements.txt allows — soft wrap, line numbers and tab behaviour
-        all arrived as arguments after it did, and line numbers defaulted on
-        before they defaulted off. Each is set as an attribute where it exists
-        rather than passed where it might not be accepted, so an older Textual
-        gets a plainer box instead of a TypeError when Ctrl+D is pressed.
         """
         area = TextArea(current, id=f"dep-{field.key}", classes="dep-note")
         for attr, value in (("soft_wrap", True),
@@ -162,11 +131,11 @@ class DepositScreen(ModalScreen):
             return
         if event.button.id != "dep-save":
             return
-        result = self._plugin.submit_form(self._values())
-        # Stay open on a rejection so the commander can correct the field
-        # rather than retype the whole form; close on success so a keybind and
-        # two keystrokes is the whole interaction.
-        if result.startswith(("recorded", "updated")):
+        values = self._values()
+        result = (self._plugin.submit_form_for(self._dep_id, values) if self._dep_id
+                  else self._plugin.submit_form(values))
+        # Rejection keeps the screen open with the message.
+        if result.startswith(("recorded", "updated")) or result == "nothing to change":
             self.dismiss()
         else:
             self.query_one("#deposit-result", Label).update(result)

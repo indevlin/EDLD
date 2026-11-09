@@ -1,19 +1,7 @@
-"""
-core/disk_queue.py — sending what an uploader kept on disk, without losing it.
-
-When an upload fails — Inara or EDSM unreachable, or refusing requests for a
-while — the events are appended to ``<plugin>.queue.jsonl``, one
-``{"queued_at": …, "msg": …}`` per line, and sent again later.
-
-Inara, EDSM and EDAstro used to send that file and then delete it. But a batch
-that failed again while being re-sent was appended to the same file — and the
-delete that followed took it with it. Events were lost exactly when the
-service was still having trouble, which is when the queue exists at all.
+"""core/disk_queue.py — sending what an uploader kept on disk, without losing it.
 
 ``drain`` moves the file aside before sending, so anything that fails again
-lands in a fresh queue file that nothing deletes. The file set aside is
-rewritten as each batch goes, so if EDLD stops part way through, the next
-drain picks up what had not been tried yet.
+lands in a fresh queue file that nothing deletes.
 """
 from __future__ import annotations
 

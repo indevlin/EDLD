@@ -1,16 +1,4 @@
-"""
-core/exobio_db.py — Exobiology accessors for the body database.
-
-Flora, per-commander sample status and sample waypoints: the things
-``ScanOrganic`` writes, and the things the Exobiology window reads.  This is a
-mixin, not a standalone store — :class:`core.bodies_db.BodyDB` composes it with
-the exploration accessors over one connection, and the generic helpers it calls
-(``_upsert``, ``_set_status``) come from :class:`core.bodies_db.BodiesCore`.
-
-Flora rows hang off ``planets``, which the exploration side owns, so the two
-domains share a database even though they no longer share a module.  Sibling:
-:mod:`core.explo_db`.
-"""
+"""core/exobio_db.py — Exobiology accessors for the body database."""
 
 from __future__ import annotations
 

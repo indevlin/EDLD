@@ -1,5 +1,4 @@
-"""
-components/edsm.py — EDSM journal uploader for EDLD.
+"""components/edsm.py — EDSM journal uploader for EDLD.
 
 Uploads journal events to the EDSM API (https://www.edsm.net/api-journal-v1).
 
@@ -24,8 +23,7 @@ Config [EDSM]:
     ApiKey         = ""             # your EDSM API key from settings page
 
 The commander name is sourced from journal data (state.pilot_name) — no
-CommanderName setting to keep in sync.  The API key must match this commander
-on EDSM's side; mismatches surface as 201 rejections with a diagnostic banner.
+CommanderName setting to keep in sync.
 
 EDSM notes:
   - Live galaxy only; beta/legacy data is suppressed via the in-plugin
@@ -48,6 +46,7 @@ from pathlib import Path
 from core.plugin_loader import BasePlugin
 from core.state import EDLD_DATA_DIR, VERSION
 from core import debug as _dbg
+from core import push_triggers as _push
 from core import integration_log as _ilog
 
 # ── Constants ─────────────────────────────────────────────────────────────────
@@ -88,12 +87,9 @@ CFG_DEFAULTS = {
 # ── Sender thread ─────────────────────────────────────────────────────────────
 
 class _Sender(threading.Thread):
-    """
-    Background thread that batches events and POSTs them to EDSM.
+    """Background thread that batches events and POSTs them to EDSM.
 
     Enqueue with push(event_dict).
-    Call flush() to force-drain the in-process batch (e.g. on FSDJump).
-    Call stop() for clean shutdown.
     """
 
     def __init__(self, cmdr_provider, api_key: str, queue_file,
@@ -196,7 +192,6 @@ class _Sender(threading.Thread):
                     )
                     last_heartbeat = time.monotonic()
                 continue
-            push_count += 1
 
             if item is None:
                 # Shutdown signal
@@ -209,6 +204,8 @@ class _Sender(threading.Thread):
                     self._send_batch(batch)
                     batch = []
                 continue
+
+            push_count += 1
 
             batch.append(item)
 
@@ -276,8 +273,6 @@ class _Sender(threading.Thread):
                 md = {}
 
         if not md.get("gameversion"):
-            # No Fileheader/LoadGame seen yet this session — EDSM will reject
-            # any batch we send without fromGameVersion.  Persist and bail.
             with self._stats_lock:
                 self._stats["http_failures"] += 1
             _dbg.info(
@@ -311,9 +306,6 @@ class _Sender(threading.Thread):
             )
             _ilog.request_posted("EDSM", len(events),
                                  cmdr=cmdr, gameversion=md['gameversion'])
-            # Count outbound before the request so we record traffic even on
-            # transport failures.  The accepted/warned/rejected breakdown
-            # adjusts after we read the response body.
             self._record_sent(events)
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
                 self._last_send = time.monotonic()
@@ -342,8 +334,6 @@ class _Sender(threading.Thread):
                 self._inspect_response(body, events)
                 if resp.status != 200:
                     # Non-200 HTTP — persist regardless of body interpretation.
-                    # (This check was written twice, so such a batch was
-                    # queued twice and later sent twice.)
                     self._persist(events)
 
         except urllib.error.HTTPError as e:
@@ -408,11 +398,7 @@ class _Sender(threading.Thread):
                         {"sent": 0, "accepted": 0, "warned": 0, "rejected": 0},
                     )
                     bt["rejected"] += 1
-            # Auth-class errors deserve a bright banner.  Surface the exact
-            # request-level credentials and version metadata we sent (cmdr
-            # visible, key length only) so the user can compare against their
-            # config — the most common causes are an ApiKey mismatch with the
-            # journal-derived commander name, or missing version metadata.
+            # Auth-class errors deserve a bright banner.
             if top_msgnum in (201, 202, 203, 204, 205, 206, 207, 208):
                 gv = self._metadata_provider() if self._metadata_provider else {}
                 try:
@@ -475,8 +461,6 @@ class _Sender(threading.Thread):
                 elif msgnum < 200:
                     self._stats["events_warned"] += 1
                     bt["warned"] += 1
-                    # Print notice-level responses so the user sees why
-                    # something they expected didn't quite "take".
                     _ilog.event_notice("EDSM", ev_name, msgnum, msg)
                 else:
                     self._stats["events_rejected"] += 1
@@ -573,15 +557,11 @@ class EDSMPlugin(BasePlugin):
         self._discard_set: frozenset[str] = frozenset()
 
         # Internal location/session tracking — mirrors EDDN plugin's approach.
-        # We do NOT read from MonitorState; we maintain our own copies from
-        # journal events directly so transient fields injected into EDSM
-        # messages are always accurate.
         self._cmdr_name:      str        = ""
         self._game_version:   str        = ""
         self._game_build:     str        = ""
         # Horizons / Odyssey flags — EDSM uses these to confirm an event
-        # belongs to the live galaxy.  None until we observe Fileheader or
-        # LoadGame; once set, injected into every outbound event.
+        # belongs to the live galaxy.
         self._horizons:       bool | None = None
         self._odyssey:        bool | None = None
         self._system_name:    str | None = None
@@ -672,8 +652,8 @@ class EDSMPlugin(BasePlugin):
             last_response: last JSON response body received from EDSM
             last_response_at: unix timestamp of that response
 
-        Callable via core.plugin_call("edsm", "get_stats").  Returns an
-        empty dict if the plugin is disabled or the sender hasn't started.
+        Returns an empty dict if the plugin is disabled or the sender
+        hasn't started.
         """
         if self._sender is None:
             return {}
@@ -717,12 +697,17 @@ class EDSMPlugin(BasePlugin):
         # again (core/upload_mark.py).
         mark = self._upload_mark()
         self._replaying = mark.replayed(event, state)
+        replayed = self._replaying
         try:
             self._on_event(event, state)
         finally:
             self._replaying = False
             if getattr(self, "_enabled", False):
                 mark.advance(event, state)
+                # core/push_triggers: send the batch now.
+                if (not replayed and getattr(self, "_sender", None) is not None
+                        and _push.is_push(event)):
+                    self._sender.flush()
 
     def _upload_mark(self):
         mark = self.__dict__.get("_mark")
@@ -795,15 +780,10 @@ class EDSMPlugin(BasePlugin):
             return
         self._sender.push(enriched)
 
-        # Trace mode: surface every event we're about to send, so the user
-        # can correlate journal activity with EDSM uploads in real time.
-        # Skipped during preload to avoid drowning the console at startup.
         if getattr(self.core, "trace_mode", False) and not getattr(state, "in_preload", False):
             _dbg.info(f"  [EDSM trace] queued {ev}")
 
-        # Flush batch on key session transitions
-        if ev in ("FSDJump", "CarrierJump", "Docked", "Undocked",
-                  "Location", "LoadGame"):
+        if ev == "LoadGame":
             self._sender.flush()
 
         # After arriving in a new system (live, not preload), ask EDSM what
@@ -822,10 +802,9 @@ class EDSMPlugin(BasePlugin):
     def _get_metadata_snapshot(self) -> dict:
         """Snapshot of current version/galaxy fields for event enrichment.
 
-        Called by _Sender when re-enriching drained events from disk that
-        were queued before we started injecting these fields.  Returns
-        only fields that are populated; absent fields are omitted so the
-        caller can detect "metadata not yet known" by checking gameversion.
+        Returns only fields that are populated; absent fields are omitted
+        so the caller can detect "metadata not yet known" by checking
+        gameversion.
         """
         md: dict = {}
         if self._game_version:
@@ -851,9 +830,8 @@ class EDSMPlugin(BasePlugin):
                 self._odyssey = bool(event.get("Odyssey"))
 
         elif ev == "LoadGame":
-            # LoadGame is authoritative — it carries gameversion + build +
-            # both flags.  Always update so a mid-session game-mode change
-            # (e.g. legacy ↔ live, Horizons ↔ Odyssey) is reflected.
+            # LoadGame is authoritative — it carries gameversion + build + both
+            # flags.
             gv = event.get("gameversion", "") or ""
             gb = event.get("build", "")       or ""
             if gv: self._game_version = gv
@@ -915,13 +893,8 @@ class EDSMPlugin(BasePlugin):
         reported position is?  Prints a one-liner showing system + age so the
         user can confirm the link is bidirectional.  Failure is logged but
         not fatal — read failures don't affect uploads.
-
-        Waits briefly for journal preload to populate state.pilot_name; if
-        that doesn't happen within the wait window the check is skipped
-        with a hint so the user knows the journal stream isn't flowing.
         """
-        # Poll for pilot_name to appear.  Preload typically lands within a
-        # few seconds; we wait up to 30 s before giving up.
+        # Poll for pilot_name to appear.
         for _ in range(30):
             time.sleep(1.0)
             cmdr = (self._cmdr_provider() or "").strip()
@@ -973,9 +946,6 @@ class EDSMPlugin(BasePlugin):
         """Public read: fetch the body list EDSM has for a system.
 
         Returns the parsed response on success, None on any failure.
-        Either system_name or system_address can be supplied — the latter
-        is preferred when both are available since it's unambiguous.
-        Available via core.plugin_call("edsm", "fetch_system_bodies", ...).
         """
         if not system_name and not system_address:
             return None

@@ -1,7 +1,6 @@
-"""
-tests/test_helm_panel.py — the Helm panel: the game's controls and EDLD's
+"""tests/test_helm_panel.py — the Helm panel: the game's controls and EDLD's
 automation as buttons, in EDCARS, along the foot of both Dashboards, and on
-EDAM. What used to be EDAM's control rail, beside EDCARS alone.
+EDAM.
 """
 from __future__ import annotations
 

@@ -196,16 +196,16 @@ if args.selftest:
         except Exception as _e:
             _failed = True
             _results.append(f"  FAIL  radio: {type(_e).__name__}: {_e}")
-    # A binary must carry the licence text of everything inside it; the build
+    # A binary must carry the license text of everything inside it; the build
     # collects them (packaging/build_common.py), and this proves they landed.
     if getattr(sys, "frozen", False):
         _lic = Path(getattr(sys, "_MEIPASS", "")) / "licenses" / "third-party"
         _n = len([p for p in _lic.iterdir() if p.is_dir()]) if _lic.is_dir() else 0
         if _n:
-            _results.append(f"  OK    licence texts ({_n} packages)")
+            _results.append(f"  OK    license texts ({_n} packages)")
         else:
             _failed = True
-            _results.append(f"  FAIL  licence texts: none bundled at {_lic}")
+            _results.append(f"  FAIL  license texts: none bundled at {_lic}")
     print(f"EDLD{'-server' if SERVER_BUILD else ''} {VERSION} selftest")
     print("\n".join(_results))
     sys.exit(1 if _failed else 0)
@@ -267,7 +267,6 @@ except Exception:
     pass
 
 
-
 # ── Header ────────────────────────────────────────────────────────────────────
 
 title = f"{PROGRAM} v{VERSION} by {AUTHOR}"
@@ -291,10 +290,9 @@ _update_notice: tuple[str, str] | None = None
 def _check_for_update() -> None:
     global _update_notice
 
-    # Check for a newer tagged release via GitHub API.
-    # Compares VERSION against the latest release tag using a (date, suffix) key
-    # so 20260325a < 20260325b < 20260326 all sort correctly.
-    # Commits that land on main after a release do NOT trigger a notice.
+    # Check for a newer tagged release via GitHub API. Compares VERSION against
+    # the latest release tag using a (date, suffix) key so 20260325a <
+    # 20260325b < 20260326 all sort correctly.
     try:
         url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
         with urlopen(url, timeout=4) as resp:
@@ -308,9 +306,6 @@ def _check_for_update() -> None:
         pass
 
 _update_thread = threading.Thread(target=_check_for_update, daemon=True)
-# Don't start the thread yet — we need to fork first in UI modes so the
-# update check runs in the child rather than the to-be-discarded parent.
-# Started later, after the fork / silence step.
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -341,9 +336,7 @@ if config_path is None:
         "EDAstro":   CFG_DEFAULTS_EDASTRO,
         "Inara":     CFG_DEFAULTS_INARA,
         # These three were absent from the generated config, so a new install
-        # got a file that did not mention them at all.  They resolve from
-        # defaults either way, but a config you cannot see is a config you
-        # cannot edit.
+        # got a file that did not mention them at all.
         "CAPI":        CFG_DEFAULTS_CAPI,
         "Colonisation": CFG_DEFAULTS_COLONISATION,
         "SessionMgmt": CFG_DEFAULTS_SESSIONMGMT,
@@ -373,7 +366,7 @@ _ui_moved = migrate_ui_interface(config_path)
 if _ui_moved:
     print("[EDLD] " + "; ".join(_ui_moved))
 # Settings added since this config was written are appended to it, so they are
-# visible and editable rather than only resolving invisibly from defaults.
+# visible and editable.
 _added_keys = backfill_config_defaults(config_path)
 if _added_keys:
     print(f"[EDLD] Added {len(_added_keys)} new setting(s) to {config_path}: "
@@ -383,7 +376,7 @@ notify_test = bool(args.test)  if args.test  is not None else False
 trace_mode  = bool(args.trace) if args.trace is not None else DEBUG_MODE
 
 # Preliminary manager — profile may be updated after commander name is known.
-# Debug log facility is initialised LATER (after the commander/profile
+# Debug log facility is initialized LATER (after the commander/profile
 # auto-detection runs), so the per-run log header includes the right
 # profile overrides.
 mgr = ConfigManager(config_dict, config_path, config_profile=args.config_profile)
@@ -462,18 +455,7 @@ if not journal_file:
 
 # ── Commander name — for profile auto-detection ───────────────────────────────
 
-# Scan backwards through journals, newest first.  Reading only the current
-# journal was enough right up until the game was started and left at the main
-# menu: Elite writes a new journal on launch and does not emit Commander or
-# LoadGame until a commander is actually loaded in, so the newest file is a
-# Fileheader and some Music events and nothing else.
-#
-# The FID scan below has always known this — its comment says so in as many
-# words — and the name lookup simply never had the same treatment applied. The
-# consequence was not a missing label: pilot_name is what profile
-# auto-detection keys on, what EDSM and Inara wait for before sending anything,
-# and what the overlay's commander panel needs before it will draw. One
-# unscanned file made all of them sit idle until the commander logged in.
+# Scan backwards through journals, newest first.
 
 def _scan_journals(jdir: Path, field: str) -> str:
     """Return ``field`` from Commander/LoadGame in the newest journal that has it.
@@ -582,7 +564,6 @@ if _modes.needs_terminal(ui_mode):
         pass
 
 
-
 # ── Debug log facility ────────────────────────────────────────────────────────
 # A file-only diagnostic channel separate from stdout.  Standard output stays
 # on the terminal (terminal mode) or routed to /dev/null (textual mode);
@@ -593,7 +574,7 @@ if _modes.needs_terminal(ui_mode):
 # timestamp, exact launch command, and a fenced copy of the effective config
 # (defaults from config file, plus any active profile's overrides).
 #
-# Initialised here — after profile auto-detection so the header reflects the
+# Initialized here — after profile auto-detection so the header reflects the
 # *effective* profile, and before the fork/silence step so the file is ready
 # to receive output from the post-fork child.
 
@@ -925,10 +906,7 @@ def _log_fatal(what: str) -> None:
     """Record a fatal dashboard error where it can actually be found.
 
     Called from the launch paths, which run with stdout and stderr pointed at
-    /dev/null so terminal noise cannot corrupt the display. That redirect is
-    correct but it also means an uncaught exception disappears silently, so
-    this writes the traceback to the diagnostic log and to the process's real
-    stderr, which the redirect never replaced.
+    /dev/null so terminal noise cannot corrupt the display.
     """
     import traceback as _tb
     detail = _tb.format_exc()
@@ -947,11 +925,7 @@ def _log_fatal(what: str) -> None:
 def _start_status_poller() -> threading.Thread:
     """Start the Status.json poller.
 
-    Every mode needs it, not just the dashboards.  It is what keeps fuel,
-    balance and shields current and what records the surface positions that
-    surface-mining deposits are joined against; ``--terminal`` never started
-    it, so every live surface refine in that mode was discarded as a ring
-    refine without a word.
+    Every mode needs it, not just the dashboards.
     """
     status_thread = threading.Thread(
         target=_poll_status_json,
@@ -967,11 +941,7 @@ def _start_status_poller() -> threading.Thread:
 
 
 def _start_background_threads() -> tuple:
-    """Start the journal monitor and Status.json poller.
-
-    Both dashboards need these running before their event loop takes over the
-    main thread; the terminal mode runs the monitor in the foreground instead.
-    """
+    """Start the journal monitor and Status.json poller."""
     monitor_thread = threading.Thread(target=run_monitor, daemon=True)
     monitor_thread.start()
     return monitor_thread, _start_status_poller()
@@ -992,18 +962,13 @@ if __name__ == "__main__":
             )
             _debug.log(_msg, level="ERROR")
             if args.mode:
-                # Asked for by flag: say so and stop, rather than opening
-                # something else.  sys.stderr is /dev/null in GUI mode;
-                # sys.__stderr__ is the real one.
+                # Asked for by flag: say so and stop.
                 try:
                     sys.__stderr__.write(f"ERROR: {_msg}\n")
                 except Exception:
                     pass
                 sys.exit(1)
             # Only the default (or [UI] Interface) chose the desktop window.
-            # A source install without the optional PySide6 opens the
-            # terminal dashboard instead, as it did before EDCARS was the
-            # default, and says why.
             try:
                 sys.__stderr__.write(
                     "PySide6 is not installed, so the desktop window (EDCARS) "

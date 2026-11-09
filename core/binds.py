@@ -1,11 +1,4 @@
-"""
-core/binds.py — the commander's keybindings, from the game's own files.
-
-The game keeps bindings in ``Options/Bindings`` under its local application
-data: ``StartPreset.4.start`` (or ``StartPreset.start`` before Odyssey) names
-the preset in use — one line per category, general, ship, SRV and on foot,
-usually all the same — and ``<preset>.4.2.binds`` (the highest version
-present) is that preset's XML:
+"""core/binds.py — the commander's keybindings, from the game's own files.
 
     <HyperSuperCombination>
         <Primary Device="Keyboard" Key="Key_J">
@@ -13,19 +6,6 @@ present) is that preset's XML:
         </Primary>
         <Secondary Device="{NoDevice}" Key="" />
     </HyperSuperCombination>
-
-Keyboard bindings are pressed as keys and mouse buttons (Mouse 1–5) as
-mouse buttons; a keyboard binding is preferred where an action has both. An
-action bound only to a controller or joystick cannot be pressed — the game
-names a particular device, which a stand-in could not pass for — so every
-slot is kept, to say exactly what it is bound to and what to change: the
-Primary and Secondary columns of the game's Controls page. A built-in preset (Keyboard + Mouse, a stock
-controller) has no file here: the game ships those in its install folder,
-and saving a custom copy of it in Options → Controls makes one.
-
-The folder is found from the journal folder when it is the game's own
-Saved Games folder — in a Wine/Proton prefix too, where both live under the
-same ``users/<name>``; otherwise it is a setting.
 """
 from __future__ import annotations
 

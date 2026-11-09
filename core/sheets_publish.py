@@ -1,44 +1,7 @@
-"""
-core/sheets_publish.py — Publishing the surface survey to a Google Sheet.
+"""core/sheets_publish.py — Publishing the surface survey to a Google Sheet.
 
 EDLD POSTs batches of deposits to an Apps Script web app bound to the target
-spreadsheet. The script is in ``sheets/Code.gs`` and the setup walkthrough in
-``sheets/README.md``.
-
-Why Apps Script and not the Sheets API
---------------------------------------
-Writing to Sheets needs OAuth or a service account; an API key authenticates
-reads of public data and nothing else. Both alternatives cost the user a
-Google Cloud project, and neither can ship in an open-source binary — an
-embedded client secret is a published one. An Apps Script deployment needs no
-project, no OAuth, and no Google client library: it is a URL and a token, which
-is also the whole of what a squadron leader has to hand out.
-
-Why the dedupe is on the far side
----------------------------------
-Only the sheet knows what is in the sheet. Several commanders write to a
-squadron sheet and none of them can see the others' local stores, so a client
-that checked before sending would still have two of them appending the same
-deposit on the same evening, each correct about what it had seen. The script
-holds a lock and resolves it.
-
-EDLD's side of the contract is the deposit id: same system, same body, same
-commodity, within 200 m is one deposit with one stable id, worked out here where
-the body radius is known. The script matches on that string and never has to
-reimplement the geometry.
-
-Failure is reported, never assumed
-----------------------------------
-Every send returns a :class:`PublishResult` that says plainly whether the rows
-landed. Deposits are only marked published on an explicit ``ok`` from the
-script with a matching count; a transport error, an HTML error page, a bad
-token or a partial write all leave the rows pending, so the next flush retries
-them rather than losing them to a success that never happened.
-
-Apps Script redirect handling
------------------------------
-Google Apps Script web apps return ContentService responses through a redirect
-to a temporary script.googleusercontent.com URL.
+spreadsheet.
 
 The correct flow is:
 
@@ -46,11 +9,7 @@ The correct flow is:
         -> 302
         -> GET https://script.googleusercontent.com/...
 
-The redirected URL is not another POST endpoint. Re-posting the original body
-to that URL causes HTTP 405.
-
-Therefore this module explicitly converts 301/302/303 redirects to GET.
-307/308 redirects retain the original POST, as required by HTTP semantics.
+The redirected URL is not another POST endpoint.
 """
 
 from __future__ import annotations
@@ -127,9 +86,6 @@ class _AppsScriptRedirectHandler(urllib.request.HTTPRedirectHandler):
     Apps Script commonly returns:
 
         POST /exec -> 302 -> GET script.googleusercontent.com/...
-
-    The old implementation deliberately preserved POST across 302, which is
-    the cause of the HTTP 405 response from the redirected Google endpoint.
 
     301/302/303:
         Convert POST to GET.
@@ -258,21 +214,13 @@ def row_from_deposit(
         "last_confirmed": dep.get("last_confirmed", ""),
         "reported_by": dep.get("reported_by") or reporter,
         "is_test": int(dep.get("is_test", 0) or 0),
-        # When the site was last seen worked out. It lives in its own table
-        # rather than on the deposit row, so the query feeding this fetches it
-        # — and it belongs on the sheet because it is the one fact about a
-        # deposit that any commander can contribute and every commander needs:
-        # a site somebody emptied last week is a wasted trip.
+        # When the site was last seen worked out.
         "depleted_on": (dep.get("depleted_on", "") or "")[:10],
         # The note travels with the moment it was written, and the sheet keeps
         # whichever is newer — a blank included, since that is a withdrawal.
-        # See the Notes section of core/mining_db.py for why last_confirmed
-        # cannot stand in for it.
         "notes": dep.get("notes", "") or "",
         "notes_updated": dep.get("notes_updated", "") or "",
-        # When amount or density was last corrected by hand. The sheet lets a
-        # newer correction replace its values and otherwise only fills blanks,
-        # so a later sighting cannot put back a value somebody fixed.
+        # When amount or density was last corrected by hand.
         "assessment_updated": dep.get("assessment_updated", "") or "",
     }
 
@@ -530,11 +478,6 @@ class SheetsPublisher:
         """Everything the sheet knows about one body.
 
         Returns ``(rows, error)``; an error is a string and the rows are empty.
-
-        Scoped to a body rather than fetching the whole sheet because that is
-        the question actually being asked — a commander arriving somewhere
-        wants to know what is on *this* rock, and a squadron sheet will
-        eventually have more rows than anyone wants to pull down to answer it.
         """
         with self._lock:
             result = self._post(
@@ -551,14 +494,7 @@ class SheetsPublisher:
         return list(result.deposits), ""
 
     def delete(self, deposit_id: str) -> PublishResult:
-        """Remove one deposit from the sheet.
-
-        A row, not a tombstone. Imported deposits are stamped as published and
-        never re-sent, so the only copy that could put it back is the one held
-        by whoever recorded it — and that is the commander doing the deleting.
-        A commander who imported it will simply not see it again after their
-        next fetch.
-        """
+        """Remove one deposit from the sheet."""
         with self._lock:
             return self._post({"token": self._token,
                                "delete": {"deposit_id": str(deposit_id)}})

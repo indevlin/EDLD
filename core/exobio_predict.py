@@ -1,10 +1,4 @@
-"""
-core/exobio_predict.py — Exobiology genus/species prediction & value estimation.
-
-Given a body's stored properties (planet class, atmosphere, gravity, surface
-temperature, pressure, volcanism), determine which organic species can occur
-there and, from the bio-signal count, a credit value range — so a commander can
-judge whether a body is worth landing on before committing to a surface scan.
+"""core/exobio_predict.py — Exobiology genus/species prediction & value estimation.
 
 Accuracy
 --------
@@ -16,12 +10,6 @@ Accuracy
   (region / nebula / specific star) are reported as *gated*: the species is
   possible if those extra conditions also hold, so it's surfaced but flagged.
 * A property the body doesn't yet expose never excludes a species (conservative).
-
-First footfall
---------------
-A body never previously discovered almost certainly still has its first footfall
-available, which multiplies a sample sharply (first-logged x5, first-footfall
-+x4 of base — up to x9 combined).
 """
 
 from __future__ import annotations
@@ -95,7 +83,7 @@ def predict_species(body: dict, genera_filter: Optional[set] = None) -> list[dic
     """Possible species for a body dict (planet row + status).
 
     Expects: type, atmosphere, gravity (G), temp (K), pressure (Pa), volcanism,
-    landable.  ``genera_filter`` (localised genus names) narrows the result to
+    landable.  ``genera_filter`` (localized genus names) narrows the result to
     genera the game has revealed.  Each result: {key, name, genus, value, gated}.
     """
     if not body.get("landable"):
@@ -160,9 +148,7 @@ def value_range(body: dict, signal_count: int,
 
 def first_footfall_potential(was_discovered: bool, footfall_done: bool,
                              was_footfalled: bool | None = None) -> bool:
-    """Whether the first-footfall bonus is still there to take. The scan says
-    whether anyone had set foot here; scans from before the game reported it
-    leave only the guess that an undiscovered body is also untrodden."""
+    """Whether the first-footfall bonus is still there to take."""
     if footfall_done:
         return False
     if was_footfalled is not None:

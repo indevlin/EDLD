@@ -227,8 +227,6 @@ def test_an_interface_started_by_name_is_remembered(tmp_path):
 
 
 def test_it_is_written_where_it_is_read(tmp_path):
-    # A profile that sets its own Interface gets it; one that does not
-    # inherits the global setting, so that is where it goes.
     _, d, _ = _remember(tmp_path, "REMOTE", "gui")
     assert d["REMOTE"]["UI"]["Interface"] == "gui" and d["UI"]["Interface"] == "edcars"
     _, d, _ = _remember(tmp_path, "EDP1", "terminal")

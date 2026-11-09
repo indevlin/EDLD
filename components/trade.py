@@ -1,11 +1,9 @@
-"""
-components/trade.py — Trade session tracking.
+"""components/trade.py — Trade session tracking.
 
-Tracks market sales and purchases, separating mined cargo from
-bought-and-resold commerce using MiningRefined records.
+Tracks market sales and purchases, separating mined cargo from bought-
+and-resold commerce using MiningRefined records.
 
 Registers with Session Stats as an activity provider.
-Tab title: Trade
 """
 
 from core.plugin_loader import BasePlugin
@@ -49,8 +47,6 @@ class ActivityTradePlugin(BasePlugin, ActivityProviderMixin):
         match ev:
 
             case "MiningRefined":
-                # Record which commodity types were mined so we can
-                # categorise subsequent MarketSell events correctly.
                 commodity = (
                     event.get("Type_Localised") or event.get("Type", "Unknown")
                 ).strip()
@@ -69,8 +65,6 @@ class ActivityTradePlugin(BasePlugin, ActivityProviderMixin):
                 stolen_tax = event.get("StolenGoods", False)
 
                 # Determine if this is mined cargo or traded cargo.
-                # Heuristic: if we refined this commodity type this session,
-                # and avg_cost == 0 (mined = no purchase cost), classify as mined.
                 is_mined = (
                     commodity.lower() in self.commodity_mined and avg_cost == 0
                 )
@@ -94,12 +88,7 @@ class ActivityTradePlugin(BasePlugin, ActivityProviderMixin):
         return self.trade_profit != 0 or self.mined_income > 0
 
     def get_session_rows(self) -> list[dict]:
-        """Trade profit only.
-
-        Mining income is revenue, and revenue is accounted for once in the
-        Income section — filing it under Trade counted it twice and made a
-        mining session read as a trade run.
-        """
+        """Trade profit only."""
         return [r for r in self.get_summary_rows()
                 if r["label"] != "Mining income"]
 

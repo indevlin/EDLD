@@ -1,13 +1,4 @@
-"""
-tests/test_journal_index.py — every journal read once, and only what is new.
-
-core/journal_index.py keeps where each event is in each journal; the history
-readers ask it for the events they want instead of decoding every line of
-every journal themselves. These check that what it hands back is exactly what
-reading the files gives, that it follows the journals as the game writes them
-(appended lines, a line still being written, a new journal) and as nothing
-should (a file rewritten, shortened or deleted), and that the readers moved
-onto it ask for every event they use.
+"""tests/test_journal_index.py — every journal read once, and only what is new.
 """
 from __future__ import annotations
 

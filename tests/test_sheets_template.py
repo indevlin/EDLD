@@ -1,17 +1,4 @@
-"""
-tests/test_sheets_template.py — a sheet built in place matches the template.
-
-Pasting Loader.gs into a blank spreadsheet and running Install used to leave
-the spreadsheet as it found it plus a bare Deposits tab: the upgrade steps only
-ever adjusted tabs that already existed, on the assumption that everybody
-started from Mining_Dashboard.xlsx. Template.gs now builds whatever dashboard
-tabs are missing, from TEMPLATE — the constants the xlsx is built from, copied
-into the bundle by build_bundle.py.
-
-The comparison below is the point: the same tab built two ways, by openpyxl
-into the xlsx and by Template.gs into a sheet, must say the same thing cell for
-cell. Formatting is not compared; applyTheme() owns it in both, and the fake
-does not model it.
+"""tests/test_sheets_template.py — a sheet built in place matches the template.
 
 Needs Node for the sheet side and openpyxl for the xlsx; skips without either.
 """

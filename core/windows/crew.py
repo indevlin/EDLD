@@ -1,14 +1,5 @@
-"""
-core/windows/crew.py — the Crew pane: the NPC crew member, their fighter,
+"""core/windows/crew.py — the Crew pane: the NPC crew member, their fighter,
 and what they have been paid.
-
-The pane is a fixed set of lines — a name line with the fighter's type
-beside it, the crew member's combat rank, then SLF, Hired, Active and Paid —
-so ``crew`` returns them by name and both interfaces fill their own widgets;
-``tab`` gives the same as rows for EDAM.
-
-Paid is a floor, always shown "≥": the game pays wages it writes no event
-for, so the journal's total is never the whole of it.
 """
 from __future__ import annotations
 

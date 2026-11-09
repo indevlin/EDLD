@@ -1,8 +1,6 @@
-"""
-core — EDLD core package.
+"""core — EDLD core package.
 
-Public surface for edld.py and the dashboard.  Import from here
-rather than from individual submodules to keep call-site coupling minimal.
+Public surface for edld.py and the dashboard.
 
 Usage:
     from core import (

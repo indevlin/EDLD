@@ -1,17 +1,9 @@
-"""
-core/route_fuel.py — where a route's fuel runs out, and its dry stretches.
-
-For any route being followed — the game's own plotted route as much as one
-EDLD plotted — each leg is flown with the drive model (core/fsd.py) from the
-fuel in the tank now:
+"""core/route_fuel.py — where a route's fuel runs out, and its dry stretches.
 
 * **runs out**: the first leg the tank cannot pay for if the commander never
   scoops on the way;
 * **dry stretches**: runs of stars no scoop works on, and whether a full tank
   covers one, measured from the last scoopable star before it.
-
-The game's NavRoute.json gives each star's class, so this works for a route
-plotted in the galaxy map with nothing from Spansh.
 """
 from __future__ import annotations
 

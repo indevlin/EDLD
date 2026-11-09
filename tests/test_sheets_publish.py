@@ -1,15 +1,4 @@
-"""
-tests/test_sheets_publish.py — Publishing the survey to a sheet.
-
-The failure this file mostly exists to prevent is the silent one: a send that
-did not land being treated as one that did, so the deposits are marked
-published locally and never sent again. Every path that is not an explicit
-success from the script has to leave the rows pending.
-
-The column order is also asserted against Code.gs, because the two sides place
-values positionally and a field added to one and not the other lands in the
-wrong column rather than raising anything.
-"""
+"""tests/test_sheets_publish.py — Publishing the survey to a sheet."""
 
 from __future__ import annotations
 
@@ -243,12 +232,6 @@ def test_a_302_becomes_a_get_as_apps_script_requires():
     """Apps Script answers a POST to /exec with a 302 to a temporary
     script.googleusercontent.com URL, and that URL is *not* another POST
     endpoint — re-posting the body there returns 405.
-
-    An earlier version of this module re-issued the POST on the theory that a
-    redirected POST becoming a GET was the bug. It was the opposite: the
-    standard library's behaviour was already correct for 301/302/303, and
-    forcing a POST broke the one thing that worked. 307/308 keep the method,
-    as HTTP requires.
     """
     import urllib.request
 

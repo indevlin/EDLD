@@ -1,10 +1,5 @@
-"""
-tests/test_callouts.py — the Callouts component: firsts, the codex, sample
+"""tests/test_callouts.py — the Callouts component: firsts, the codex, sample
 runs, limpets and the targeting cue.
-
-Each callout is checked against the journal events that should raise it and
-the ones that should not, through the same path the dashboard uses
-(core/callout.say → the emitter), with sounds off.
 """
 from __future__ import annotations
 

@@ -1,11 +1,8 @@
-"""
-components/exobiology.py — Exobiology session tracking.
+"""components/exobiology.py — Exobiology session tracking.
 
-Tracks organic samples in progress, held (analysed but unsold), and sold.
-Shows estimated credit value of held samples including first-discovery and
-footfall bonuses where applicable.
+Tracks organic samples in progress, held (analyzed but unsold), and sold.
 
-ScanOrganic stages: Log (1) → Sample (2) → Analyse (3 = complete).
+ScanOrganic stages: Log (1) → Sample (2) → Analyze (3 = complete).
 Value bonuses:
   First discovery (WasLogged=False): 5× base value
   First footfall (body not previously visited): +4× base value on top
@@ -16,7 +13,7 @@ Additional tracking:
   - Count of distinct bodies where at least one species was completed
   - Minimum clonal distance for the current in-progress species
 
-SellOrganicData gives realised credits.
+SellOrganicData gives realized credits.
 """
 
 from core.plugin_loader import BasePlugin
@@ -179,11 +176,7 @@ class ActivityExobiologyPlugin(BasePlugin, ActivityProviderMixin):
         return self.samples_analysed > 0 or self.credits_earned > 0
 
     def get_session_rows(self) -> list[dict]:
-        """Samples analysed — the session's output.
-
-        How many bodies carried biology describes where you were, not what
-        you produced, and it stays on the Exobiology window.
-        """
+        """Samples analyzed — the session's output."""
         return [r for r in self.get_summary_rows()
                 if r["label"] != "Bodies with bio"]
 

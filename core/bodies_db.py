@@ -1,33 +1,10 @@
-"""
-core/bodies_db.py — Shared body catalogue: connection, schema, and the tables
-both domains own jointly.
-
-A single SQLite database at the data root holds the universal galaxy facts
-(systems, stars, planets, rings, non-bodies, flora) once, and segments the
-per-commander state (discovered / mapped / scanned / sampled) into status
-tables keyed by commander.  The Exploration and Exobiology windows read from
-it; the ``explo_sync`` component writes to it as journal events arrive and as
-the lifetime journal import backfills history.
-
-Module layout
--------------
-This module owns what neither domain owns alone: the connection lifecycle,
-the schema and its migrations, the corrupt-file quarantine, the generic
-upsert/status helpers, and the shared tables — ``commanders``, ``systems``,
-``journals``, and ``planet_signals``.
+"""core/bodies_db.py — Shared body catalog: connection, schema, and the tables both
+domains own jointly.
 
 The domain accessors live beside the code that uses them:
 
 - :mod:`core.explo_db` — stars, planets, rings, non-bodies.
 - :mod:`core.exobio_db` — flora, sample status, waypoints.
-
-Both are mixins, composed here into the single :class:`BodyDB`.  The split is
-by concern, not by storage: the tables interlink through ``systems`` and
-``planets``, so one database and one connection serve both.
-
-``planet_signals`` stays here deliberately.  A single ``FSSBodySignals`` event
-carries biological, geological and human signals together, so the table has one
-writer and two readers and belongs to neither domain.
 
 Design notes
 ------------
@@ -36,7 +13,7 @@ Design notes
 - **Concurrency:** connections are cached per process id as a defensive
   guard — a connection is never reused across processes; the PID check reopens
   a fresh connection on first use in any new process.  Within a process, a
-  re-entrant lock serialises writes and WAL mode keeps readers non-blocking.
+  re-entrant lock serializes writes and WAL mode keeps readers non-blocking.
 - **Migrations:** an integer ``schema_version`` in the ``meta`` table gates a
   forward-only migration list.  ``current_version()`` lets callers refuse to
   read from a database newer than they understand.
@@ -56,17 +33,6 @@ dropped.  To extend the schema:
 3. Add any new column names to the relevant ``_*_COLS`` write whitelist so
    ``upsert_*`` will persist them — in this module for systems, in
    :mod:`core.explo_db` for stars and planets.
-
-Because new columns are introduced with defaults, an older database simply gains
-empty columns on upgrade, and a newer writer talking to a not-yet-migrated
-schema drops unknown fields harmlessly (the migration is what makes them land).
-Importing facts from any external dataset uses the same idempotent upserts keyed
-on the game's identifiers, so a merge or re-import only fills gaps — it cannot
-corrupt rows already collected from the journals.
-
-The natural keys are the game's own 64-bit identifiers: ``SystemAddress`` for
-systems and the per-system ``BodyID`` for bodies, so re-scanning a body updates
-the same row rather than duplicating it.
 """
 
 from __future__ import annotations
@@ -245,7 +211,7 @@ CREATE TABLE IF NOT EXISTS planet_signals (
     id        INTEGER PRIMARY KEY AUTOINCREMENT,
     planet_id INTEGER NOT NULL REFERENCES planets(id) ON DELETE CASCADE,
     kind      TEXT NOT NULL,            -- 'bio' | 'geo' | other signal class
-    genus     TEXT NOT NULL DEFAULT '', -- localised genus when known, else ''
+    genus     TEXT NOT NULL DEFAULT '', -- localized genus when known, else ''
     count     INTEGER NOT NULL DEFAULT 0,
     UNIQUE(planet_id, kind, genus)
 );
@@ -309,9 +275,6 @@ _SYSTEM_COLS = {
 
 class BodiesCore:
     """Connection, schema and shared-table accessors for the body database.
-
-    Not instantiated directly — :class:`BodyDB` composes this with the two
-    domain accessor mixins.
     """
 
     def __init__(self, path: Path) -> None:
@@ -321,7 +284,7 @@ class BodiesCore:
         self._lock = threading.RLock()
         # >0 while inside a transaction() block: write helpers defer their
         # commit to the enclosing batch so a full-archive import is one commit
-        # per journal rather than one per row.
+        # per journal.
         self._batch_depth = 0
 
     # ── connection lifecycle ──────────────────────────────────────────────
@@ -339,7 +302,7 @@ class BodiesCore:
 
     @contextmanager
     def _w(self):
-        """Serialise a single write and commit it, unless inside a batch."""
+        """Serialize a single write and commit it, unless inside a batch."""
         with self._lock:
             conn = self._c
             try:
@@ -352,12 +315,7 @@ class BodiesCore:
 
     @contextmanager
     def transaction(self):
-        """Group many writes into one commit.
-
-        Used by the journal importer to commit per-journal rather than
-        per-row.  Re-entrant; the outermost block commits (or rolls back the
-        whole batch on error).
-        """
+        """Group many writes into one commit."""
         with self._lock:
             conn = self._c
             self._batch_depth += 1
@@ -381,21 +339,10 @@ class BodiesCore:
                 self._pid  = pid
                 self._migrate(self._conn)
             except sqlite3.DatabaseError as e:
-                # "database disk image is malformed" / "file is not a database".
-                # Every row here is derived from the journal archive and nothing
-                # else, so the file is a cache, not a record — it can be thrown
-                # away and rebuilt.  Left in place it fails every read and write
-                # forever, and the Exploration and Exobiology windows stay empty
-                # across every future launch with no way back short of deleting
-                # the file by hand.
-                #
-                # Both _open() and _migrate() can be the one to notice: opening
-                # runs PRAGMA statements, which is often where a truncated or
-                # overwritten file first refuses.
-                #
-                # The bad file is renamed rather than removed: a corrupt SQLite
-                # database is often still partly readable, and it costs nothing
-                # to keep it for a post-mortem.
+                # "database disk image is malformed" / "file is not a
+                # database". Every row here is derived from the journal archive
+                # and nothing else, so the file is a cache, not a record — it
+                # can be thrown away and rebuilt.
                 if not _is_corruption(e):
                     raise
                 self._quarantine(e)
@@ -471,12 +418,6 @@ class BodiesCore:
             if have < 1:
                 conn.executescript(_SCHEMA_V1)
 
-            # v2: whether anyone had set foot on a planet before the
-            # commander's scan (Scan's WasFootfalled; NULL where the scan came
-            # before the game reported it), and the commander's codex, entry
-            # by region. Journals already imported hold both, so a database
-            # upgraded from v1 imports them again: every write is an
-            # idempotent upsert, so this only fills the new columns.
             if have < 2:
                 self._add_column(conn, "planet_status", "was_footfalled INTEGER")
                 conn.executescript(_SCHEMA_V2)
@@ -502,8 +443,6 @@ class BodiesCore:
         """Add a column if it isn't already present (idempotent migration aid).
 
         ``coldef`` is the full SQLite column definition, e.g.
-        ``"ascending_node REAL"`` or ``"discovered INTEGER NOT NULL DEFAULT 0"``.
-        Existing rows receive the column's default; their data is untouched.
         """
         column = coldef.split()[0]
         if not self._column_exists(conn, table, column):
@@ -525,8 +464,7 @@ class BodiesCore:
     ) -> int:
         """Insert or update a row by its unique key; return the row id.
 
-        ``conflict`` names the columns of the UNIQUE constraint.  All other
-        keys in ``values`` are updated on conflict.
+        ``conflict`` names the columns of the UNIQUE constraint.
         """
         cols = list(values.keys())
         placeholders = ", ".join("?" for _ in cols)
@@ -600,21 +538,19 @@ class BodiesCore:
         return int(row["id"]) if row else None
 
     def planet_facts(self, address: int, body_id: int) -> Optional[dict]:
-        """A planet's class, atmosphere, volcanism, radius (m) and gravity (g).
-
-        For the surface survey, which only learns these from a Scan seen live
-        and otherwise publishes deposits with the body columns blank. Columns
-        the catalogue never filled come back as None rather than its 0.0 or ''
-        defaults, so a caller cannot mistake "unknown" for a real zero.
+        """A planet's system and body name, class, atmosphere, volcanism, radius (m) and gravity (g).
         """
         row = self._c.execute(
-            "SELECT p.type, p.atmosphere, p.volcanism, p.radius, p.gravity "
+            "SELECT s.name AS system_name, p.name AS body_name, "
+            "p.type, p.atmosphere, p.volcanism, p.radius, p.gravity "
             "FROM planets p JOIN systems s ON p.system_id = s.id "
             "WHERE s.address = ? AND p.body_id = ?",
             (int(address), int(body_id))).fetchone()
         if row is None:
             return None
         return {
+            "system_name":  row["system_name"] or None,
+            "body_name":    row["body_name"] or None,
             "planet_class": row["type"] or None,
             "atmosphere":   row["atmosphere"] or None,
             "volcanism":    row["volcanism"] or None,
@@ -707,7 +643,7 @@ class BodiesCore:
         ).fetchone()["n"])
 
     def codex_names(self, commander_id: int, region: int) -> set[str]:
-        """Localised names of everything in the commander's codex for a region."""
+        """Localized names of everything in the commander's codex for a region."""
         return {
             str(r["name_local"]) for r in self._c.execute(
                 "SELECT name_local FROM codex WHERE commander_id = ? AND region = ?",
@@ -744,12 +680,7 @@ class BodiesCore:
 # ── Composition ─────────────────────────────────────────────────────────────
 
 class BodyDB(ExplorationAccessors, ExobiologyAccessors, BodiesCore):
-    """The body database: shared core plus both domains' accessors.
-
-    One class and one connection.  The mixins carry no state of their own —
-    they reach the database through the helpers :class:`BodiesCore` provides —
-    so composition order carries no meaning beyond readability.
-    """
+    """The body database: shared core plus both domains' accessors."""
 
 
 # ── module-level singleton ──────────────────────────────────────────────────

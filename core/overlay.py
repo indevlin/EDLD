@@ -1,45 +1,15 @@
-"""
-core/overlay.py — Contextual on-screen overlay: primitives and transport.
-
-**Experimental.** Off by default, and verified only on X11 so far — there is no
-Windows or macOS machine to test against, so those platforms are reasoned about
-rather than confirmed.  ``--overlay-probe`` reports what any given machine can
-actually do, which is what a bug report from one of them should carry.
-
-EDLD draws its own overlay rather than talking to somebody else's. Hooking into
-an existing overlay tool would mean every EDLD user first installing that tool,
-which is a poor answer to "why would I run this", and the established one is
-GPLv3 against EDLD's MIT.
+"""core/overlay.py — Contextual on-screen overlay: primitives and transport.
 
 Architecture
 ------------
-The renderer runs in a **child process**, not a thread. Qt requires its event
-loop on the main thread, and EDLD's main thread is already the TUI's, the
-terminal's, or the dashboard's Qt loop depending on mode. A child gives all
-three modes the same overlay, keeps a renderer crash from taking the dashboard
-with it, and means the TUI does not acquire a Qt dependency at runtime.
+The renderer runs in a **child process**, not a thread.
 
 Frames go to the child over **stdin**, newline-delimited JSON, one frame per
-line. A socket was the obvious choice and is the wrong one: binding a listener
-on localhost triggers a Windows Firewall prompt the first time, collides with
-whatever else wanted the port, and outlives a parent that died badly. A pipe
-does none of that, and the child exits on its own when the parent closes it.
-
-The child reports back on **stdout**: one JSON line at startup saying what it
-was actually able to do, then status lines. See :class:`OverlayCapabilities`.
+line.
 
 Capabilities are measured, not assumed
 --------------------------------------
-Whether a translucent, click-through, always-on-top window is possible depends
-on the platform, the compositor, and on Wayland the answer is simply no — an
-ordinary client cannot position itself absolutely or stay above others, and the
-protocol that would allow it is not something Qt exposes. Rather than shipping
-a table of what ought to work, the child tries and reports, and Options shows
-what came back.
-
-Exclusive fullscreen defeats every overlay on every platform. Nothing here can
-change that; the probe reports the display mode where it can determine it so
-the answer is visible rather than mysterious.
+Exclusive fullscreen defeats every overlay on every platform.
 """
 
 from __future__ import annotations
@@ -79,11 +49,11 @@ CFG_DEFAULTS = {
     "HideInCombat":    False,  # step aside in combat (components/overlay.py AUTO_HIDE)
     "HideDocked":      False,  # ... while docked
     "HideOnFoot":      False,  # ... on foot
-    "Outline":         False,  # a stroke round every glyph, in the backing colour
+    "Outline":         False,  # a stroke round every glyph, in the backing color
     "BackingPanel":    False,  # a translucent panel behind each overlay panel
     "SolidText":       False,  # Opacity applies to the backing, not the text
-    "ContrastFloor":   False,  # lift colours to a minimum contrast
-    "EmphasiseValues": False,  # values in the value colour, bold
+    "ContrastFloor":   False,  # lift colors to a minimum contrast
+    "EmphasiseValues": False,  # values in the value color, bold
     "PadX":        16,
     "PadY":        8,
     "DockWidth":   260,    # width of the left/right docked windows
@@ -113,10 +83,7 @@ def tape(id: str, x: int, y: int, width: int, heading: float,
          span_deg: float, marks: list[dict]) -> dict:
     """A compass strip: the commander's heading, with bearings placed on it.
 
-    ``marks`` are ``{"bearing": float, "label": str, "colour": str}``.  Anything
-    outside the visible span is dropped by :func:`tape_positions` rather than
-    clamped to the edge, because a mark pinned to the end of the tape reads as
-    "it is over there" when the truth is "it is behind you".
+    ``marks`` are ``{"bearing": float, "label": str, "color": str}``.
     """
     return {"type": "tape", "id": id, "x": int(x), "y": int(y),
             "width": int(width), "heading": float(heading),
@@ -165,9 +132,7 @@ class OverlayCapabilities:
     def usable(self) -> bool:
         """Whether the overlay is worth showing at all.
 
-        Click-through is not optional. An overlay that swallows mouse input
-        over the game is worse than no overlay, because the failure shows up
-        as the game not responding rather than as anything to do with EDLD.
+        Click-through is not optional.
         """
         return bool(self.available and self.always_on_top and self.click_through)
 
@@ -196,8 +161,6 @@ class OverlayClient:
         self._lock = threading.Lock()
         self._caps = OverlayCapabilities()
         self._last_error = ""
-        #: Families registered from EDLD's fonts directory, reported by the
-        #: renderer. Empty until it has started at least once.
         self.fonts: list[str] = []
 
     @property
@@ -211,12 +174,7 @@ class OverlayClient:
     # ── process lifecycle ─────────────────────────────────────────────────────
 
     def _default_spawn(self) -> subprocess.Popen:
-        """Launch the renderer.
-
-        A frozen build re-executes itself with a flag, because there is no
-        interpreter on the user's machine to run a module with. A source
-        checkout runs the module directly.
-        """
+        """Launch the renderer."""
         if getattr(sys, "frozen", False):
             argv = [sys.executable, "--overlay-renderer"]
         else:
@@ -252,12 +210,7 @@ class OverlayClient:
             return self._caps
 
     def _handshake(self) -> OverlayCapabilities:
-        """Read the child's first stdout line, or give up.
-
-        A renderer that never answers is treated as a renderer that does not
-        work. Waiting indefinitely for a process that has hung is how an
-        optional feature becomes a startup that never finishes.
-        """
+        """Read the child's first stdout line, or give up."""
         deadline = time.time() + _HANDSHAKE_TIMEOUT_S
         proc = self._proc
         assert proc is not None
@@ -285,12 +238,7 @@ class OverlayClient:
             reason=f"renderer did not answer within {_HANDSHAKE_TIMEOUT_S:.0f}s")
 
     def _drain_stdout(self) -> None:
-        """Keep the child's stdout drained and report anything it says.
-
-        Not optional housekeeping: a child whose stdout pipe fills blocks on
-        write and stops rendering, which presents as an overlay that froze for
-        no reason.
-        """
+        """Keep the child's stdout drained and report anything it says."""
         proc = self._proc
         if not proc or not proc.stdout:
             return
@@ -342,7 +290,7 @@ class OverlayClient:
         """Draw a frame in one window. An empty list hides that window.
 
         Returns False when the frame did not go out, which the caller should
-        treat as the overlay being gone rather than as a transient.
+        treat as the overlay being gone.
         """
         if not self.running:
             return False

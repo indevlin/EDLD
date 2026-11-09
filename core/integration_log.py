@@ -1,5 +1,4 @@
-"""
-core/integration_log.py — Unified logging for upload integrations.
+"""core/integration_log.py — Unified logging for upload integrations.
 
 All four EDLD integrations (EDDN, EDSM, EDAstro, Inara) share the same
 fundamental shape:
@@ -12,11 +11,6 @@ fundamental shape:
        mode, where stdout/stderr are routed to ``/dev/null`` and a bare
        ``print()`` would otherwise vanish.
 
-This module standardises the log format across all four integrations so
-the file is consistent and per-event errors get surfaced automatically.
-Each function emits a single line prefixed with ``[<Tag>]`` matching the
-existing pattern in the rest of the codebase.
-
 Severity policy
 ---------------
 - ``log()`` (verbose / routine)  — anything that happens normally and
@@ -27,15 +21,6 @@ Severity policy
 - ``info()`` (problem / decision) — anything the user genuinely needs
   to see: HTTP failures, top-level rejections, per-event hard errors
   (Inara 400+, EDSM 2xx/5xx), disk-persist decisions, sender startup.
-
-Bodies
-------
-``body_dump()`` is a debug-trace helper that writes a raw response body
-to the log, truncated to a sensible maximum.  Callers should gate it on
-``core.trace_mode`` to avoid spamming the log under normal operation —
-this module deliberately doesn't reach into ``core`` itself to keep the
-dependency direction clean (every plugin imports core; core shouldn't
-import plugins).
 """
 from __future__ import annotations
 
@@ -49,9 +34,6 @@ from core import debug as _dbg
 
 def sender_started(tag: str, queue_file: Path | str) -> None:
     """Log the entry banner when an integration's sender thread starts.
-
-    Critical for diagnosing "did the thread even launch?" — a NameError
-    or import-time exception will kill the thread silently otherwise.
     """
     _dbg.info(f"  [{tag}] sender thread entering main loop "
               f"(queue file: {queue_file})")
@@ -68,9 +50,7 @@ def heartbeat(tag: str, **counts: Any) -> None:
     """Per-minute sender heartbeat.
 
     Surfaces 'thread alive but queue idle' vs 'queue active but nothing
-    sending' patterns over the lifetime of a session.  Each integration
-    picks its own keys (push_count, batch, sent, accepted, rejected,
-    failures, etc) — the helper just formats them uniformly.
+    sending' patterns over the lifetime of a session.
     """
     bits = [f"{k}={v}" for k, v in counts.items()]
     _dbg.log(f"  [{tag}] sender heartbeat: " + ", ".join(bits))
@@ -82,8 +62,7 @@ def request_posted(tag: str, count: int, cmdr: str = "", **extra: Any) -> None:
     """Log the start of a batch POST.
 
     ``cmdr`` is the commander name for batches that carry one (Inara,
-    EDSM).  Anonymous batches (EDDN, EDAstro) just pass count.  Extra
-    kwargs become ``k=v`` suffixes (e.g. ``gameversion='4.3.3.0'``).
+    EDSM).
     """
     bits = [f"POST {count} event(s)"]
     if cmdr:
@@ -126,8 +105,7 @@ def response_failed(tag: str, http_status: Any, msg: str = "",
 def event_notice(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
     """Per-event informational notice — routine, not a problem.
 
-    e.g. EDSM 101 "already stored", 102 "older than stored",
-    Inara 204 "event was processed but is functionally a no-op".
+    e.g.
     """
     suffix = f": {msg}" if msg else ""
     _dbg.log(f"  [{tag}] {ev_name} notice ({status}){suffix}")
@@ -136,7 +114,7 @@ def event_notice(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
 def event_warning(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
     """Per-event warning — something looks wrong but the upload continued.
 
-    e.g. Inara 3xx soft errors, EDSM 1xx-warning sub-codes.
+    e.g.
     """
     suffix = f": {msg}" if msg else ""
     _dbg.info(f"  [{tag}] event warning — {ev_name} ({status}){suffix}")
@@ -145,8 +123,7 @@ def event_warning(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
 def event_error(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
     """Per-event hard error — the event was rejected.
 
-    e.g. Inara 400 "Missing required field",
-    EDSM 200-series fatal codes.
+    e.g.
     """
     suffix = f": {msg}" if msg else ""
     _dbg.info(f"  [{tag}] EVENT ERROR — {ev_name} status={status}{suffix}")
@@ -160,14 +137,7 @@ def parse_inara_events(tag: str, events_sent: list[dict],
         {"header": {"eventStatus": 200, ...},
          "events": [{"eventStatus": 200}, {"eventStatus": 400, ...}]}
 
-    A 200 is OK.  A 204 means accepted-but-no-op.  Everything else is
-    surfaced — 3xx as warnings, 4xx+ as errors — with the event name
-    pulled from the corresponding entry in events_sent.
-
-    Returns the set of event names Inara rejected as unknown.  An unknown
-    event name is a permanent condition, not a transient one: the same name
-    will be rejected on every subsequent send, so the caller uses this to
-    stop re-sending it rather than logging the same error indefinitely.
+    Returns the set of event names Inara rejected as unknown.
     """
     unknown: set[str] = set()
     for idx, resp in enumerate(events_response):
@@ -245,13 +215,7 @@ def transient(tag: str, message: str) -> None:
 
 
 def body_dump(tag: str, body: str, *, max_chars: int = 2000) -> None:
-    """Dump a raw response body to the log, truncated to max_chars.
-
-    Useful when an integration returns something unexpected and we
-    want to see the literal bytes.  Callers should gate this on
-    ``core.trace_mode`` to keep the file from filling with response
-    bodies under normal operation.
-    """
+    """Dump a raw response body to the log, truncated to max_chars."""
     if body is None:
         return
     s = body if len(body) <= max_chars else (

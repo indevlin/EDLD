@@ -1,10 +1,6 @@
-"""
-tests/test_upload_mark.py — uploaders do not send the startup replay again.
+"""tests/test_upload_mark.py — uploaders do not send the startup replay again.
 
-EDLD replays the current journal at startup. Every uploader used to send that
-replay as if it were new, so each restart mid-session uploaded the session
-again: in a real journal from 2026-10-20, one restart re-sent 112 messages to
-EDDN, 293 events to EDSM, 54 to Inara and 26 to EDAstro.
+EDLD replays the current journal at startup.
 """
 from __future__ import annotations
 

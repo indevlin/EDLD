@@ -1,12 +1,6 @@
-"""
-components/journal_history.py — Background full-journal scanner.
+"""components/journal_history.py — Background full-journal scanner.
 
-Scans all journal files once at startup in a daemon thread, then exposes
-aggregated career and historical data to other components and dashboard blocks.
-
-Results available via self.results dict after scan completes.  The
-scan_done threading.Event is set when data is ready; dashboard blocks should
-call wait() or check is_set() before reading results.
+Results available via self.results dict after scan completes.
 
 Data produced:
 ────────────────────────────────────────────────────────────────────────
@@ -18,9 +12,6 @@ exobiology      — samples by genus, total sold value, total by species
 combat          — total bounties earned/redeemed, kill count
 income          — totals by source type across all journals
 ────────────────────────────────────────────────────────────────────────
-
-The career data complements the catalog SQLite store — it covers journals
-prior to when the catalog plugin was first run.
 """
 
 import threading
@@ -113,14 +104,6 @@ CHECKPOINT_VERSION = 1
 class _Checkpoint:
     """The scan's accumulators as they stood after every journal but the one
     being written, saved beside the journal index.
-
-    Every journal but the newest is complete — the game only ever appends to
-    the one it is writing — so a start whose older journals are the ones the
-    checkpoint covered, unchanged (the same size and time), carries on from it
-    and reads only the rest:
-    the journal the last run was writing, and any since. Anything else (a
-    journal gone, shorter, or added before the newest; a different EDLD or a
-    changed scan) is a full scan, which writes a new checkpoint.
     """
 
     def __init__(self, journal_dir, path=None):
@@ -259,7 +242,7 @@ class JournalHistoryPlugin(BasePlugin):
         # Exobiology
         exobio_sold_total  = 0
         exobio_by_genus:    dict[str, int] = {}   # genus → sample count
-        exobio_by_species:  dict[str, int] = {}   # localised name → count
+        exobio_by_species:  dict[str, int] = {}   # localized name → count
         exobio_sample_count = 0
         # Credit accounting from SellOrganicData — the BioData payload carries
         # a per-entry Value (base) and Bonus (first-logged / first-discovery
@@ -269,11 +252,6 @@ class JournalHistoryPlugin(BasePlugin):
         exobio_first_bonus     = 0                   # Σ first-discovery bonuses
 
         # PowerPlay — every counter below is scoped to the CURRENT pledge.
-        # Merits earned under a previous allegiance are deliberately dropped:
-        # they bought standing with a power the commander has left and say
-        # nothing about where they stand now.  _pp_reset_pledge() clears the
-        # lot at each boundary (Join, Defect, Leave, or an observed change of
-        # power), so what survives the scan belongs to one allegiance.
         pp_system_merits: dict[str, int] = {}
         pp_total_merits   = 0
         pp_pledge_merits  = 0       # Σ MeritsGained since the current pledge
@@ -283,10 +261,7 @@ class JournalHistoryPlugin(BasePlugin):
         pp_active         = False   # True once we see a Powerplay/Join event
         pp_current_system = ""      # system at time of PowerplayMerits event
         # Merits-by-activity: the journal's PowerplayMerits event records
-        # MeritsGained but not *what* earned them.  We attribute each grant
-        # to whichever activity dominated the recently-preceding events —
-        # a heuristic, but a defensible one (the activity that produced the
-        # merits is almost always the last thing the commander did).
+        # MeritsGained but not *what* earned them.
         pp_merits_by_activity: dict[str, int] = {
             "Combat": 0, "Trade": 0, "Exploration": 0,
             "Missions": 0, "Other": 0,
@@ -358,7 +333,7 @@ class JournalHistoryPlugin(BasePlugin):
         latest_cfinance_ts   = ""
 
         # Trade accuracy — Statistics.Trading.Goods_Sold is unreliable, so
-        # count tonnes / revenue / profit from MarketSell events directly.
+        # count tons / revenue / profit from MarketSell events directly.
         market_sell_count   = 0
         market_sell_revenue = 0
         market_sell_profit  = 0
@@ -379,7 +354,7 @@ class JournalHistoryPlugin(BasePlugin):
         # balance moves by exactly what the journal logs — except for income
         # the game never writes down, PowerPlay care packages among it.
         # Reconciled here so the career figure covers every journal, not just
-        # the sessions EDLD watched. See core/credit_flows.py.
+        # the sessions EDLD watched.
         from core.credit_flows import credit_delta, MIN_UNKNOWN_CR
         rc_fid: str | None = None
         rc_balance: int | None = None
@@ -549,7 +524,7 @@ class JournalHistoryPlugin(BasePlugin):
                     exobio_sold_total  += base + bonus
                     exobio_first_bonus += bonus
                     _fin_in("Exobiology: organic data", base + bonus)
-                    # Genus label: prefer the localised payload, else
+                    # Genus label: prefer the localized payload, else
                     # derive from the species key.
                     genus = (item.get("Genus_Localised")
                              or _genus_from_species(item.get("Species", ""))
@@ -599,9 +574,6 @@ class JournalHistoryPlugin(BasePlugin):
                     pp_total_merits = snap   # use login snapshot as floor
 
             elif name == "PowerplayMerits" and pp_active:
-                # A grant for a different power than the one we are
-                # tracking means a pledge boundary was missed (the Join
-                # fell outside the scanned range).  Treat it as one.
                 ev_power = ev.get("Power") or ""
                 if ev_power and pp_power and ev_power != pp_power:
                     _pp_reset_pledge(ev_power, ev.get("timestamp", ""))
@@ -611,8 +583,11 @@ class JournalHistoryPlugin(BasePlugin):
 
                 gained = ev.get("MeritsGained", 0)
                 total  = ev.get("TotalMerits")
+                # Repeat event: TotalMerits unchanged, nothing credited.
+                if total is not None and total == pp_total_merits:
+                    gained = 0
                 if total is not None:
-                    pp_total_merits = total   # authoritative running total from server
+                    pp_total_merits = total   # server running total
                 if gained > 0:
                     sys = current_system or "Unknown"
                     pp_system_merits[sys] = pp_system_merits.get(sys, 0) + gained
@@ -752,10 +727,7 @@ class JournalHistoryPlugin(BasePlugin):
             elif name == "NpcCrewPaidWage":
                 _fin_out("Carrier: NPC crew wages", ev.get("Amount"))
             elif name == "CarrierTradeOrder":
-                # A buy/sell order placed on the carrier market.  The
-                # cost only materialises if the order is filled —
-                # surface it as a NOTE rather than a hard "Out"
-                # category, because not all orders fill.
+                # A buy/sell order placed on the carrier market.
                 po = ev.get("PurchaseOrder")
                 pr = ev.get("Price")
                 if po and pr:
@@ -879,8 +851,6 @@ class JournalHistoryPlugin(BasePlugin):
                     "revenue": market_sell_revenue,
                     "profit":  market_sell_profit,
                 },
-                # Combat voucher reconciliation — issued vs. redeemed often
-                # differ because vouchers can sit unclaimed for ages.
                 "vouchers": {
                     "bounty_issued":   bounties_earned,
                     "bounty_redeemed": bounties_redeemed,

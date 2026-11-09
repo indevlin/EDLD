@@ -1,11 +1,4 @@
-"""
-core/settings_spec.py — a component's settings, described once, drawn twice.
-
-Every component that brings settings had to write its Options tab twice — a
-Qt form for the desktop window and a Textual one for the terminal dashboard —
-and then register its terminal widget ids separately, or they were drawn and
-never saved. A component that describes its settings here gets both tabs and
-the save bindings from the one description, so the two cannot drift.
+"""core/settings_spec.py — a component's settings, described once, drawn twice.
 
     class CalloutsPlugin(SettingsSpecMixin, BasePlugin):
         SETTINGS_SECTION = "Callouts"
@@ -19,7 +12,6 @@ the save bindings from the one description, so the two cannot drift.
             Action("check-gaps", "Check now"),
         )
 
-``self.settings()`` returns the section with every default filled in.
 ``Action`` draws a button; the component handles it in
 ``settings_action(action_id) -> str``, whose answer is shown beside it.
 """

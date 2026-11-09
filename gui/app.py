@@ -1,20 +1,10 @@
-"""
-gui/app.py — PySide6 desktop application for EDLD.
-
-Three-column layout built from the shared layout model (see
-core/layout_model.py), so the desktop window and the terminal dashboard show
-the same windows in the same positions and the Display preferences tab drives
-both — with the Helm panel along the foot while automation is on:
+"""gui/app.py — PySide6 desktop application for EDLD.
 
   Left   : Career  |  Cargo  |  Massacre Mission Stack
-  Centre : Commander  |  Crew/SLF  |  Alerts  |  Exploration
-  Right  : Navigation  |  Colonisation  |  Exobiology
+  Center : Commander  |  Crew/SLF  |  Alerts  |  Exploration
+  Right  : Navigation  |  Colonization  |  Exobiology
 
 (the defaults — any of it reassignable from Preferences → Display.)
-
-The event dispatch table is a copy of the TUI's, keyed by the same message
-names the components put on ``core.gui_queue``.  A component that emits a new
-message type refreshes the same windows in both front ends.
 
 Hotkeys match the TUI where the platform allows it:
 
@@ -23,11 +13,6 @@ Hotkeys match the TUI where the platform allows it:
   Ctrl+K  Session-management overlay
   Ctrl+T  Quit game session
   F11     Full screen
-
-Window controls are the operating system's own: the window is a plain
-QMainWindow with no frameless trickery, so minimise, maximise, restore, snap,
-tiling and the platform close button all behave exactly as the user's desktop
-expects on Linux, Windows and macOS.
 """
 
 from __future__ import annotations
@@ -83,7 +68,7 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     # Generic state changes — keep Career's wealth rows and the Session
     # window live, plus Navigation's Carrier tab readout.
     "state_update":       ["block-career", "block-career", "block-nav"],
-    # Colonisation now renders in the Cargo window's second tab.
+    # Colonization now renders in the Cargo window's second tab.
     "colonisation_update": ["block-objectives"],
     "crew_update":        ["block-status"],
     "slf_update":         ["block-status"],
@@ -100,8 +85,7 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     "exobiology_update":  ["block-exploration", "block-career"],
     "materials_update":   ["block-ship"],
     "alert_update":       ["block-status"],
-    # What the alerts component actually sends. Only "alert_update" was
-    # listed, so every new alert fell through to a repaint of every window.
+    # What the alerts component actually sends.
     "alerts_update":      ["block-status"],
     "pp_update":          ["block-career", "block-career", "block-commander"],
     "cmdr_update":        ["block-commander", "block-nav"],
@@ -119,6 +103,7 @@ _PLUGIN_TO_BLOCK: dict[str, str] = {
     "session_stats": "block-career",
     "ship_info":     "block-ship",
     "objectives":    "block-objectives",
+    "surface_mining": "block-objectives",
     "status":        "block-status",
     "automation":    "block-helm",
 }
@@ -192,8 +177,6 @@ class EdldWindow(QMainWindow):
         # Style: the Dashboard's three columns, or EDCARS's rail and sections
         # (gui/edcars.py). Both register the same block ids, so everything
         # below — dispatch, refresh, actions — is the same for either.
-        # Which one is the interface EDLD was started as (core/modes.py):
-        # EDCARS, the default, or the Dashboard (--dashg / --gui).
         from core import edcars as _edcars
         self._style = _edcars.style_for_mode(getattr(core, "ui_mode", ""))
         self._edcars = None
@@ -267,23 +250,7 @@ class EdldWindow(QMainWindow):
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _build_dashboard(self) -> QWidget:
-        """Build the three columns from the shared layout model.
-
-        The arrangement is fixed, matching the terminal dashboard: three
-        columns at the model's own percentages, each window occupying its
-        slot's share of that column.  Which window sits in which slot is
-        changed through Preferences > Display; the geometry itself is not
-        draggable.
-
-        This replaced a pair of nested QSplitters.  Splitters let Qt pick its
-        own initial sizes from widget size hints, so the desktop window opened
-        with columns that bore no relation to the terminal's, and a stray drag
-        left the dashboard permanently lopsided with no way back.
-
-        Stretch factors are the model percentages scaled by 100, because Qt
-        stretch is integral and the raw values are too coarse to hold the
-        ratio once a column has several windows in it.
-        """
+        """Build the three columns from the shared layout model."""
         cols = tui_columns(load_assignment())
 
         outer = QWidget()
@@ -471,10 +438,7 @@ class EdldWindow(QMainWindow):
     def _preload_active(self) -> bool:
         """True while the journal is still being replayed at startup.
 
-        Preload fires thousands of events in a few seconds.  Repainting on
-        each one makes the dashboard flicker through months of history before
-        settling, so repaints are held until the replay finishes and then
-        done once.
+        Preload fires thousands of events in a few seconds.
         """
         return bool(getattr(getattr(self._core, "state", None),
                             "in_preload", False))
@@ -493,9 +457,8 @@ class EdldWindow(QMainWindow):
         try:
             block.refresh_data()
         except Exception as exc:
-            # A block that throws must not take the dashboard down with it;
-            # the same guard the TUI applies around refresh_data().  It is
-            # reported, once, rather than swallowed.
+            # A block that throws must not take the dashboard down with it; the
+            # same guard the TUI applies around refresh_data().
             from core.ui_helpers import report_block_fault
             faults = getattr(self, "_block_faults", None)
             if faults is None:
@@ -525,11 +488,7 @@ class EdldWindow(QMainWindow):
             self._edcars.acknowledge()
 
     def action_deposit(self) -> None:
-        """Add or edit the deposit underfoot.
-
-        One entry for both: which it is depends on where the commander is
-        standing, and they should not have to know before choosing it.
-        """
+        """Add or edit the deposit underfoot."""
         plugin = self._core._plugins.get("surface_mining")
         if plugin is None or not hasattr(plugin, "form_for_here"):
             return
@@ -579,12 +538,7 @@ class EdldWindow(QMainWindow):
         self._refresh_block("block-helm")
 
     def action_sell_table(self) -> None:
-        """Open the sell table, or close it if it is already open.
-
-        Non-modal and kept on the instance, so the same shortcut toggles one
-        window rather than stacking copies, and the dashboard behind it goes
-        on updating.
-        """
+        """Open the sell table, or close it if it is already open."""
         existing = getattr(self, "_sell_dialog", None)
         if existing is not None and existing.isVisible():
             existing.close()
@@ -647,8 +601,7 @@ def _load_app_icon() -> QIcon | None:
     """Best-effort window icon.
 
     Frozen builds carry the icon next to the bundled data; a source checkout
-    has it in images/.  Neither is fatal — a missing icon just leaves the
-    platform default.
+    has it in images/.
     """
     from pathlib import Path
 

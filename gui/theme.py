@@ -1,26 +1,15 @@
-"""
-gui/theme.py — Qt stylesheet built from the shared EDLD palettes.
+"""gui/theme.py — Qt stylesheet built from the shared EDLD palettes.
 
-The GUI renders the same themes as the TUI.  Both read
-``core/palette.py``; this module turns a palette into a Qt Style Sheet, the
-way ``tui/theme.py`` turns the same palette into Textual CSS.
+The GUI renders the same themes as the TUI.
 
-The visual target is the TUI, not a generic desktop application: dark warm
-background, accent-coloured block titles on a bar, key text dim and value text
-bright, and health colours carrying the same meaning in both front ends.  A
-commander who moves between the two should recognise the dashboard instantly.
-
-Qt Style Sheets support a useful subset of CSS.  Notably absent are custom
-properties, so the palette is substituted into an f-string rather than
-declared once at the top.
+Qt Style Sheets support a useful subset of CSS.
 """
 
 from __future__ import annotations
 
 from core.palette import rgb
 
-#: Point sizes.  Slightly larger than a default desktop UI because the
-#: dashboard is glanced at from across a desk while the game has focus.
+#: Point sizes.
 FONT_SIZES = {
     "title":   11,
     "section":  9,
@@ -28,23 +17,12 @@ FONT_SIZES = {
     "small":    9,
 }
 
-#: The monospace stack used for value columns.  The TUI gets column alignment
-#: for free from the terminal grid; the GUI has to ask for it, and several
-#: blocks (Cargo, Missions, Ship Health) pad their values to fixed widths on
-#: the assumption that a monospace face will render them aligned.
+#: The monospace stack used for value columns.
 MONO_FAMILIES = '"DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", monospace'
 
 
 def _arrow_png(colour: str) -> str:
-    """A small down-pointing triangle in ``colour``, as a PNG path for QSS.
-
-    A styled ``QComboBox::drop-down`` stops Qt drawing the platform's arrow,
-    and a style sheet can only put one back as an image, so every drop-down
-    in the window read as a plain text box. The image is made here, in the
-    theme's colour, with nothing but zlib: no image plugin to bundle, and a
-    custom theme gets an arrow in its own colour. Written once per colour to
-    EDLD's data directory; "" if that cannot be written, which leaves the box
-    as it was rather than failing the window.
+    """A small down-pointing triangle in ``color``, as a PNG path for QSS.
     """
     import struct
     import zlib
@@ -137,16 +115,16 @@ QLabel[role="section"] {{
 }}
 QLabel[role="dim"]    {{ color: {c['dim']}; background: transparent; }}
 
-/* A value column stays monospace whatever colour it is wearing.
+/* A value column stays monospace whatever color it is wearing.
    classes_to_props turns "val dim" and "val highlight" into role="dim" and
-   role="highlight", which carry a colour and nothing else — so a value marked
+   role="highlight", which carry a color and nothing else — so a value marked
    either way silently lost the monospace face that role="val" supplies, and
    with it every column the shared helpers had padded into line.  The column
    headings on the cargo manifest were the visible case: proportional
    headings sitting over monospace figures, lining up with nothing.
 
    Keyed on a property KVRow sets once and never rewrites, rather than on the
-   role, because the role is exactly what changes when the colour does. */
+   role, because the role is exactly what changes when the color does. */
 QLabel[col="value"] {{ font-family: {MONO_FAMILIES}; }}
 QLabel[role="hdrkey"] {{
     color: {c['accent']};
@@ -270,7 +248,7 @@ QLineEdit, QSpinBox, QComboBox {{
 }}
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border-color: {c['accent']}; }}
 /* Radio buttons (the Add Station dialog).  Without a rule the platform
-   indicator is drawn in the window colour and an unchecked one vanishes. */
+   indicator is drawn in the window color and an unchecked one vanishes. */
 QRadioButton {{ spacing: 6px; }}
 QRadioButton::indicator {{
     width: 12px; height: 12px;
@@ -368,7 +346,7 @@ QGroupBox::title {{
     font-weight: 600;
 }}
 /* Tables.  alternate-background-color must be stated or Qt supplies its own,
-   which is a light grey and unreadable on every dark palette here.
+   which is a light gray and unreadable on every dark palette here.
    {c['row-alt']} is derived from the block fill in core.palette and is the
    same stripe the TUI paints, so the two windows match. */
 QTableWidget, QTableView {{
@@ -431,8 +409,7 @@ def classes_to_props(classes: str) -> dict[str, str]:
     """Translate a TUI CSS class string into Qt property values.
 
     Blocks pass class strings like ``"val health-crit"`` or ``"val dim"``
-    straight through from the ported TUI code.  Returning properties rather
-    than a stylesheet fragment keeps the styling in one place.
+    straight through from the ported TUI code.
     """
     parts = set((classes or "").split())
     props: dict[str, str] = {"role": "val"}

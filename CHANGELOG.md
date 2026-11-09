@@ -1,10 +1,102 @@
 # EDLD CHANGELOG
 
-Last updated: 20261106
+Last updated: 20261108
 
 ---
 
-## 20261106-dev — added, unreleased
+## 20261108-dev — added, unreleased
+
+### Fixed: Merits this cycle could exceed Merits this pledge
+
+The cycle figure was a tally of every `PowerplayMerits` gain the journals held
+since the weekly reset, while the pledge figure was the server's own running
+total. The game writes `PowerplayMerits` again, with the same `TotalMerits`,
+when it repeats itself after a relog, and the tally counted each repeat as a
+fresh gain; the server's total also takes small corrections the tally never
+saw. Over a few sessions the cycle drifted above the pledge it is part of. A
+cycle is now the server's total now, less its total before the last reset
+(Thursday 07:00 UTC), rebuilt from the journals at login, so it can never be
+larger than the pledge. The PowerPlay tab also says when the cycle resets.
+
+### Added: the weekly reset is tracked
+
+EDLD now knows the start and end of the current PowerPlay week. The merits
+cycle uses it, and the Career PowerPlay tab and the Summary show the time
+left until the reset.
+
+### Added: Objectives → Deposits, the survey sheet in the app
+
+The Objectives window has a Deposits tab listing every deposit in the local
+survey store with the shared sheet's columns, and a filter box that matches
+any of them, notes included. On the desktop and in EDCARS a double-click edits
+a cell in place, and Edit… opens the deposit form for the selected row; in the
+terminal dashboard a row opens the form. EDAM shows the same table and filter,
+read-only.
+
+### Fixed: deposits recorded by hand had no gravity or system name
+
+Body facts were filled from the exploration catalog only for deposits created
+from the form, and only once. A deposit recorded before its body was scanned,
+or captured from the journal, kept a blank gravity and an empty system name,
+which the shared sheet showed as blank cells without saying why. EDLD now
+fills missing body facts at startup for every deposit; a body that was never
+scanned still shows a blank.
+
+### Added: colonization sites can be cleared, and clear themselves
+
+Each site in the Colonization tab has a Stop tracking row that clears it, on
+every front end and from EDAM. A site you have not delivered to in seven days
+is cleared on its own, and a site last visited more than seven days ago is not
+brought back by the journal history. With no sites left the tab reads "No
+recent colonization activity".
+
+### Added: the ore a mining mission needs that you already hold
+
+Under the mining missions, MINING ORE HELD lists each ore an active mining
+mission asks for with the tons in your ship's hold, on your own fleet carrier
+and both together, and turns green once that covers what the mission still
+needs. A squadron carrier's hold is not counted.
+
+### Changed: uploads to EDSM, EDAstro and Inara go out at more moments
+
+The collected events are now sent at every dock and undock (stations, fleet
+carriers and surface ports), when a hyperspace jump starts and when it ends,
+on a carrier jump, at a ship purchase or swap, when an SRV or fighter
+launches, docks or is destroyed, at death, and whenever the loadout changes.
+Before, they waited for the next jump, dock or login, so a session that ended
+in space sat unsent until the next start. docs/CONFIGURATION.md lists them.
+
+### Fixed: integrations sent some data wrongly, or said nothing
+
+The logs were checked against the journals for every service. Inara received a
+carrier jump as an FSD jump, and no location at login; carrier jumps and
+locations now go out as their own events, with the station when docked. Its
+heartbeat line counted each send request as an event sent. EDDN's duplicate
+check ignored the system, so your own carrier's market, outfitting and
+shipyard in a new system after a jump were dropped as already sent, and
+docking again did not clear the check. A squadron carrier's `CarrierStats`
+also replaced your own carrier's id, after which a trade order set on your own
+carrier no longer resent its market. EDAstro logged failures but not
+successes, so a working upload looked the same as no upload at all; it now
+logs each batch sent.
+
+### Changed: Career / Session, not Session / Career
+
+The window and its EDCARS section are titled Career / Session, matching the
+order of the tabs.
+
+### Changed: Set Home System is a row, not a button
+
+The Commander window's Set Home System button took a full-width strip, more
+again on the phone. The Home System row is now the control: press or tap it
+to search, on every front end and in EDAM. It reads "Set…" until a home is
+chosen.
+
+### Changed: US English throughout
+
+Every label, message, guide and log line now uses US spelling: Colonization,
+Center, color. Configuration keys and journal field names are unchanged, so
+existing config files keep working.
 
 ### Changed: the Missions tab shows every mission, a table for each kind
 
@@ -49,7 +141,7 @@ also clears it from the Exploration window's highlighted values.
 
 ### Fixed: the wing marker was missing from the terminal dashboard
 
-A wing mission was labelled `[W]`, which the terminal dashboard read as markup
+A wing mission was labeled `[W]`, which the terminal dashboard read as markup
 and dropped. It is now `(Wing)`, in every front end.
 
 ### Fixed: a massacre redirect or turn-in did nothing until the next login
@@ -111,7 +203,7 @@ commander name and FID, Journal History, Holdings, Assets (all nine of its
 passes), Discoveries, the Crew & SLF type and crew lookups, Ship Health and
 the mission backfill. What still reads files directly reads one or a few: the
 newest journal, the last four for the hold, the backups, the EDSM gap check,
-and the dossier's and the body catalogue's own incremental readers.
+and the dossier's and the body catalog's own incremental readers.
 
 Each one was checked against the code it replaced on those 263 journals: the
 same state, the same career results, the same holdings, fleet and
@@ -199,7 +291,7 @@ console. Each new console has a theme of its own name made to match it,
 `order`, `rebel` and `rogue`, which the Dashboard window and the
 terminal dashboard can wear too. The names are written once, in
 `core/edcars.py`, beside EDCARS's, and a test fails if any other source file
-spells one. The four faces are free and ship in `fonts/` with their licences.
+spells one. The four faces are free and ship in `fonts/` with their licenses.
 EDAM is told which console EDLD wears, and every console's name, in a new
 `console` field of the header, apart from `style`, which stays `edcars` for
 all four, so the released app goes on drawing EDCARS; EDAM 20261105
@@ -306,7 +398,7 @@ framing one to three windows; the radio runs along the foot. `Ctrl+1` to
 [docs/EDCARS.md](docs/EDCARS.md).
 
 The band's title and clock, the strip's labels and the pills are set in bold
-Euro Caps, which at the strip's size and on the pills' mid-tone colours reads
+Euro Caps, which at the strip's size and on the pills' mid-tone colors reads
 where the regular weight did not. The face has no bold of its own, so it is
 drawn thickened, with its kerning off and a little more spacing: Euro Caps
 tucks L under O, and a thickened L ran into the O in "LOGISTICS",
@@ -377,7 +469,7 @@ clock and a Settings pill of its own. Every window is described once, in
 `core/windows`, and the desktop window, the terminal dashboard and EDAM all
 draw that description, so they cannot show different things: every tab of
 every window in the desktop's order, tables as columns under their headings,
-values in the desktop's colours, the line above a tab, and a window's own
+values in the desktop's colors, the line above a tab, and a window's own
 inner tabs, as the Engineering locker's seven. A test builds the desktop's
 EDCARS and fails if any tab in any section has no counterpart on a device. In
 portrait one section fills the screen and swipes to the next, with the pills
@@ -518,7 +610,7 @@ Riches route of bodies worth mapping, an Exomastery route of biology worth
 sampling, a route of Earth-like, ammonia or terraformable worlds, a trade run
 from the station you are docked at, or a sweep through systems you list. It
 is followed like any other route. Arriving at a stop says what is still to
-map or sample there — bodies you have mapped and species you have analysed,
+map or sample there — bodies you have mapped and species you have analyzed,
 by your own journal, are counted as done — or what to buy and sell, and the
 Route tab carries the same against each stop ahead.
 
@@ -650,7 +742,7 @@ it. Both Dashboards — the desktop window and the terminal — run it along the
 foot while automation is on: on a wide screen every group in one row, two
 rows of buttons each, every name whole; **Options → Appearance → Dashboard:
 Helm panel** (`[UI] HelmPanel`) turns it off. On EDLD's own panel a control
-that cannot be pressed is greyed, with what it is bound to and what to change
+that cannot be pressed is grayed, with what it is bound to and what to change
 as its tooltip, and the line under the buttons says what the last press came
 to. A click in EDLD's own window takes the focus from the game, so a button
 there brings the game to the front first — on Windows directly, on X11 with
@@ -726,21 +818,21 @@ Rewrite now button. Documented in [docs/DOSSIER.md](docs/DOSSIER.md).
 
 ### Added: overlay Visibility Tweaks
 
-Overlay text could be hard to read. Labels used each theme's dim colour, made
+Overlay text could be hard to read. Labels used each theme's dim color, made
 to recede on the dashboard's solid background: against a dark scene they
 measured 2.2–2.7:1, against a bright station interior under 2:1, and every
-labelled row — values included — was drawn in that colour. Five independent
+labeled row — values included — was drawn in that color. Five independent
 switches, under **Visibility Tweaks** in the Overlay options of both front ends,
 all off by default:
 
 - **Outline text** — a ring round every letter, outside it.
 - **Backing panel** — a translucent panel behind each overlay panel.
 - **Keep text solid** — `Opacity` fades the backing, never the text.
-- **Contrast floor** — lifts any colour too faint to read, keeping its hue, for
-  every theme including Custom colours and custom themes.
-- **Emphasise values** — values in the value colour, bold.
+- **Contrast floor** — lifts any color too faint to read, keeping its hue, for
+  every theme including Custom colors and custom themes.
+- **Emphasize values** — values in the value color, bold.
 
-The overlay's colour theme can now also be one of your custom dashboard themes,
+The overlay's color theme can now also be one of your custom dashboard themes,
 or **Follow dashboard**. The overlay options no longer say Experimental.
 Documented in
 [docs/STREAMER_STATS_OVERLAY.md](docs/STREAMER_STATS_OVERLAY.md#visibility-tweaks).
@@ -826,7 +918,7 @@ Options. Ctrl+O is unchanged.
 `themes/custom-template.css` carried a dozen variables — `--font-size`,
 `--bg-log`, `--fg-rate`, `--health-good` and the rest — and a note about a
 `[GUI] FontSize` setting, all from the GTK4 interface removed in 20260613.
-Nothing has read them since. The template now holds the ten colours a theme
+Nothing has read them since. The template now holds the ten colors a theme
 is made of, each saying where it shows.
 
 ### Fixed: on foot, the suit was shown as the ship, by its game variable
@@ -849,18 +941,18 @@ too.
 The Ranks tab read the companion API's copy of the ranks and nothing else,
 so without a Frontier login it said "Awaiting CAPI data…" for ever, while the
 Rank and Progress events at every login carry every rank and the progress
-towards the next. It also read the API's progress from a name it was never
+toward the next. It also read the API's progress from a name it was never
 stored under, so with a login the ranks showed and the progress never did.
 Both looked like data not arrived yet. The journal's ranks are now used when
 there are no API figures, and the API's progress is read from where it is.
 
-### Fixed: EDAM showed a colonisation site's heading with its markup
+### Fixed: EDAM showed a colonization site's heading with its markup
 
-A site under Colonisation reached EDAM as "[bold cyan]HIP 73225 (colonisation
+A site under Colonization reached EDAM as "[bold cyan]HIP 73225 (colonization
 ship)[/bold cyan]". What is sent to a device has the terminal dashboard's
-markup taken out and its colour turned into a tone, but only one-word tags
-were recognised, and the site heading uses a two-word one. Tags of any number
-of style words are now recognised, and "[/]" as well; the desktop window, which
+markup taken out and its color turned into a tone, but only one-word tags
+were recognized, and the site heading uses a two-word one. Tags of any number
+of style words are now recognized, and "[/]" as well; the desktop window, which
 reads the markup itself, was never affected.
 
 ### Fixed: the squadron needed a Frontier login
@@ -917,7 +1009,7 @@ looked broken except the repetition. It is now said once per run.
 
 A hatch breaker and the commander's own jettison write the same EjectCargo,
 with the same fields, and EDLD took any single unit ejected and not abandoned
-for theft: every tonne jettisoned while mining raised "Cargo stolen!" in the
+for theft: every ton jettisoned while mining raised "Cargo stolen!" in the
 alerts and on Discord. On one commander's history that was 133 false thefts.
 Requiring a fight was not enough. The game holds its danger flag on while a
 pirate scans or threatens, which in a ring is most of the time, and bumping a
@@ -1110,7 +1202,7 @@ Names, classes and ratings now come from EDCD's list of every module
 (FDevIDs `outfitting.csv`), generated into `data/outfitting.py` by
 `scripts/export_outfitting.py`: "3C Mining Volley Repeater (Fixed)", "3F Pulse
 Laser (Turret)", "4F Mk II Large Planetary Vehicle Hangar", "8A Mk II
-Supercharge Optimised Frame Shift Drive (SCO)". Every module name in the
+Supercharge Optimized Frame Shift Drive (SCO)". Every module name in the
 journals from May to October was checked against it. Most journal names are
 the game's abbreviations — "FSD (SCO)", "AFM Unit", "Heatsink", "Prospector"
 — where the modules screen uses the full name the list has; where the game
@@ -1216,13 +1308,13 @@ The fix is in the sheet's code, so a sheet picks it up from ED Dashboard →
 Upgrade… once this reaches the branch it follows: sheet layout v3 rewrites the
 dashboard formula. Nothing in Deposits changes.
 
-### Fixed: survey bodies were never filled from the body catalogue
+### Fixed: survey bodies were never filled from the body catalog
 
 A deposit on a body not scanned in the same session should take the body's
-class, gravity, radius, atmosphere and volcanism from EDLD's body catalogue.
-The lookup called a method the catalogue does not have, failed every time, and
+class, gravity, radius, atmosphere and volcanism from EDLD's body catalog.
+The lookup called a method the catalog does not have, failed every time, and
 logged it at INFO, so those columns went to the sheet blank. It now asks the
-catalogue properly, still fills only what is blank, and treats the catalogue's
+catalog properly, still fills only what is blank, and treats the catalog's
 own blanks as unknown rather than as zero.
 
 ### Fixed: the deposit form was cut off on shorter terminals
@@ -1242,7 +1334,7 @@ time is known, a site comes back on the day it should have refilled.
 
 The style sheet styled the drop-down button, which stops Qt drawing the
 platform's arrow, and gave it nothing in its place, so every drop-down read as
-a text box. Each theme now draws an arrow in its own label colour.
+a text box. Each theme now draws an arrow in its own label color.
 
 ### Fixed: opening Options in the terminal dashboard counted as changing everything
 
@@ -1335,7 +1427,7 @@ only within one commodity, so not one refine could find the deposit recorded by
 hand, 90 m away. The same was true of anything fetched from the sheet, which
 holds the display name and was stored under it. Names are now resolved to the
 game's symbol everywhere — the form, refines, and the sheet — from a table
-learned from every refine and from the market catalogue, seeded with the names
+learned from every refine and from the market catalog, seeded with the names
 that differ (Low Temp. Diamonds, Void Opals).
 
 A rig site is also wider than the old 100 m match. The SRV refines wherever it
@@ -1361,7 +1453,7 @@ time since that activity's first event, not the length of the session. Merits
 earned over the last hour of a five-hour session read as if they had all come
 in one hour, and every row ran at a different speed from the session clock
 printed above it. Each rate now divides by the session clock — the one the
-Session tab shows — and so does mining's tonnes per hour.
+Session tab shows — and so does mining's tons per hour.
 
 A manual reset (Session → Reset Session Counters, or Ctrl+R) was kept across a
 restart only as a clock time. The journal replay at startup then counted every
@@ -1377,7 +1469,7 @@ counting that had gone wrong.
 ### Fixed: the Type-11 Prospector was listed as "LakonMiner"
 
 Commander → Ships named the ship being flown by Frontier's internal id. CAPI
-sends that id as the ship's name and leaves the localised name empty for most
+sends that id as the ship's name and leaves the localized name empty for most
 hulls, and the current ship — unlike the stored ones — used the id as the
 display name without looking it up. The Lynx Highliner was listed as
 "Mediumtransport01" for a second reason: it was missing from the ship table.
@@ -1421,7 +1513,7 @@ modification time. It recorded that time before reading the file, so a check
 that landed while the game was rewriting it — the game truncates these files
 and writes them again in place — read nothing, marked that version as handled,
 and never looked at it again. The hold or the market then stayed wrong until
-the cargo or the market next changed. The commodity catalogue had the same
+the cargo or the market next changed. The commodity catalog had the same
 flaw. A version is now marked handled only once it has been read whole, and a
 version is its modification time and its size together, so two writes in the
 same second on a share or FAT drive that keeps whole seconds are no longer one.
@@ -1447,10 +1539,10 @@ sorts first rather than stopping EDLD from starting.
 
 PySide6 6.12 moved Qt's PDF and WebEngine modules out of PySide6-Addons into
 wheels of their own, PySide6-Pdf and PySide6-WebEngine, which the PySide6
-package now depends on. Like the rest of Qt for Python they carry no licence
-file of their own — their licence is the LGPL text already in `licenses/` —
-but the build's licence collection only knew to excuse the old names, so it
-stopped the build for two packages with no licence. Nothing pins PySide6
+package now depends on. Like the rest of Qt for Python they carry no license
+file of their own — their license is the LGPL text already in `licenses/` —
+but the build's license collection only knew to excuse the old names, so it
+stopped the build for two packages with no license. Nothing pins PySide6
 below 6.12, so the next CI release would have installed it and failed. They
 are now excused alongside Essentials and Addons.
 
@@ -1480,13 +1572,13 @@ Every document was checked against the code. What was wrong, missing or out of
 date is fixed:
 
 - **README** — the feature list covers on-foot, Odyssey and income statistics,
-  alerts for carrier jumps and an expired Frontier sign-in, the body catalogue,
+  alerts for carrier jumps and an expired Frontier sign-in, the body catalog,
   the route follower, the overlay's visibility tweaks and the dossier. Rows for
   a career block and a documentation viewer that do not exist are gone, and
   "plugin architecture" now describes components and profiles as they are.
   Quick start lists `--tui`, `--headless` and `--version`; the keys table gains
   Ctrl+P; data directories are given for all three systems; the disclaimer
-  covers session management, third-party services and the licence's warranty.
+  covers session management, third-party services and the license's warranty.
 - **New: [Data and Privacy](docs/PRIVACY.md)** — every outside service EDLD can
   talk to, when, and what it sends; what stays local; and what a secondary
   instance leaves out.
@@ -1496,7 +1588,7 @@ date is fixed:
   guides.
 - **Install, Building, Licensing, third-party notices, Theming, Server, Roadmap
   and the guides** — Python 3.11, Fedora steps, the server build's artefact
-  names and licences, the fonts, the newer libraries and services, signed
+  names and licenses, the fonts, the newer libraries and services, signed
   release tags, and headings and footers fixed.
 - **Screenshots** — the dossier's Fleet and ship pages, the visibility tweaks
   side by side over dark and bright scenes, and a gallery of the built-in
@@ -1685,7 +1777,7 @@ A store that has `Depleted` as an amount keeps the fact as a dated log line —
 its last confirmation, if nothing already dated it — and the amount becomes
 blank. The sheet stops serving `Depleted`, clears it from a row the next time
 the row is written, and **Repair dashboard formulas** clears it from a template
-sheet at once. The overlay no longer has a colour for it.
+sheet at once. The overlay no longer has a color for it.
 
 How long a site takes to refill is not yet known. `REPLENISH_DAYS` in
 `core/mining_db.py` is `None` and `replenishes_on()` answers nothing until it
@@ -1714,7 +1806,7 @@ already there. The sheet gains an `assessment_updated` column.
 
 `test_schedule_reports_name_ident_destination_and_countdown` expected the
 departure clock in UTC, but the notification prints it in local time unless
-`UseUTC` is set, which is the intended behaviour. On any machine not set to UTC
+`UseUTC` is set, which is the intended behavior. On any machine not set to UTC
 the suite reported a failure in code that was working correctly. It went
 unnoticed because every place the suite had been run, the GitHub runners
 included, runs on UTC. The test now converts the departure the same way the
@@ -1779,7 +1871,7 @@ The `--trace` header redacts credentials, but it only looked at the key sitting
 directly beside each value. A profile holds its overrides as nested tables, so
 in `[EDP1]` the key beside the EDSM API key is `EDSM`, not `ApiKey`, and the
 whole table was written out as it stood. Every profile-level EDSM, Inara and
-Colonisation API key, the Surface Survey token and the Discord webhook URL went
+Colonization API key, the Surface Survey token and the Discord webhook URL went
 into every trace log, while the top-level copies of the same settings a few
 lines above were correctly redacted, which is what made the leak easy to miss
 when reading the file. Redaction now walks nested tables to any depth, and a
@@ -1905,7 +1997,7 @@ look like one.
 
 The desktop theme gained a radio-button style. These are the first radio
 buttons in the desktop window, and without one the platform draws the
-indicator in the window colour, so the unchecked choice was invisible.
+indicator in the window color, so the unchecked choice was invisible.
 
 ### Added: a dashboard template for the shared survey sheet
 
@@ -1919,7 +2011,7 @@ maintains it, from which the dashboard takes its title.
 The Dashboard tab is the read side for people who open the sheet rather than
 run EDLD. Choose a system, a commodity or both, and a table of matching
 deposits appears — body, gravity, mining site, amount, density, rigs and when
-it was worked out. Rows alternate in colour, High amounts and densities are
+it was worked out. Rows alternate in color, High amounts and densities are
 highlighted and Low ones dimmed, and depleted deposits are struck through.
 Deposits flagged as test data are left out, as they are from EDLD's own reads.
 
@@ -1930,10 +2022,10 @@ sort is done inside the table's formula: the table is one `FILTER` expression,
 and Sheets cannot reorder a formula's output in place, so Data → Sort range
 over it either fails or is undone at the next recalculation.
 
-It is styled after the game's HUD, with five colour presets — Classic HUD,
+It is styled after the game's HUD, with five color presets — Classic HUD,
 Federation, Empire, Alliance and Thargoid — and a Custom set of twelve hex
 codes on the Settings tab, plus a choice of title and body font. Sheets cannot
-colour a cell from a formula, so something has to turn those codes into
+color a cell from a formula, so something has to turn those codes into
 formatting: that is `sheets/Dashboard.gs`, a second script beside `Code.gs` in
 the same project, which re-applies the theme whenever Settings changes and
 adds the click-to-sort. Without it the template shows Classic HUD and sorts
@@ -1967,21 +2059,21 @@ check added with the Radio tab caught it on every platform in the release
 workflow, before anything was published. `_cffi_backend` is now a named hidden
 import, and `tests/test_dependencies.py` checks it stays one.
 
-### Fixed: the binaries carried none of their dependencies' licence texts
+### Fixed: the binaries carried none of their dependencies' license texts
 
 Textual, Rich, discord-webhook, requests, psutil and a dozen packages beneath
 them are MIT, BSD or Apache 2.0. Permissive, but each sets one condition: its
-copyright and licence text accompany every copy, plus the NOTICE file for
+copyright and license text accompany every copy, plus the NOTICE file for
 Apache. A binary is a copy of every package inside it, and PyInstaller bundles
 the code while leaving the package metadata, where those texts live, behind.
 `licenses/` held only the GPL and LGPL texts for Qt, so every release so far
 has shipped the rest without them.
 
-The build now copies each bundled package's licence files from the build
+The build now copies each bundled package's license files from the build
 environment's own metadata into `licenses/third-party/<package>-<version>/`,
 following `requirements.txt` and everything it pulls in, so the texts always
 match the versions actually shipped and a new dependency cannot be forgotten.
-A bundled package with no licence file stops the build. `--selftest` fails a
+A bundled package with no license file stops the build. `--selftest` fails a
 frozen binary that carries none, and `tests/test_dependencies.py` checks the
 collector finds one for every bundled package.
 
@@ -1996,7 +2088,7 @@ is now declared rather than assumed to arrive with Textual.
 
 `requirements-dev.txt` declared Pillow for `scripts/generate_icons.py`, which
 does not exist; the icons are committed. It is gone. pytest and pyflakes, which
-the tests need, are added, and so is PyPA's `packaging`, which the licence
+the tests need, are added, and so is PyPA's `packaging`, which the license
 collector uses. `tests/test_dependencies.py` compares both files with the
 imports in both directions: an undeclared import fails, and so does a declared
 package nothing imports.
@@ -2084,7 +2176,7 @@ identically — `high`, `Very High`, `vhigh` — and one can reach the store:
 `import_deposits` wrote sheet values verbatim, and a sheet is a document people
 edit by hand, so another commander's cell would have taken the window down on
 whoever opened it next rather than on whoever typed it. The widget now matches
-case-insensitively and drops anything unrecognised, and the import normalises
+case-insensitively and drops anything unrecognized, and the import normalizes
 amount and density to the vocabulary, discarding what it cannot place: a wrong
 value is worse than a blank one a later sighting can fill in.
 
@@ -2189,12 +2281,12 @@ quietly fail on the one that matters.
 ### Fixed: the deposit window filled the terminal
 
 Three of the style classes it asked for did not exist, so it had no width, no
-border and no centring — and it inherited the preferences row rules, which size
+border and no centering — and it inherited the preferences row rules, which size
 the label column at 45%. Inside the preferences container that is the house
 style; in a window spanning the whole terminal it put every label a thousand
 pixels from its control.
 
-It has its own container rule now: a fixed, centred, bordered box with a
+It has its own container rule now: a fixed, centered, bordered box with a
 narrower label column. A test asserts every class and id the window uses is
 styled somewhere, because an unstyled name fails silently and only looks wrong.
 
@@ -2227,7 +2319,7 @@ own with tests rather than a few `strip()` calls in a dialog. A malformed row
 on a shared sheet is not a local mistake: it is a row somebody else fetches,
 fails to parse, and blames on their own install. Amount and density are matched
 case-insensitively against Frontier's vocabularies, rigs and signal numbers are
-range-checked, and a hand-typed commodity canonicalises to the journal's own
+range-checked, and a hand-typed commodity canonicalizes to the journal's own
 spelling so it deduplicates against a captured one.
 
 An empty field means leave it alone rather than set it to nothing — editing the
@@ -2252,7 +2344,7 @@ scanned months ago produces none.
 
 EDLD already had all of it. `explo.db` holds a planets table with exactly those
 columns, from the same scans; it was simply never asked. The body record is
-filled from the catalogue before a deposit is written, blanks only, so a live
+filled from the catalog before a deposit is written, blanks only, so a live
 `Scan` still wins.
 
 ### Added: a deposit can be flagged as test data
@@ -2326,7 +2418,7 @@ thousand rows in it. Test rows are never served.
 
 ### Fixed: a finished run of refines was never written
 
-Four tonnes of silver refined with EDLD running, and no deposit, no error, and
+Four tons of silver refined with EDLD running, and no deposit, no error, and
 not one log line.
 
 `_flush_pending()` ran only at the end of `_on_refined`. A run of refines
@@ -2373,8 +2465,8 @@ describe one rock, once.
 ### Fixed: a hand-typed commodity did not match the journal's spelling
 
 The journal writes `$helium3_name;`; a commander types `Helium-3`. Those
-canonicalised to `helium3` and `helium-3`, so the same rock recorded by hand and
-then refined would have become two deposits. Canonicalisation now drops
+canonicalized to `helium3` and `helium-3`, so the same rock recorded by hand and
+then refined would have become two deposits. Canonicalization now drops
 everything that is not a letter or a digit.
 
 ### Changed: overlay windows grow to their content
@@ -2386,7 +2478,7 @@ generous number became the wrong one. Both settings are gone; each window sizes
 itself to the frame it is handed.
 
 Only the height moves. Width stays a setting because it is a real choice: it
-decides where a centred zone centres and where a right zone right-aligns, and
+decides where a centered zone centers and where a right zone right-aligns, and
 resizing it underneath the commander would move text they had placed.
 
 ### Changed: the overlay is the Streamer Stats Overlay
@@ -2398,7 +2490,7 @@ look away for, and the subset someone else is looking at. The name says which.
 
 `docs/STREAMER_STATS_OVERLAY.md` is new and is the first documentation the
 feature has had: panels, placement, the career/session choice, spacing, type
-and colour, where it will not run, and the three diagnostic commands. Indexed
+and color, where it will not run, and the three diagnostic commands. Indexed
 from the README, and the preferences page and plugin name use the full name.
 
 The "No overlay" decision in `docs/EXPLORATION_EXOBIOLOGY_PLAN.md` is marked
@@ -2412,18 +2504,18 @@ windows are built the way they are.
 
 It was a flat black copy offset by one pixel, which is the obvious choice and
 wrong twice over. Against a tinted palette flat black reads as a separate
-colour — a black fringe on Elite orange looks like a printing error — and it
+color — a black fringe on Elite orange looks like a printing error — and it
 does nothing at all for the light theme's dark ink, where the shadow has to be
 *lighter* than the text to separate it from the background.
 
 The shadow now keeps the ink's hue and moves its lightness to the far end,
-with saturation pulled down so it reads as depth rather than as a second colour
+with saturation pulled down so it reads as depth rather than as a second color
 in the palette.
 
 The lightness threshold is deliberately low rather than at the midpoint. What
 matters is not whether the ink is light in the abstract but whether it is
 lighter than what is behind it, and what is behind it is the game —
-overwhelmingly dark. A midpoint threshold gave the muted amber label colour a
+overwhelmingly dark. A midpoint threshold gave the muted amber label color a
 near-white shadow, which against a starfield would have been the brightest
 thing on screen.
 
@@ -2432,7 +2524,7 @@ front ends. The offset is capped at two because past that it stops reading as
 depth and starts reading as a second, blurry copy of the text.
 
 The derivation is a pure function taking and returning a hex string, so the
-colour it picks for every palette can be checked without a display.
+color it picks for every palette can be checked without a display.
 
 ### Added: each overlay panel chooses career, session, or both
 
@@ -2473,7 +2565,7 @@ commander would actually want on screen.
 
 `OffsetY` set the gap between the monitor's top edge and the overlay window,
 defaulted to 40, and was exposed in neither front end. The setting that *was*
-exposed, labelled "Padding Y", moved text around inside a window of fixed size.
+exposed, labeled "Padding Y", moved text around inside a window of fixed size.
 So the obvious question — what moves the overlay down the screen — had no
 answer anyone could reach, and the control that looked like the answer was not
 it.
@@ -2595,19 +2687,19 @@ touching fontconfig or needing root. When frozen, the shipped directory is
 found under `sys._MEIPASS`.
 
 JetBrains Mono is SIL OFL 1.1; `fonts/OFL.txt` sits beside it because the
-licence requires the text to travel with the font. Euro Caps is freeware. Both
+license requires the text to travel with the font. Euro Caps is freeware. Both
 are recorded in THIRD-PARTY-NOTICES.md.
 
-### Added: an Elite Dangerous colour theme, and themes for the overlay
+### Added: an Elite Dangerous color theme, and themes for the overlay
 
 `elite-orange` — the cockpit HUD's own orange, `#ff7100` on near-black. It is
 deliberately not one of the "EDLD Default" family: those are EDLD's identity,
 this one matches the game so an overlay sitting on top of it does not look like
 a different program. It is the overlay's default.
 
-The overlay takes a colour theme rather than three colours. The picker offers
+The overlay takes a color theme rather than three colors. The picker offers
 every palette in `core/palette.py` plus Custom, and the title, label and value
-colours are derived from each palette's accent, dim and foreground — so a theme
+colors are derived from each palette's accent, dim and foreground — so a theme
 added to `palette.py` reaches the overlay with nothing else edited.
 
 A theme overrides what is drawn, never what is stored. Switching back to Custom
@@ -2638,10 +2730,10 @@ The layout began at a hardcoded eight pixels in and sixteen across. Those are
 now `PadX` and `PadY`, the panel stack starts at zero, and the offset from the
 monitor edge is the only spacing anyone has to reason about.
 
-### Added: font family, sizes and colours
+### Added: font family, sizes and colors
 
 Any locally installed family by name, blank for the default. Title and body
-sizes, and the three colours the panels already used — title, label, value —
+sizes, and the three colors the panels already used — title, label, value —
 are settings rather than constants.
 
 Line height is derived from the body size rather than fixed. A commander who
@@ -2833,7 +2925,7 @@ a store whose only value is that its positions are real.
 It was 75 m, sized against the positional error of the capture path. The gap
 between real deposits is the number that matters, and observed spacing on
 surveyed bodies is 400-500 m at the closest — so 100 m cannot merge two
-neighbours, and is still close enough to walk from. The rig spacing the game
+neighbors, and is still close enough to walk from. The rig spacing the game
 actually requires is not known; if it turns out to be consistent, this is the
 number to revisit.
 
@@ -2857,7 +2949,7 @@ component at all.
 
 ### Added: deposits confirm themselves when you drive onto them
 
-The original design was "keep the deposit targeted and get within X metres".
+The original design was "keep the deposit targeted and get within X meters".
 That cannot be built. `ShipTargeted` is the only targeting event in a full
 journal corpus and it is ships only; no surface point of interest appears in
 any journal event, and Status.json carries no target field. EDLD cannot know
@@ -2868,7 +2960,7 @@ Position alone turns out to be enough, and is better: nothing else is within
 no failure mode where they forgot to lock something.
 
 What a visit records is freshness and nothing else. How much is left is a
-judgement and stays with the commander — but freshness is the one thing about a
+judgment and stays with the commander — but freshness is the one thing about a
 deposit that decays on its own, because sites are worked out by other people,
 and it is the one thing nobody will ever update by hand. An old High is not a
 current High.
@@ -2890,7 +2982,7 @@ looking at it.
 
 `touch_deposit()` moves the timestamp and nothing else. `annotate_deposit()`
 refuses a call with no fields — which is exactly what a visit is — because it
-exists to apply a judgement.
+exists to apply a judgment.
 
 ### Fixed: the overlay was a black rectangle, and outlived the dashboard
 
@@ -3021,7 +3113,7 @@ is not conditional on what they are doing.
 The repo's existing AST guard caught the leftover `OVERLAY_DEFAULTS` reference
 during the move, before it could raise on first open.
 
-### Fixed: one commodity priced off the galactic average while its neighbours priced off the station
+### Fixed: one commodity priced off the galactic average while its neighbors priced off the station
 
 Reported as Low Temp. Diamonds showing 96K in a hold where Tritium and
 Bromellite were showing the station's actual sell prices. 96,438 is the
@@ -3072,7 +3164,7 @@ the hold is, and both holds when in an SRV, because the run is limited by the
 mothership and a commander who can see only the SRV is the one who drives back
 to a full ship.
 
-Three fixed anchors across the top — left, centre, right — each holding an
+Three fixed anchors across the top — left, center, right — each holding an
 independent vertical stack. No free placement and no drag: that would mean
 persisting per-monitor geometry, surviving resolution changes, and a drag mode
 that has to defeat click-through to work, all before anyone has found out which
@@ -3097,7 +3189,7 @@ the right-hand stack would have run off the screen.
 
 One context is built per frame and handed to every panel. A panel reading live
 state directly could answer from a position half a second newer than its
-neighbour used, and the overlay would disagree with itself.
+neighbor used, and the overlay would disagree with itself.
 
 An invalid zone or mode in config is reported and skipped rather than coerced
 to a default, because a typo that silently relocates a panel is worse than one
@@ -3138,7 +3230,7 @@ discover a tab, and only the builder it returns receives the dialog. The
 component treated the discovery call as the build call and returned `None` when
 handed no dialog, so the tab was never registered. TUI has a different discovery
 path and showed the page fine, which is why this presented as a GUI-only
-problem. The test written alongside asserted the broken behaviour, because the
+problem. The test written alongside asserted the broken behavior, because the
 test and the code came from the same wrong idea about the contract.
 
 `get_tab_rows()` is only called for components registered through
@@ -3259,8 +3351,8 @@ no way to record one. The store had the columns and nothing wrote to them.
 `mark_here()` resolves the deposit by position rather than by selection: the
 commander standing on the thing they are describing is both the natural way to
 do it and the one that needs no list to pick from. Matching uses the same
-proximity rule that records a deposit in the first place, so a judgement cannot
-attach itself to a neighbour, and unlike the recording path it ignores the
+proximity rule that records a deposit in the first place, so a judgment cannot
+attach itself to a neighbor, and unlike the recording path it ignores the
 commodity — you do not have to name what you are standing on.
 
 Blank fields leave stored values alone, so setting the amount does not wipe a
@@ -3441,21 +3533,21 @@ with it.
 ### Fixed: a dimmed or highlighted value stopped being monospace
 
 The GUI aligns its value columns by rendering them in a monospace face, which
-`QLabel[role="val"]` supplied.  But a value's colour is carried by that same
+`QLabel[role="val"]` supplied.  But a value's color is carried by that same
 role: `classes_to_props` turns `"val dim"` into `role="dim"` and
 `"val highlight"` into `role="highlight"`, and neither named a font family, so
 either one dropped the value back to the proportional face.  Every column the
 shared helpers had padded into line then lined up with nothing.
 
 The cargo manifest's new column headings were the visible case — the headings
-are dimmed, so Tonnes, Price and Value were set proportionally above monospace
+are dimmed, so Tons, Price and Value were set proportionally above monospace
 figures and sat over none of them.  The fault was not new and was not confined
 to cargo; the headings were simply the first place two rows that had to agree
-were coloured differently.
+were colored differently.
 
 Monospace is now keyed on a property `KVRow` sets on its value label once and
 never rewrites, rather than on the role, because the role is exactly what
-changes when the colour does.  Prose rows are untouched: they are not value
+changes when the color does.  Prose rows are untouched: they are not value
 columns and do not carry the property.
 
 The terminal dashboard was never affected — a terminal has one cell width —
@@ -3500,9 +3592,9 @@ The regression test replays that capture event for event.
 
 ### Added: column headings on the cargo manifest
 
-The manifest showed three unlabelled numbers per row and left the reader to
-work out that the middle one was per tonne and the last was the line total.
-Both front ends now head the ship's hold and the SRV's with Commodity, Tonnes,
+The manifest showed three unlabeled numbers per row and left the reader to
+work out that the middle one was per ton and the last was the line total.
+Both front ends now head the ship's hold and the SRV's with Commodity, Tons,
 Price and Value, built from the same column widths as the rows so the headings
 sit over what they name, and placed above the rule so it underlines them.
 
@@ -3510,7 +3602,7 @@ sit over what they name, and placed above the rule so it underlines them.
 
 ### Fixed: the GUI collapsed the column padding the TUI lines up with
 
-The cargo manifest lines up its three columns — tonnes, price per tonne, line
+The cargo manifest lines up its three columns — tons, price per ton, line
 value — by padding each to a fixed width in `core.ui_helpers`.  Both front
 ends call the same helper and receive the same string, which is why this was
 invisible from the code: the strings were never wrong.
@@ -3539,15 +3631,15 @@ one.
 
 ### Added: the sell table, as two files and a popup
 
-The catalogue answers what a commodity is worth on average.  It does not
+The catalog answers what a commodity is worth on average.  It does not
 answer the question actually asked on arriving somewhere with a full hold,
 which is what this place will pay, and in what order to unload.  Market.json
 holds that answer for as long as the commander stands there, sorted by
 Frontier's own ordering rather than by anything useful.
 
-Two files now sit beside the catalogue and are rewritten on the same trigger:
+Two files now sit beside the catalog and are rewritten on the same trigger:
 `data/cargo.commodities.md` and `data/cargo.commodities.html`.  Each carries a
-heading naming the market being quoted and a two-column table of localised
+heading naming the market being quoted and a two-column table of localized
 commodity name against price, most valuable first.  The HTML is standalone —
 no stylesheet to ship beside it, and it follows the reader's light or dark
 preference rather than assuming one.
@@ -3556,15 +3648,15 @@ Which market gets quoted comes from `cargo_price_context()`, the same resolver
 the Cargo panel prices the manifest against, so the panel and these files can
 never name different markets: a Spansh target when one is set and loaded, the
 station underfoot otherwise, and the galactic average when there is neither.
-The galactic figures come from the catalogue rather than from
-`cargo_mean_prices`, because the catalogue is the only source that carries a
+The galactic figures come from the catalog rather than from
+`cargo_mean_prices`, because the catalog is the only source that carries a
 display name alongside the price, and a table of internal symbols would not be
 readable.
 
 Carriers are excluded throughout.  A fleet or squadron carrier market is
 player-run, mobile, and rewritten without notice, so docking at one leaves the
 files and the popups describing whatever was quoting beforehand, exactly as if
-the commander had not docked at all.  The catalogue still absorbs a carrier's
+the commander had not docked at all.  The catalog still absorbs a carrier's
 commodities — identity is worth having wherever it turns up — but its prices
 never reach the sell table.  The carrier test is a substring match rather than
 a list of station types: Frontier writes `FleetCarrier`, Spansh writes
@@ -3577,7 +3669,7 @@ should have.
 
 Only prices an NPC will actually pay appear.  Stations list carrier-only
 commodities and quote a sell price for them regardless, and nobody in the
-galaxy will honour it: the three Titan Maw tissue samples list at 476,614,
+galaxy will honor it: the three Titan Maw tissue samples list at 476,614,
 317,614 and 209,527 cr at an ordinary Coriolis station, which put one of them
 second in the table at almost every market in the bubble.  The tell is that
 they carry no galactic average, because there is no NPC trade in them to
@@ -3587,13 +3679,13 @@ million, has one and sells perfectly well.
 So the exclusion is the absence of a galactic average, not the absence of
 demand.  A station with nothing on order still pays, and filtering on demand
 would have cut the table from 367 rows to 67 and hidden most of what is worth
-carrying.  The commodities concerned are read from the catalogue rather than
-from the market in hand, which means the judgement improves as more markets
+carrying.  The commodities concerned are read from the catalog rather than
+from the market in hand, which means the judgment improves as more markets
 are seen: a commodity that shows a real average anywhere drops out of the
-exclusion everywhere, and an empty catalogue excludes nothing rather than
+exclusion everywhere, and an empty catalog excludes nothing rather than
 guessing.  Matching is on the display name, since Frontier's internal symbol
 for a Titan Maw sample is `thargoidtissuesampletype10a` and no other source
-spells it that way.  The catalogue still records them — it records everything
+spells it that way.  The catalog still records them — it records everything
 — it just stops quoting them.
 
 The popup opens on a Mineable tab, with All Items behind it.  Arriving with a
@@ -3616,30 +3708,30 @@ need one.
 Both tables stripe their rows.  Two columns a hundred rows deep are hard to
 read across without one, and the price sits at the far edge from the name.
 The stripe is a new derived palette entry, `$row-alt`: the block fill pulled
-12% toward the text colour, which lightens it on the dark palettes and darkens
+12% toward the text color, which lightens it on the dark palettes and darkens
 it on the light one with no per-theme case, and which custom themes inherit
 without stating anything.
 
 That figure is set by the terminal rather than by taste.  The obvious choice
 was `$title-bg`, already one step above the block fill and already what the
 panel title bars use — but one step is six points per channel, and a
-256-colour terminal quantises `#1c1810` and `#241e16` onto the same xterm
+256-colour terminal quantizes `#1c1810` and `#241e16` onto the same xterm
 entry.  Six of the eight palettes collapsed that way.  The stripe was
 therefore perfectly visible in the Qt window, which is always truecolor, and
 completely absent in the terminal, which is exactly how it was reported.
 Anything under a 10% blend still collides somewhere; 12% clears every palette
 with margin and still reads as about a 9% step where truecolor is available.
-A test now quantises both colours for every palette and fails if they land on
+A test now quantizes both colors for every palette and fails if they land on
 the same entry.
 
 Neither front end got there for free.  Textual has no `:nth-child`, so the
 stripe is a class applied while composing, and the two labels in a row had to
 be made transparent or they punched the block fill back through the middle of
 it.  Qt supplies an `alternate-background-color` of its own when the
-stylesheet states none, and its default is a light grey that is unreadable on
+stylesheet states none, and its default is a light gray that is unreadable on
 every dark palette here; the tables are now styled from the palette like
 everything else, header and gridlines included.  The tests assert on rendered
-colour — sampled across each row's full width in the TUI, and from the
+color — sampled across each row's full width in the TUI, and from the
 rendered viewport in the GUI — because a class that is applied but paints
 nothing looks exactly like working code from the source.  Rendering in
 truecolor was not enough on its own, though: that is what passed while the
@@ -3669,7 +3761,7 @@ survive review once already.
 
 ---
 
-### Added: a running catalogue of every commodity seen
+### Added: a running catalog of every commodity seen
 
 Market.json is a snapshot of one station, overwritten the next time the
 commander docks, so the galactic average it carries for each commodity is
@@ -3681,10 +3773,10 @@ moved.
 
 EDLD now keeps `data/cargo.commodities.csv` alongside the other per-commander
 files: one row per commodity, carrying its internal symbol, Frontier's numeric
-id, both localised names, its category, and the galactic average last recorded
+id, both localized names, its category, and the galactic average last recorded
 for it, with the first sighting, the last price change, and a count of how many
 times the price has moved.  A commodity is written once and its row is rewritten
-whenever `MeanPrice` drifts from what is on file, so the catalogue accumulates
+whenever `MeanPrice` drifts from what is on file, so the catalog accumulates
 across stations and sessions rather than tracking the station underfoot.
 
 It follows Market.json wherever it is written from — the existing file watcher
@@ -3698,19 +3790,19 @@ with the manifest pricing: `_read_market_json` discards them because their
 `MeanPrice` of 0 is useless for pricing cargo, but a carrier still names real
 commodities worth cataloguing.  A zero is treated as the absence of a galactic
 average rather than a new one — it never overwrites a price already on file and
-never counts as drift — so a carrier visit cannot flatten the catalogue.  The
+never counts as drift — so a carrier visit cannot flatten the catalog.  The
 same rule covers the Thargoid tissue samples, which report zero at ordinary
 station markets too: they are recorded, and their rows fill in if Frontier ever
 gives them an average.
 
-The catalogue is a side record, so it is built not to take anything with it if
+The catalog is a side record, so it is built not to take anything with it if
 it fails.  A ledger that cannot be created leaves the Cargo component loading
 normally, an unreadable file is rebuilt from the next market, and a failed write
 leaves the previous file intact — but none of those pass quietly, which is the
 failure mode this codebase keeps paying for.  Each one is reported to the debug
 log.
 
-`_canonicalise_key` in the Cargo component now delegates to the catalogue's
+`_canonicalise_key` in the Cargo component now delegates to the catalog's
 canonicaliser rather than keeping a second copy of the same regex, so the two
 cannot disagree about whether `$gold_name;` and `gold` are the same commodity —
 a disagreement there would be two rows for one commodity and no drift ever
@@ -3791,11 +3883,11 @@ rather than each panel remembering to.
 ### Fixed: the SRV's cargo was priced from a different market than the ship's
 
 Per-unit value is a property of the commodity and the chosen price source.  It
-does not depend on which vessel the tonne is sitting in, but the Cargo tab said
+does not depend on which vessel the ton is sitting in, but the Cargo tab said
 otherwise: the ship's manifest resolved the target station's sell price, or the
 docked station's, falling back to galactic average, while the SRV's manifest
-only ever read `cargo_mean_prices`.  Docked at Metz Enterprise in Ega, 33 tonnes
-of osmium in the Rhino read 44,051 a tonne against the same ore's 264,306 in the
+only ever read `cargo_mean_prices`.  Docked at Metz Enterprise in Ega, 33 tons
+of osmium in the Rhino read 44,051 a ton against the same ore's 264,306 in the
 ship's hold, a sixfold difference on identical cargo.
 
 It was invisible for three reasons.  Both figures are plausible on their own,
@@ -3808,12 +3900,12 @@ cent under it on alexandrite, low temperature diamonds and the other high-value
 gems, so the SRV read high on some cargo and low on other cargo in the same
 hold.
 
-The sorts diverged with the prices.  Freight is ordered cheapest per tonne first
+The sorts diverged with the prices.  Freight is ordered cheapest per ton first
 so that a full hold answers the question of what to jettison, but the ship
 ordered on the resolved price and the SRV on galactic average, which are
 different orderings of the same manifest.  The SRV section also had no limpet
 handling at all, so limpets sorted in with freight and headed the jettison list
-at around a hundred credits a tonne — the exact placement the ship's manifest
+at around a hundred credits a ton — the exact placement the ship's manifest
 was changed to avoid.
 
 Pricing, limpet separation and ordering now live in `core.ui_helpers`, in
@@ -3857,9 +3949,9 @@ nothing else, and `Status.json` reports current tonnage with no capacity beside
 it — so the denominator comes from a table in `data/ships.py`, keyed by vehicle
 and consulted through `srv_cargo_capacity()`.
 
-Only established figures are listed: the Rhino at 72 tonnes, read off the
+Only established figures are listed: the Rhino at 72 tons, read off the
 in-game panels, the Scarab at 4 and the Scorpion at 2.  Third-party references
-giving the Rhino 24 tonnes are wrong, and provably so from the journals — real
+giving the Rhino 24 tons are wrong, and provably so from the journals — real
 SRV cargo counts run smoothly past 24 to a high-water mark of 68, which a 24 t
 denominator would have displayed as a hold 283% full.  A vehicle with no
 confirmed figure falls back to plain tonnage rather than a denominator that
@@ -4009,11 +4101,11 @@ Three more of the same kind were found by scanning for it:
 - `gui/blocks/commander.py` — the same missing `_fmt_health`.
 - `gui/blocks/status.py` — `PP_RANK_NAMES` and `TextRow`, lost when Crew / SLF
   merged with Alerts, so the crew rank line raised.
-- `gui/blocks/ship_info.py` — a whole colonisation renderer left behind when
-  colonisation moved to Objectives, calling a helper the module no longer had.
+- `gui/blocks/ship_info.py` — a whole colonization renderer left behind when
+  colonization moved to Objectives, calling a helper the module no longer had.
 
 Two were older than this release and had never worked: `ClickableHdr`, which
-the Qt colonisation view has called since before these merges and which was
+the Qt colonization view has called since before these merges and which was
 never defined anywhere, and `_build_loadout_from_capi_modules`, referenced by
 the CAPI stored-ships path and likewise never written.  Both are implemented.
 
@@ -4037,24 +4129,24 @@ exists and repeating two others.  It is derived from the id map again.
 A layout release.  The window set had accumulated more panels than a screen
 holds, several of them near-empty most of the time, and three size classes to
 arrange them in.  This reduces the set by merging windows with their natural
-neighbours and reduces the classes to two, which makes far more of the layout
+neighbors and reduces the classes to two, which makes far more of the layout
 interchangeable.
 
 ### Changed: two size classes, and columns that mirror
 
-Every window is now either **Large** or **Centre**, and every column adds up
+Every window is now either **Large** or **Center**, and every column adds up
 to the same height so rows line up across all three:
 
     left / right   PANEL  + PANEL                   = 50 + 50      = 100
-    centre         CENTRE + CENTRE + CENTRE         = 33 + 33 + 33 = 100
+    center         CENTER + CENTER + CENTER         = 33 + 33 + 33 = 100
 
 The right column mirrors the left: two large windows apiece, four such
-positions in total, and any large window may occupy any of them.  The centre
+positions in total, and any large window may occupy any of them.  The center
 column is three equal windows, freely interchangeable.  Preferences > Display
 already filtered its options by class and now offers five large windows for
-the four large slots and three centre windows for the three centre slots.
+the four large slots and three center windows for the three center slots.
 
-``COMPACT`` and ``ANCHOR`` are retained as aliases of ``CENTRE`` so a
+``COMPACT`` and ``ANCHOR`` are retained as aliases of ``CENTER`` so a
 ``windows.json`` written against the previous three-class scheme still loads.
 
 ### Changed: Crew / SLF and Alerts merged
@@ -4065,7 +4157,7 @@ and alerts are empty until something fires — so they share one window instead
 of each holding a slot.  No tabs: an alert that needs a tab change to see is
 an alert you miss.  Crew above, alerts flowing beneath.
 
-This is what makes the centre column three equal windows rather than a tall
+This is what makes the center column three equal windows rather than a tall
 pair with a short pair wedged between them.
 
 ### Changed: the Ship window
@@ -4086,9 +4178,9 @@ Work with an end state, as distinct from the running totals in Session and
 the ship's contents:
 
     Missions      the massacre stack, then every other mission held
-    Colonisation  construction sites and their outstanding requirements
+    Colonization  construction sites and their outstanding requirements
 
-Missions came out of Session and Colonisation out of Cargo.  Neither belonged
+Missions came out of Session and Colonization out of Cargo.  Neither belonged
 where it was: a mission stack is not a session statistic, and a depot's
 shopping list is not the hold.
 
@@ -4105,7 +4197,7 @@ that class — an empty tab implying one they do not own is worse than no tab.
 
 ### Changed: every window fits on screen at once
 
-Objectives moved to the centre column and Session merged into Career as its
+Objectives moved to the center column and Session merged into Career as its
 first tab, leaving seven windows for seven slots.  Rearranging now swaps two
 windows rather than hiding one.
 
@@ -4199,7 +4291,7 @@ The counter, its row and its ``LaunchSRV``/``DockSRV`` subscriptions are gone.
 
 Freight is ordered by value per unit, cheapest first.  With a full hold the
 question is what to throw out, and that is answered by whatever is worth least
-per tonne — which was previously buried in the middle of an alphabetical list.
+per ton — which was previously buried in the middle of an alphabetical list.
 Prices follow the chosen source: the target station's when one is set,
 galactic average otherwise.
 
@@ -4208,7 +4300,7 @@ fixed widths so the separators line up down the manifest and under the totals.
 
 Limpets are consumables, not freight: never sold, and their count is what says
 whether the run can continue.  They sit below a blank line, immediately above
-the totals, and are excluded from the value sort — at around 100 cr a tonne
+the totals, and are excluded from the value sort — at around 100 cr a ton
 they would otherwise permanently head the jettison list.
 
 ### Fixed: SRV cargo was applied to the ship's hold
@@ -4248,7 +4340,7 @@ Surface vehicles carry Frontier's internal development names in the journal,
 and they are not guessable: ``testbuggy`` is the Scarab and has been since
 2015.  The fallback title-cased the raw id, so "Testbuggy" reached the screen.
 All four are now mapped — Scarab, Scorpion, Nomad and Rhino — with the
-journal's own localised field preferred wherever it supplies one.
+journal's own localized field preferred wherever it supplies one.
 
 ---
 
@@ -4297,11 +4389,11 @@ method and `Widget` does not.
 
 Carrier plots were accepted with `HTTP 202` and then never resolved.  The
 endpoint and every parameter name had been correct all along.  Spansh's own
-front end submits through jQuery with `traditional: true`, which serialises a
+front end submits through jQuery with `traditional: true`, which serializes a
 list as repeated bare keys — `destination_systems=6681123623626` — where EDLD
 was sending a JSON string.  The job was queued with a destination list that
 parsed to nothing.  `refuel_destinations` had the same problem in reverse: an
-empty array is omitted entirely under that serialisation, not sent as an empty
+empty array is omitted entirely under that serialization, not sent as an empty
 value.
 
 Carrier routes now come back with the fuel planning that makes them worth
@@ -4345,12 +4437,12 @@ reads something nobody produces.
 | Assets | Wallet / Ships / Modules / Fleet Carrier / Squadron Carrier tabs on **Commander** |
 | Exobiology | nested under each body's row in **Exploration** |
 | Massacre Mission Stack | the Missions tab in **Session** |
-| Colonisation | the Colonisation tab in **Cargo** |
+| Colonization | the Colonization tab in **Cargo** |
 
 Exobiology is the clearest case: every body carrying biological signals was
 listed twice, once for its cartographic value and again for its flora.  The
 biology now sits indented beneath the body it belongs to, so a body's full
-story is in one place.  Cargo and Colonisation are the same activity from
+story is in one place.  Cargo and Colonization are the same activity from
 opposite ends — what you are carrying against what the depot still needs — and
 Cargo collapses to a couple of rows on a hauling run, which is exactly when a
 construction site is live.
@@ -4369,7 +4461,7 @@ into the first free slot of its class rather than being silently lost.
 
 Mission tracking only ever covered massacres, because that is all the stack
 view needed.  The Session window's Missions tab now shows the massacre stack
-summarised by source faction as before, followed by every other mission the
+summarized by source faction as before, followed by every other mission the
 commander holds, grouped by type and dropping off as each is completed, failed
 or abandoned.
 
@@ -4421,7 +4513,7 @@ window registry.
 A scheduled jump locks a carrier down for about fifteen minutes — nothing can
 dock, and anyone aboard is going wherever it goes — so all three transitions
 now notify: scheduled (with carrier name, ident, destination and countdown),
-cancelled, and arrived.  Fleet and squadron carriers are tracked separately and
+canceled, and arrived.  Fleet and squadron carriers are tracked separately and
 can have jumps in flight at the same time.  They go out through the alerts
 component, so each lands in the Alerts window and is emitted to the terminal
 and Discord at its own configurable level — `CarrierJumpScheduled`,
@@ -4433,10 +4525,10 @@ pending jump recorded at request time is the only record of where it was going.
 Completion arrives as `CarrierLocation` when the commander is elsewhere and
 `CarrierJump` when aboard — and when aboard, both fire about a minute apart.
 `CarrierLocation` is also a periodic status event, outnumbering real arrivals
-roughly two to one in a real journal, so an arrival is only recognised when it
+roughly two to one in a real journal, so an arrival is only recognized when it
 names the destination that was requested and the departure time has passed.
 Replaying a 269-journal capture accounts for every request exactly: 178
-scheduled resolve to 170 completed, 3 cancelled, 4 re-targeted and 1 still
+scheduled resolve to 170 completed, 3 canceled, 4 re-targeted and 1 still
 pending at the end of the logs.
 
 ### Fixed: riding a carrier through a jump blanked its system
@@ -4452,7 +4544,7 @@ from the journal's UTC timestamp regardless of the `UseUTC` setting.  For
 anyone not on UTC it was neither their wall clock nor a duration.  It now
 follows `UseUTC` like every other time EDLD prints, is bracketed rather than
 dash-separated so it cannot be misread as part of the countdown, and is
-labelled when it is UTC.
+labeled when it is UTC.
 
 ### Changed: config files gain new settings automatically
 
@@ -4496,8 +4588,8 @@ the body itself.  All of them were being counted, which put rows like
 "Human  3 hotspots" and "Planetary Mining Location  28 hotspots" in the mining
 panel next to the real ones.
 
-Only commodities are counted now, localised names are preferred where the
-journal supplies one, and case is normalised — the same commodity appears as
+Only commodities are counted now, localized names are preferred where the
+journal supplies one, and case is normalized — the same commodity appears as
 both `Tritium` and `tritium` across a real journal.
 
 ### Added: ring and planetary mining sites, listed separately
@@ -4771,7 +4863,7 @@ secret is genuinely absent now works as documented.
 
 `scripts/build_local.sh` runs what the release workflow runs, on your own
 machine: the preflight on the checkout, `pyinstaller packaging/edld.spec`, both
-smoke tests, the archive carrying the licence texts, and the SHA-256 file.
+smoke tests, the archive carrying the license texts, and the SHA-256 file.
 Artefacts land in `out/` named exactly as the released ones are.
 
     scripts/build_local.sh                 # build, test, package
@@ -4813,12 +4905,12 @@ the two show the same windows in the same positions with the same data;
 Preferences → Display drives both.
 
 All fourteen windows are present — Career, Session, Ship Health, Commander,
-Crew/SLF, Alerts, Cargo, Missions, Navigation, Colonisation, Exploration,
+Crew/SLF, Alerts, Cargo, Missions, Navigation, Colonization, Exploration,
 Exobiology, Assets and Engineering — along with the preferences dialog, the
 home-location and target-market search pickers, the update notice and the
 session-management controls.  Columns are draggable splitters, initially sized
 from the layout model's own proportions.  Window controls are the platform's
-own: minimise, maximise, snap, tiling and the close button all behave as the
+own: minimize, maximize, snap, tiling and the close button all behave as the
 desktop expects, on all three operating systems.
 
 All eight themes render in both front ends, custom themes included; the
@@ -4928,7 +5020,7 @@ there.
 The dashboard blocks build their display strings with console markup, and the
 desktop front end translates that markup into rich text.  Any bracketed token
 that named no known tag was discarded — silently eating squadron tags rendering
-as `[SOL]` and faction names of the form `[XYZ] Corporation`.  Unrecognised
+as `[SOL]` and faction names of the form `[XYZ] Corporation`.  Unrecognized
 bracketed tokens are now passed through as literal text.
 
 ### Changed: Crew / SLF header
@@ -4942,7 +5034,7 @@ the crew was flying.  The combat-rank line now shows only the rank.
 ### Licensing
 
 The desktop interface adds Qt, so the project now carries an LGPL v3 obligation
-alongside its own MIT licence.  `docs/LICENSING.md` sets out how each condition
+alongside its own MIT license.  `docs/LICENSING.md` sets out how each condition
 of LGPLv3 section 4 is met, `THIRD-PARTY-NOTICES.md` lists every dependency,
 and the GPL and LGPL texts ship in `licenses/` inside every binary and every
 release archive.  `docs/BUILDING.md` covers building from source and relinking
@@ -4952,7 +5044,7 @@ Qt is never statically linked and UPX stays disabled; both matter for the above
 and both are enforced in `packaging/`.
 
 The disclaimers and trademark notice have moved out of `LICENSE` and into the
-README, so the file is now the MIT text alone and GitHub detects the licence
+README, so the file is now the MIT text alone and GitHub detects the license
 correctly again.
 
 ### Support links
@@ -4998,7 +5090,7 @@ either side is maintained.
 
 Two smaller reporting errors surfaced while building it.  Zero-valued
 entries no longer occupy a row rendering as an em dash.  And ship NPC crew
-wages from Statistics are now labelled distinctly from the fleet carrier's
+wages from Statistics are now labeled distinctly from the fleet carrier's
 own crew upkeep, which appears separately in the spending ledger under a
 near-identical name.
 
@@ -5012,7 +5104,7 @@ forward tells you nothing about where you stand now.
 
 Every PowerPlay counter — merit total, merits by activity, and merits by
 system — is now cleared at each pledge boundary, so what the Career block
-reports belongs to the current allegiance alone.  The intended behaviour
+reports belongs to the current allegiance alone.  The intended behavior
 was described in a comment on the old code but only partly implemented:
 `PowerplayLeave` cleared the system tally and total while leaving the
 by-activity breakdown intact, and `PowerplayDefect` — the very case that
@@ -5028,7 +5120,7 @@ the pledge.
 The Career block's PowerPlay tab and the Summary tab now both show the
 power pledged to and how long ago, merits earned this cycle (the server's
 figure, which resets weekly), and merits earned since the pledge began —
-labelled separately, because they count different things.
+labeled separately, because they count different things.
 
 ### Ship Health: New window
 A new Panel-classed window for neutron hoppers, who need to know before
@@ -5051,7 +5143,7 @@ fires.
 
 Power priority is displayed 1-based to match the in-game power distribution
 panel; the journal reports it 0-based.  Paint jobs, decals, nameplates,
-ship kits, engine and weapon colours and voice packs are filtered out — all
+ship kits, engine and weapon colors and voice packs are filtered out — all
 report priority 1 and full health forever, and would otherwise pad the
 first priority group with a dozen rows that can never need repair.
 
@@ -5113,8 +5205,8 @@ and the documentation no longer reference them.
 
 ### Dashboard Layout
 The default arrangement is now Career / Cargo / Missions on the left,
-Commander / Crew / Alerts / Exploration in the centre, and Navigation /
-Colonisation / Exobiology on the right.  Every interchangeable window is a
+Commander / Crew / Alerts / Exploration in the center, and Navigation /
+Colonization / Exobiology on the right.  Every interchangeable window is a
 single Panel size class — the former Tall class is gone — so any window can
 occupy any non-fixed position.  Commander, Crew, and Alerts remain fixed:
 Commander spans one Panel and Crew + Alerts together span one Panel, so the
@@ -5142,7 +5234,7 @@ corrected — so goal progress is reflected on your Inara profile.
 
 ### Exploration Window: New
 A dedicated Exploration block — selectable in any layout position and on
-by default — summarises every body the commander has scanned in the
+by default — summarizes every body the commander has scanned in the
 current system.  For each body it shows the current scan value and the
 full mapping value (the credits still on the table from a DSS map plus
 the efficiency bonus), alongside markers for high-value bodies (`★`),
@@ -5228,7 +5320,7 @@ the menu surface.  Removed: `core/reports.py`, `gui/reports_viewer.py`,
 The Career block now carries a proper journal-derived earnings and
 spending ledger.  In-game Statistics fields like `Trading.Goods_Sold`,
 `Trading.Data_Sold`, and `Trading.Assets_Sold` sit at zero for many
-commanders even after hundreds of tonnes sold, so journal events are
+commanders even after hundreds of tons sold, so journal events are
 now the authoritative source for trade activity and credit flows.
 
 The new ledger covers 27 credit-moving event types — `Bounty`,
@@ -5256,7 +5348,7 @@ Tab structure (both GTK4 and TUI):
 - **Exobio**: per-genus credits breakdown alongside Statistics totals.
 - **Mining**: tonnage refined, profit, per-tonne yield.
 - **Trade**: journal-derived `tonnes sold`, gross revenue, net profit,
-  largest transaction, profit per tonne — no longer trusts the broken
+  largest transaction, profit per ton — no longer trusts the broken
   `Statistics.Trading.Goods_Sold` field.
 - **Credits**: lifetime earnings (every income category with %),
   lifetime spending (every spending category with %), carrier-bank
@@ -5337,7 +5429,7 @@ strings — the new accumulators coerce safely with `_fin_in` / `_fin_out`
 helpers.
 
 ### Spansh Routing: FSD + Neutron Confirmed Working
-The Spansh route API behaviour was reverse-engineered from real
+The Spansh route API behavior was reverse-engineered from real
 session responses.  `HTTP 202` from the route POST means accepted, not
 failed (the previous code treated it as an error).  Neutron routing
 correctly distinguishes total waypoints (`total_jumps` for galaxy-map

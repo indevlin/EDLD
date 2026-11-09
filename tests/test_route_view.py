@@ -1,12 +1,4 @@
-"""
-tests/test_route_view.py — the route being flown, and the range it is flown at.
-
-From a real evening in the Caspian Explorer PICTOR: its Loadout says
-MaxJumpRange 66.94 ly, unladen 1,459.8 t, an 88 t tank. The Neutron tab was
-plotted at 68.95 ly — typed by hand, from somewhere else — from a system three
-jumps back, so Spansh's legs were longer than the ship could jump and the
-route started where the ship no longer was. The Navigation window also had
-nothing like EDAM's Route and Ahead panels.
+"""tests/test_route_view.py — the route being flown, and the range it is flown at.
 """
 from __future__ import annotations
 
@@ -44,9 +36,7 @@ def _pictor(fuel=88.0, cargo=0):
 
 
 def test_the_range_the_ship_has_with_a_full_tank():
-    # From the drive's own figures (core/fsd.py). Scaling MaxJumpRange by
-    # mass from UnladenMass alone gave 63.14 ly: short, because the game
-    # measures MaxJumpRange with one jump's fuel aboard.
+    # From the drive's own figures (core/fsd.py).
     s = _pictor()
     assert round(RV.plan_range(s), 2) == 63.43
     # Lighter as the tank empties; heavier with cargo.
@@ -163,7 +153,7 @@ def test_edam_gets_the_same_facts_in_plain_words():
     assert "Jumps left" in flat and "Ahead" in flat
     assert "[" + "red]" not in flat               # no markup on the wire
     assert "beyond range" in flat and "2 jumps" in flat
-    # The markup's colour comes across as a tone.
+    # The markup's color comes across as a tone.
     assert any(r.get("tone") == "crit" for r in route["rows"])
 
 

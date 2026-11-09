@@ -1,10 +1,5 @@
-"""
-tests/test_offline_quiet.py — once EDLD has said the commander is not in the
+"""tests/test_offline_quiet.py — once EDLD has said the commander is not in the
 game, it stops talking until they are.
-
-It used to repeat "Not in game" every hour and go on posting quarter-hour
-summaries of a session that had ended, to the terminal and to Discord, for as
-long as EDLD was left running.
 """
 from __future__ import annotations
 

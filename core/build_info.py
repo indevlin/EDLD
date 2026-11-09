@@ -1,10 +1,4 @@
-"""
-core/build_info.py — which build this is.
-
-A frozen binary carries a BUILD_VARIANT file written by
-packaging/build_common.py: "full" for EDLD, "server" for EDLD-server, the build
-without either dashboard.  A source checkout is always "full".
-"""
+"""core/build_info.py — which build this is."""
 
 from __future__ import annotations
 

@@ -1,19 +1,6 @@
-"""
-core/overlay_doctor.py — Why is there no overlay?
-
-Every layer of the overlay is individually tested and the whole thing still
-does not appear, which means the fault is in the joins: config that is written
-but not read, panels that exist but are not placed, placements that parse but
-resolve to nothing, a renderer that starts and is handed an empty frame. From
-outside, all of those look identical — no overlay.
-
-This walks the chain and reports each link. Run it with::
+"""core/overlay_doctor.py — Why is there no overlay?
 
     python edld.py --overlay-doctor
-
-It reads the same config the running app reads, through the same code, and
-prints what each stage produced. No guessing, and nothing inferred from a
-screenshot.
 """
 
 from __future__ import annotations
@@ -30,9 +17,7 @@ def run(cfg, plugins=None) -> int:
     """Walk the overlay chain and print what each stage sees.
 
     ``cfg`` is the live ConfigManager, so this reads exactly what the running
-    app reads — same file, same profile, same resolution order. A doctor that
-    built its own view of the config could disagree with the app and would then
-    be diagnosing itself.
+    app reads — same file, same profile, same resolution order.
     """
     from core.overlay import CFG_DEFAULTS as WINDOW_DEFAULTS
     from core import overlay_panels as op

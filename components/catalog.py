@@ -1,9 +1,4 @@
-"""
-components/catalog.py — Persistent career body catalog.
-
-Records scanned bodies to a lightweight SQLite database, enabling career-level
-statistics (total ELWs found, total first discoveries, etc.) that persist
-across sessions.
+"""components/catalog.py — Persistent career body catalog.
 
 Database: ~/.local/share/EDLD/catalog/bodies.db (Linux)
 
@@ -21,9 +16,6 @@ Schema (single table):
       scan_date       TEXT,     -- ISO date (UTC) of first scan in this catalog
       PRIMARY KEY (system_address, body_id)
   )
-
-On duplicate (system_address, body_id), the row is preserved as-is (INSERT OR IGNORE)
-since first-discovered/first-mapped flags are meaningful only on the first scan.
 
 Notable class shortcuts:
   ELW              → body_class = 'Earthlike body'

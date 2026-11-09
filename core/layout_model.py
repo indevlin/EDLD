@@ -1,16 +1,11 @@
-"""
-core/layout_model.py — UI-agnostic dashboard layout model.
+"""core/layout_model.py — UI-agnostic dashboard layout model.
 
 The single source of truth for what windows exist, what size class each is, and
-where they sit.  The Textual TUI derives its composition from this module, and
-the Preferences > Display tab edits the assignment it persists — so a window can
-be moved, hidden, or swapped without the UI hard-coding its own layout.
+where they sit.
 
 Size classes
 ------------
-Windows are grouped into interchangeable classes.  A *position* (slot) accepts
-only windows of its own class, which is what keeps the layout from breaking when
-the user reassigns one.
+Windows are grouped into interchangeable classes.
 
     panel    Every interchangeable window (Career, Session, Ship Health,
              Cargo, Missions, Navigation, Colonisation, Exploration,
@@ -42,30 +37,30 @@ from typing import Optional
 # ── Size classes ──────────────────────────────────────────────────────────────
 
 PANEL  = "panel"    # the large left/right windows
-CENTRE = "centre"   # the three equal centre windows
+CENTER = "centre"   # the three equal center windows
 
-SIZE_CLASSES = (PANEL, CENTRE)
+SIZE_CLASSES = (PANEL, CENTER)
 
 # Retained so an older windows.json or an out-of-tree caller naming the
 # previous three-class scheme still resolves instead of raising.
-COMPACT = CENTRE
-ANCHOR  = CENTRE
+COMPACT = CENTER
+ANCHOR  = CENTER
 
 # Relative height weight per class.  Two classes, and every column adds up to
 # the same height so rows line up across all three:
 #
 #   left / right   PANEL  + PANEL                   = 50 + 50           = 100
-#   centre         CENTRE + CENTRE + CENTRE         = 33 + 33 + 33      = 100
+#   center         CENTER + CENTER + CENTER         = 33 + 33 + 33      = 100
 #
 # Every window is interchangeable with every other window of its class: four
-# positions for PANEL (A1, A2, C1, C2) and three for CENTRE (B1, B2, B3).
-CLASS_WEIGHT = {PANEL: 50, CENTRE: 33}
+# positions for PANEL (A1, A2, C1, C2) and three for CENTER (B1, B2, B3).
+CLASS_WEIGHT = {PANEL: 50, CENTER: 33}
 
-CLASS_LABEL = {PANEL: "Large", CENTRE: "Centre"}
+CLASS_LABEL = {PANEL: "Large", CENTER: "Center"}
 
 #: Column widths as percentages of the dashboard, left to right.  Both front
 #: ends read this so the terminal and the desktop window open with identical
-#: proportions; changing it here changes both.  The centre column is slightly
+#: proportions; changing it here changes both.  The center column is slightly
 #: narrower because its windows are label/value rows, while the outer columns
 #: carry tables and routes that benefit from the extra characters.
 COLUMN_WIDTH_PCT: dict[str, int] = {"A": 34, "B": 32, "C": 34}
@@ -82,17 +77,17 @@ BLOCK_CLASS = {
     "navigation":   PANEL,
     "ship_info":    PANEL,
     "career":       PANEL,
-    # Centre column: three equal windows, freely interchangeable.
-    "commander":    CENTRE,
-    "objectives":   CENTRE,
-    "status":       CENTRE,
+    # Center column: three equal windows, freely interchangeable.
+    "commander":    CENTER,
+    "objectives":   CENTER,
+    "status":       CENTER,
 }
 
 BLOCK_DISPLAY = {
     "exploration":  "Exploration / Exobiology",
     "navigation":   "Navigation",
     "ship_info":    "Ship",
-    "career":       "Session / Career",
+    "career":       "Career / Session",
     "objectives":   "Objectives",
     "commander":    "Commander",
     "status":       "Crew / Alerts",
@@ -101,7 +96,7 @@ BLOCK_DISPLAY = {
 # ── Columns ───────────────────────────────────────────────────────────────────
 
 COLUMNS = ("A", "B", "C")
-COLUMN_TITLE = {"A": "Left", "B": "Centre", "C": "Right"}
+COLUMN_TITLE = {"A": "Left", "B": "Center", "C": "Right"}
 
 # ── Default arrangement ─────────────────────────────────────────────────────
 # Each column is an ordered list of (size_class, default_window | None).  This
@@ -110,11 +105,11 @@ COLUMN_TITLE = {"A": "Left", "B": "Centre", "C": "Right"}
 
 # Left and right columns mirror each other: two large windows apiece.  All
 # four of those positions take the same class, so any large window can live in
-# any of them.  The centre column is the tall pair with the short pair
+# any of them.  The center column is the tall pair with the short pair
 # between them.
 DEFAULT_SLOTS: dict[str, list[tuple[str, Optional[str]]]] = {
     "A": [(PANEL, "exploration"), (PANEL, "navigation")],
-    "B": [(CENTRE, "commander"), (CENTRE, "status"), (CENTRE, "objectives")],
+    "B": [(CENTER, "commander"), (CENTER, "status"), (CENTER, "objectives")],
     "C": [(PANEL, "ship_info"), (PANEL, "career")],
 }
 
@@ -288,14 +283,6 @@ def assignment_path() -> Path:
 
 def load_assignment(path: Optional[Path] = None) -> dict[str, Optional[str]]:
     """Load the saved assignment, or the default arrangement when none exists.
-
-    An assignment written before version 2 describes a window set that no
-    longer exists — Cargo, Engineering, Alerts, Crew / SLF and Session were
-    folded into other windows, and the slot grid itself changed shape.
-    Salvaging what survives would leave a half-populated grid, so a pre-v2
-    file is replaced wholesale with the current defaults and rewritten.  This
-    happens once; afterwards the file carries the new version and is loaded
-    normally.
     """
     p = path or assignment_path()
     try:

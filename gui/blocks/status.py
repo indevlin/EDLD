@@ -1,8 +1,4 @@
-"""
-gui/blocks/status.py — Crew / Alerts window (Qt).
-
-Two readouts that are almost never busy at the same time, so they share one
-window rather than each holding a slot of their own.
+"""gui/blocks/status.py — Crew / Alerts window (Qt).
 
 A second tab holds the radio.  An alert that needs a tab change to see is an
 alert you miss, so any new alert brings the Crew / Alerts tab back to the
@@ -22,9 +18,8 @@ from gui.block_base import GuiBlock, TextRow, _fmt_credits, _health_cls
 from gui.markup import to_html
 
 
-#: Alert rows kept on screen.  Sized so a burst during combat does not push
-#: the crew readout out of the window.
-#: Crew combat ranks, indexed by the journal's rank number.
+#: Alert rows kept on screen. Sized so a burst during combat does not push the
+#: crew readout out of the window.
 from core.windows.crew import COMBAT_RANKS as PP_RANK_NAMES  # noqa: E402,F401
 
 _MAX_ROWS = 5
@@ -78,11 +73,6 @@ class StatusBlock(GuiBlock):
         self._name_lbl = QLabel()
         self._name_lbl.setTextFormat(Qt.RichText)
         self._name_lbl.setProperty("role", "hdrkey")
-        # Expanding rather than the default Preferred: the stretch factor alone
-        # only distributes *surplus* space, so in a narrow column the name
-        # label stops growing and the type label drifts left until the two sit
-        # against each other. Expanding keeps the name filling the row and the
-        # designation pinned to the right edge at any width.
         self._name_lbl.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._type_lbl = QLabel()
         self._type_lbl.setTextFormat(Qt.RichText)
@@ -148,7 +138,7 @@ class StatusBlock(GuiBlock):
                 a = alerts[i]
                 opacity = self.core.plugin_call("alerts", "opacity_for", a) or 1.0
                 text = f"{a.get('emoji', '')}  {a.get('text', '')}"
-                # The TUI dims an ageing alert through its own opacity handling;
+                # The TUI dims an aging alert through its own opacity handling;
                 # Qt has no equivalent on a stylesheet label, so the same
                 # threshold switches the row to the dim role instead.
                 lbl.set_text(text)
@@ -164,13 +154,7 @@ class StatusBlock(GuiBlock):
 # ── Radio tab ─────────────────────────────────────────────────────────────────
 
 class RadioPanel(QWidget):
-    """Station list, readout and transport controls.
-
-    Polls the shared player twice a second from a QTimer rather than being
-    called back from its threads, so no widget is ever touched off the GUI
-    thread.  Same controller, same labels and same controls as the terminal
-    tab.
-    """
+    """Station list, readout and transport controls."""
 
     POLL_MS = 500
 

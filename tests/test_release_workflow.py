@@ -1,15 +1,4 @@
-"""
-tests/test_release_workflow.py — the release workflow builds from any branch.
-
-A manual run (workflow_dispatch) on dev built every binary and then failed all
-three smoke tests: the workflow's VERSION is the ref name, which on a branch is
-"dev", and the binary — correctly — reported the version file. Every job that
-names or checks a version now takes it from the verify job, which reads the
-version file; these pin that, and the check that stops a release shipping a
-sheet manifest built for another version.
-
-Read as text rather than parsed, so the test needs nothing beyond the standard
-library.
+"""tests/test_release_workflow.py — the release workflow builds from any branch.
 """
 from __future__ import annotations
 

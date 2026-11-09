@@ -1,9 +1,4 @@
-"""
-tests/test_cargo_bootstrap.py — the hold EDLD shows after a restart.
-
-The hold cannot be read from any single journal event, so it is rebuilt by
-replaying the recent journals: the last event carrying a manifest is the
-baseline, and everything that moved cargo afterwards is applied on top.
+"""tests/test_cargo_bootstrap.py — the hold EDLD shows after a restart.
 
 The replay used to skip sales, on the stated grounds that a sale emits its
 own cargo event which resets the baseline.  It does emit one — but in a real
@@ -88,9 +83,8 @@ def bootstrap(tmp_path, events, cargo_json=None):
 
     (journal_dir / "Journal.2026-09-13T060000.01.log").write_text(
         "\n".join(json.dumps(e) for e in events) + "\n", encoding="utf-8")
-    # Cargo.json on disk is always the *current* one, never the historical
-    # one a replayed event was written beside.  After an SRV session it names
-    # the SRV, which is why the replay must not lean on it.
+    # Cargo.json on disk is always the *current* one, never the historical one
+    # a replayed event was written beside.
     (journal_dir / "Cargo.json").write_text(json.dumps(
         cargo_json or {"event": "Cargo", "Vessel": "SRV",
                        "Count": 0, "Inventory": []}), encoding="utf-8")
@@ -195,7 +189,7 @@ def test_srv_cargo_events_never_touch_the_ship(tmp_path):
 # ── Column headings ───────────────────────────────────────────────────────────
 
 def test_the_headings_sit_over_the_columns_they_name():
-    """Three unlabelled numbers, the middle one per tonne and the last a line
+    """Three unlabeled numbers, the middle one per ton and the last a line
     total, is not something a reader should have to infer."""
     from core.ui_helpers import cargo_cols, cargo_header_cols, cargo_totals_cols
 
@@ -211,8 +205,8 @@ def test_the_headings_sit_over_the_columns_they_name():
 
 
 def test_both_front_ends_head_the_manifest():
-    """Parity: a labelled table in one window and an unlabelled one in the
-    other is worse than neither being labelled. Both holds are headed, once,
+    """Parity: a labeled table in one window and an unlabeled one in the
+    other is worse than neither being labeled. Both holds are headed, once,
     in the shared model every interface draws."""
     src = (ROOT / "core" / "windows" / "ship.py").read_text(encoding="utf-8")
     assert src.count("_table()") == 3          # the definition, the ship, the SRV

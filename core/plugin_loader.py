@@ -1,5 +1,4 @@
-"""
-core/plugin_loader.py — Discover, import, initialise, and lifecycle-manage
+"""core/plugin_loader.py — Discover, import, initialize, and lifecycle-manage
                         all components.
 
 All components live as single files at the repo root in components/, named
@@ -11,7 +10,6 @@ it determines:
   - the module name in sys.modules
 
 Integration components (eddn, edsm, edastro, inara) are user-togglable.
-All other components are always-on.
 """
 
 from __future__ import annotations
@@ -32,23 +30,7 @@ from core.state import EDLD_DATA_DIR, cmdr_data_dir
 # ── Frozen-build component discovery ──────────────────────────────────────────
 
 def _components_dir(repo_root: Path) -> Path:
-    """Return the directory holding the ``components/*.py`` files.
-
-    Components are discovered by globbing a directory and loaded by file path,
-    which keeps each one in its own module namespace with a sandboxed
-    ``open()``.  That mechanism needs the sources to exist as real files.
-
-    In a PyInstaller one-file build the application's own modules live inside
-    the compiled archive, not on disk, so the glob would match nothing and the
-    dashboard would come up with every window empty — a failure that looks
-    exactly like a working build until you notice no data ever arrives.  The
-    packaging spec therefore ships ``components/`` as bundled *data* as well,
-    which PyInstaller extracts to ``sys._MEIPASS`` at launch, and this function
-    points the loader there.
-
-    Falls back to the repo-root path when the bundled copy is absent, so a
-    source checkout and a ``--onedir`` build both behave as before.
-    """
+    """Return the directory holding the ``components/*.py`` files."""
     if getattr(sys, "frozen", False):
         meipass = getattr(sys, "_MEIPASS", None)
         if meipass:
@@ -62,12 +44,6 @@ def _components_dir(repo_root: Path) -> Path:
 
 class PluginStorage:
     """Per-plugin persistent storage rooted at the shared data directory.
-
-    Layout
-    ------
-    Every plugin's state lives in a single flat directory at
-    ``<cmdr>/data/`` — there is no per-plugin sub-tree.  Files are
-    plugin-namespaced by filename prefix instead of by directory:
 
         <cmdr>/data/<plugin>.json           ← primary (was <plugin>/data.json)
         <cmdr>/data/<plugin>.<purpose>.json ← sidecars (e.g. core.tokens.json)
@@ -86,15 +62,6 @@ class PluginStorage:
         storage.read_sibling_json(plugin)
         storage.read_sibling_json(plugin, "purpose")
         storage.write_sibling_json(plugin, "purpose", d)
-
-    Back-compat
-    -----------
-    Old call sites that passed full filenames (``read_json("data.json")``,
-    ``read_json("capi_tokens.json")``, ``read_sibling_json("core",
-    "capi_profile.json")``) continue to work — ``_resolve_purpose`` strips
-    a trailing ``.json`` and a leading ``capi_`` so they land at the new
-    flattened paths without code changes.  New code should pass clean
-    purpose names without prefix or extension.
     """
 
     def __init__(self, plugin_name: str) -> None:
@@ -112,10 +79,6 @@ class PluginStorage:
     @property
     def path(self) -> Path:
         """Path to this plugin's primary data file: ``<cmdr>/data/<name>.json``.
-
-        Re-derived from ``cmdr_data_dir()`` on every access so it stays
-        correct if the FID changes after the plugin loads (e.g. went from
-        "unknown" → real FID once LoadGame fires).
         """
         from core.state import cmdr_data_dir
         return cmdr_data_dir() / "data" / f"{self._name}.json"
@@ -129,7 +92,7 @@ class PluginStorage:
             → <cmdr>/data/<plugin>.queue.jsonl
 
         The plugin prefix is added automatically — callers pass just the
-        basename.  Path separators are rejected.
+        basename.
         """
         if "/" in filename or "\\" in filename or ".." in filename:
             raise ValueError(f"file_path: bare filename only (got {filename!r})")
@@ -154,9 +117,7 @@ class PluginStorage:
                           purpose: str | None = None) -> dict:
         """Read another plugin's primary or sidecar file.
 
-        Permits cross-plugin data consumption (e.g. assets reading core's
-        capi_profile sidecar) without granting write access.  Returns an
-        empty dict if the target file does not exist.
+        Returns an empty dict if the target file does not exist.
         """
         p = self._resolve(plugin_name, purpose)
         return self._read(p)
@@ -177,7 +138,7 @@ class PluginStorage:
     def _resolve(plugin_name: str, purpose: str | None) -> Path:
         """Map (plugin_name, purpose) → absolute path under ``<cmdr>/data/``.
 
-        Back-compat normalisation:
+        Back-compat normalization:
           - purpose in (None, "", "data", "data.json") → primary file
           - trailing ``.json`` is stripped
           - leading ``capi_`` is stripped (legacy core sidecar names)
@@ -188,7 +149,7 @@ class PluginStorage:
         if purpose in (None, "", "data", "data.json"):
             return base / f"{plugin_name}.json"
 
-        # Reject any traversal/path attempts before normalising
+        # Reject any traversal/path attempts before normalizing
         if "/" in purpose or "\\" in purpose or ".." in purpose:
             raise ValueError(f"Purpose must be bare (got {purpose!r})")
 
@@ -223,23 +184,17 @@ class PluginStorage:
 
 
 def migrate_legacy_storage_layout(cmdr_dir: Path) -> int:
-    """One-shot migration from the old ``<cmdr>/plugins/<X>/<file>`` tree
-    to the flat ``<cmdr>/data/<X>[.<purpose>].<ext>`` layout.
+    """One-shot migration from the old ``<cmdr>/plugins/<X>/<file>`` tree to
+    the flat ``<cmdr>/data/<X>[.<purpose>].<ext>`` layout.
 
-    Walks every file under ``<cmdr>/plugins/`` and moves it to its
-    flattened name in ``<cmdr>/data/``.  The translation:
+    Walks every file under ``<cmdr>/plugins/`` and moves it to its flattened
+    name in ``<cmdr>/data/``.
 
         plugins/<X>/data.json     → data/<X>.json
         plugins/<X>/capi_foo.json → data/<X>.foo.json
         plugins/<X>/<name>.<ext>  → data/<X>.<name>.<ext>
 
-    Files that already exist at the target are left in place (we never
-    overwrite — a same-name target means a previous migration ran).
-    Empty plugin directories and the plugins/ root are removed when their
-    contents are gone.
-
-    Returns the number of files actually moved.  Errors are swallowed so a
-    migration glitch never blocks startup; callers can re-check on next run.
+    Returns the number of files actually moved.
     """
     import os as _os
     legacy = cmdr_dir / "plugins"
@@ -262,8 +217,6 @@ def migrate_legacy_storage_layout(cmdr_dir: Path) -> int:
             new_name = _migrate_filename(plugin, old_file.name)
             new_path = target / new_name
             if new_path.exists():
-                # Target already migrated; leave the legacy file alone for
-                # the user to inspect and remove if they want.
                 continue
             try:
                 _os.replace(str(old_file), str(new_path))
@@ -329,13 +282,7 @@ class DisabledPluginMeta:
 # ── LoadFailure ───────────────────────────────────────────────────────────────
 
 class LoadFailure:
-    """Record for a component that raised while loading.
-
-    A component that fails to load is invisible at runtime: its events are
-    never dispatched and the windows that read it render their empty-state
-    placeholder, which is indistinguishable from "nothing has happened yet".
-    Keeping the failure lets edld.py raise a dashboard alert instead.
-    """
+    """Record for a component that raised while loading."""
 
     __slots__ = ("name", "error", "detail")
 
@@ -349,10 +296,6 @@ class LoadFailure:
 
 class BasePlugin:
     """Base class for all builtins and plugins.
-
-    Subclass this and override the methods you need.
-    PLUGIN_NAME, PLUGIN_DISPLAY, and SUBSCRIBED_EVENTS are required class
-    attributes.  All other class attributes have sensible defaults.
 
     The loader guarantees that before on_load() is called:
       • self.storage  — PluginStorage scoped to this component's data directory
@@ -411,10 +354,6 @@ def _make_sandboxed_open(plugin_name: str):
     whose resolved path is not inside the shared data directory AND whose
     filename is not prefixed with ``<plugin_name>.`` (or exactly
     ``<plugin_name>.json``).
-
-    Under the flat storage layout every plugin's files live side-by-side
-    in ``<cmdr>/data/``; the sandbox isolation that used to come from a
-    dedicated sub-directory now comes from the filename prefix.
     """
     def _sandboxed_open(file, mode="r", *args, **kwargs):
         if any(c in str(mode) for c in ("w", "a", "x", "+")):
@@ -538,15 +477,8 @@ class PluginLoader:
         """Load all components from components/.
 
         Integration components (eddn, edsm, edastro, inara) are user-togglable.
-        All others are always-on.
 
-        Layout: each plugin is a single ``components/<name>.py`` file.  The
-        file stem (``<name>``) is used as the plugin identifier for storage
-        paths and for sandbox isolation.
-
-        Before any plugin loads, runs the one-shot legacy-layout migration
-        so that pre-flatten data in ``<cmdr>/plugins/<X>/`` is moved into
-        the new ``<cmdr>/data/<X>[.<purpose>].<ext>`` layout.
+        Layout: each plugin is a single ``components/<name>.py`` file.
         """
         # Migration first — must happen before any plugin reads its data.
         moved = migrate_legacy_storage_layout(cmdr_data_dir())
@@ -580,9 +512,6 @@ class PluginLoader:
         show_in_menu: bool = True,
     ) -> None:
         # Plugin identifier — file stem in the new single-file layout.
-        # This matches what was previously the parent directory name, so
-        # storage paths (cmdr_data_dir() / "plugins" / <name>) are stable
-        # across the refactor and user data continues to load.
         dir_name    = plugin_file.stem
         module_name = f"_edld_plugin_{dir_name}"
 

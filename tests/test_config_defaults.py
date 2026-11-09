@@ -1,15 +1,4 @@
-"""
-tests/test_config_defaults.py — config defaults, the example file, and backfill.
-
-EDLD gets a config two ways: it ships ``example.config.toml`` as a commented
-reference, and it writes a default one from ``CFG_DEFAULTS_*`` when none
-exists.  Both had drifted from the defaults — the example was missing keys and
-two whole sections, and the generated file omitted three sections entirely, so
-a new install got a config that did not mention them at all.
-
-These tests derive what should be present from the defaults themselves, so a
-setting added in a future release fails here rather than being noticed only
-when a user reports the warning.
+"""tests/test_config_defaults.py — config defaults, the example file, and backfill.
 """
 
 from __future__ import annotations
@@ -71,11 +60,7 @@ def test_example_documents_every_section(section, example_text):
     [(s, k) for s, d in DOCUMENTED.items() for k in d],
 )
 def test_example_mentions_every_default_key(section, key, example_text):
-    """Every default must appear, set or commented out.
-
-    Credentials and paths are deliberately left commented in the example, so
-    presence of the name is the bar rather than an active assignment.
-    """
+    """Every default must appear, set or commented out."""
     assert key in example_text, (
         f"{section}.{key} is a default but never appears in "
         f"example.config.toml — a user cannot discover it")
@@ -91,10 +76,7 @@ def test_example_keeps_its_documentation(example_text):
 # ── The generated default ─────────────────────────────────────────────────────
 
 def test_generated_default_covers_every_section():
-    """edld.py builds a config from the defaults when none exists.
-
-    It previously omitted CAPI, Colonisation and SessionMgmt.
-    """
+    """edld.py builds a config from the defaults when none exists."""
     source = (ROOT / "edld.py").read_text(encoding="utf-8")
     start = source.index("_default_cfg = {")
     # The first "}" belongs to a nested dict literal, so match braces.

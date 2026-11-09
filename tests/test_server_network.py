@@ -1,9 +1,4 @@
-"""
-tests/test_server_network.py — port mapping and DuckDNS, against fakes.
-
-A fake NAT-PMP gateway, a fake UPnP router (SSDP responder, description XML,
-SOAP control URL) and a fake DuckDNS, all on 127.0.0.1.  The code under test
-speaks real UDP and HTTP to them; only the other end is pretend.
+"""tests/test_server_network.py — port mapping and DuckDNS, against fakes.
 """
 from __future__ import annotations
 

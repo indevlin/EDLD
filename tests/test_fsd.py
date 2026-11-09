@@ -1,12 +1,5 @@
-"""
-tests/test_fsd.py — the drive model: range at any fuel and cargo, fuel per
+"""tests/test_fsd.py — the drive model: range at any fuel and cargo, fuel per
 jump, and jumps left on the tank.
-
-The ranges were scaled from MaxJumpRange by mass alone, from UnladenMass: a
-little short, because the game measures MaxJumpRange with one jump's fuel
-aboard, and blind to a nearly empty tank, where the fuel, not the mass,
-limits the jump. core/fsd.py uses the drive's own figures. The Loadouts here
-are real; with them the model gives back each ship's MaxJumpRange.
 """
 from __future__ import annotations
 

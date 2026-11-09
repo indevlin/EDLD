@@ -1,7 +1,4 @@
-"""
-tests/test_terminal_mode.py — ``--terminal`` gets the same background work.
-
-Two faults, both invisible:
+"""tests/test_terminal_mode.py — ``--terminal`` gets the same background work.
 
 * The redraw queue had no reader in terminal mode.  The journal reader and the
   components post to it in every mode, so it grew for the life of the process.

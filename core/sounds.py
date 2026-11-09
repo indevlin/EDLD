@@ -1,5 +1,4 @@
-"""
-core/sounds.py — short cues for callouts.
+"""core/sounds.py — short cues for callouts.
 
 Eight sounds in ``sounds/``, made with earcongen (one family, so they read as
 related and sit at the same loudness):
@@ -12,11 +11,6 @@ related and sit at the same loudness):
     low               a resource running low: hold, limpets, fuel   (down and up)
     warning           something about to be lost                    (fall, urgent)
     attention         something worth a look                        (fall)
-
-Played with miniaudio, which the radio already depends on, off the calling
-thread: a callout comes from the journal thread and must not wait for the
-sound. Nothing plays during journal replay, and a missing miniaudio or audio
-device is reported once to the diagnostic log and then left quiet.
 """
 from __future__ import annotations
 

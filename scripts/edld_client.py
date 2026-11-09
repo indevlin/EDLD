@@ -1,18 +1,13 @@
 #!/usr/bin/env python3
-"""
-scripts/edld_client.py — a reference client for EDLD's server mode.
+"""scripts/edld_client.py — a reference client for EDLD's server mode.
 
-Does what the EDAM app does, from a terminal, so the server can be exercised
-and the protocol read without a phone:
+Does what the EDAM app does, from a terminal, so the server can be exercised and
+the protocol read without a phone:
 
     edld_client.py pair 'edld://pair?v=1&...'      pair using the link --pair shows
     edld_client.py watch                           connect and print every message
     edld_client.py watch --host 192.168.1.20:28510 try this address instead
     edld_client.py end-session                     ask EDLD to end the game session
-
-The device key, its certificate and the pinned server live in --state
-(default ~/.config/edld-client/), exactly as the app keeps them in its own
-storage.  Needs the ``cryptography`` package.
 """
 from __future__ import annotations
 

@@ -1,5 +1,4 @@
-"""
-components/spansh.py — Spansh.co.uk market price fetcher.
+"""components/spansh.py — Spansh.co.uk market price fetcher.
 
 Spansh /api/search response structure (confirmed from live API):
     {
@@ -18,11 +17,8 @@ Spansh /api/search response structure (confirmed from live API):
     }
 
 The market data is inline in the search response — no second API call needed.
-Note: Spansh does not expose galactic average (mean_price); that column will
-show "—" for target markets and only populate from Market.json (docked station).
 
-Refresh interval: 30 minutes. Spansh crowd-sources from EDDN; busy stations
-are typically 0–4 hours old. BGS tick is ~60 min so 30 min is appropriate.
+Refresh interval: 30 minutes.
 """
 
 import json
@@ -61,7 +57,7 @@ _REFRESH_INTERVAL = 1800   # 30 minutes
 # so the POST goes to /api/fleetcarrier/route and polling uses the same
 # /api/results/<job> endpoint as every other route type.  Crucially,
 # performRequest passes the body through jQuery's $.ajax with
-# ``traditional: true``, which serialises a list as a repeated *bare* key
+# ``traditional: true``, which serializes a list as a repeated *bare* key
 # (destination_systems=123&destination_systems=456) — not as a JSON string
 # and not with a [] suffix.  See _plot_route for why that matters.
 #
@@ -99,16 +95,9 @@ _SPANSH_LIST_PARAMS = frozenset({"destination_systems", "refuel_destinations",
 def _normalise_list_params(params: dict) -> dict:
     """Return ``params`` with every list-shaped field ready for ``doseq=True``.
 
-    Three shapes reach this function and all must end up as a real list:
-
       ["Sol", "Deciat"]     already correct — passed through
       '["Sol", "Deciat"]'   a JSON string, from a caller that pre-encoded it
       "Sol"                 a bare scalar, wrapped into a single-element list
-
-    An empty list is dropped entirely rather than sent as an empty value,
-    because jQuery's traditional serialisation omits empty arrays and Spansh
-    treats a present-but-empty ``refuel_destinations`` differently from an
-    absent one.
     """
     out: dict = {}
     for key, value in params.items():
@@ -194,7 +183,6 @@ class SpanshPlugin(BasePlugin):
         """Search Spansh for stations matching query.
 
         Returns [{name, system, updated, id}] or [] on error.
-        Call from a background thread.
         """
         if not query or len(query) < 3:
             return []
@@ -238,7 +226,6 @@ class SpanshPlugin(BasePlugin):
         Returns [{name, system, is_station, star_pos, updated}] or [].
         star_pos is [x, y, z] when available (systems always have it;
         stations carry the system's coords from the search record).
-        Call from a background thread.
         """
         if not query or len(query) < 3:
             return []
@@ -339,18 +326,14 @@ class SpanshPlugin(BasePlugin):
                 self._fetch_and_store(last)
 
     def _fetch_by_id(self, market_id: int) -> None:
-        """Fetch market data for a specific station by market_id.
-
-        Uses the Spansh station endpoint which returns a single unambiguous
-        result regardless of how many stations share the same name.
-        """
+        """Fetch market data for a specific station by market_id."""
         try:
             url = f"https://spansh.co.uk/api/stations/{market_id}"
             with urllib.request.urlopen(url, timeout=8) as resp:
                 data = json.load(resp)
             rec = data.get("station") or data.get("record") or data
             if rec and rec.get("name"):
-                # Normalise: station endpoint uses "system" not "system_name"
+                # Normalize: station endpoint uses "system" not "system_name"
                 if "system" in rec and "system_name" not in rec:
                     rec["system_name"] = (
                         rec["system"].get("name", "") if isinstance(rec["system"], dict)
@@ -446,10 +429,8 @@ class SpanshPlugin(BasePlugin):
     # ── Route planning ────────────────────────────────────────────────────────
 
     # Spansh's route APIs are asynchronous: POST creates a job that runs
-    # server-side, then GET /api/results/{job_id} polls for completion.
-    # Typical ship-route jobs finish in 1–10 s.  Fleet-carrier routes are
-    # far heavier (a galaxy-spanning carrier route can be 40+ jumps and
-    # take a minute-plus server-side), so they get a longer budget.
+    # server-side, then GET /api/results/{job_id} polls for completion. Typical
+    # ship-route jobs finish in 1–10 s.
     _ROUTE_POLL_INTERVAL_S = 2
     _ROUTE_POLL_TIMEOUT_S  = 60     # ship routes (fsd / neutron)
     _CARRIER_POLL_TIMEOUT_S = 180   # carrier routes — much slower
@@ -465,15 +446,8 @@ class SpanshPlugin(BasePlugin):
             efficiency   — route efficiency 1-100 (lower = faster but more jumps;
                            Spansh default is 60).
 
-        Uses the current ship's neutron supercharge multiplier — 4×, or 6×
-        for the SCO drive Mk II (core.route_view.supercharge_multiplier) —
-        so the router detours via neutron stars wherever that reduces the
-        jump count. Every drive used to be sent as 4×, so a Caspian
-        Explorer's routes took more jumps than it needs.
-
-        Returns the full Spansh response dict on success, or
-        {"_error": "<message>"} on failure.  Stores last successful result
-        on state.spansh_neutron_route.
+        Returns the full Spansh response dict on success, or {"_error":
+        "<message>"} on failure.
         """
         def plot(start: str) -> dict | None:
             return self._plot_route("neutron", {
@@ -550,8 +524,7 @@ class SpanshPlugin(BasePlugin):
 
     def systems_by_id64(self, ids: list[int]) -> dict[int, dict] | None:
         """Spansh's records for the given systems, by id64 — those it knows.
-        None when Spansh could not be asked: a system missing from an answer
-        is one never reported, which a failed request must not look like."""
+        """
         out: dict[int, dict] = {}
         ids = [int(i) for i in ids if i]
         for start in range(0, len(ids), 100):
@@ -599,7 +572,7 @@ class SpanshPlugin(BasePlugin):
         out = (d or {}).get("results") or []
         if service:
             # Checked as well as asked for: a filter in a shape Spansh does
-            # not recognise is ignored without a word.
+            # not recognize is ignored without a word.
             out = [r for r in out if service in {str((v or {}).get("name"))
                                                   for v in r.get("services") or []}]
         return out
@@ -638,11 +611,6 @@ class SpanshPlugin(BasePlugin):
 
     def _edsm_get(self, url: str, params: dict) -> object | None:
         """GET an EDSM endpoint, return parsed JSON or None on any failure.
-
-        EDSM blocks the default Python-urllib User-Agent (returns 403), so
-        we always send a real UA string identifying this tool — same as
-        the EDSM uploader plugin and every other HTTP client in the
-        codebase.
         """
         from core import debug as _dbg
         try:
@@ -743,18 +711,6 @@ class SpanshPlugin(BasePlugin):
                          range_ly: float | None = None,
                          neutrons: bool = False) -> dict:
         """Plot with Spansh's exact plotter and the current ship's own drive.
-
-        Every jump is simulated with the drive's figures and the fuel aboard:
-        where to refuel, which stars can be scooped, how much is left after
-        each jump, and — with ``neutrons`` — where a supercharge shortens the
-        trip. ``range_ly``, when it differs from the ship's full-tank range,
-        plots as though the drive reached that far (the plot form's range,
-        typed shorter to plot conservatively).
-
-        A start no database knows yet — a system just discovered — is
-        replaced by the known system nearest it in the direction of travel,
-        with the first leg, from where the commander is, put back on the
-        front of the route.
         """
         from core import fsd
         from core.route_view import cargo_tons
@@ -834,12 +790,6 @@ class SpanshPlugin(BasePlugin):
                          range_ly: float) -> dict | None:
         """Plot a plain-FSD jump route from source to destination.
 
-        Spansh has no plain-FSD endpoint — /api/route is a neutron router
-        and degenerates to a single hop for non-neutron routes.  So this
-        does real routing against EDSM's system database: a greedy
-        best-first search that, from each system, jumps to whichever
-        in-range system makes the most progress toward the destination.
-
         Limitations vs Spansh's neutron router:
           - EDSM only knows systems players have visited/uploaded, so in
             sparse regions the search can get stuck (reported clearly).
@@ -850,7 +800,7 @@ class SpanshPlugin(BasePlugin):
 
         Returns a Spansh-shaped dict (system_jumps / total_jumps /
         distance) so the UI renders it the same way, plus "_source":
-        "EDSM".  On failure returns {"_error": "..."}.
+        "EDSM".
         """
         from core import debug as _dbg
 
@@ -944,17 +894,13 @@ class SpanshPlugin(BasePlugin):
                             calc_starting_fuel: bool = True) -> dict | None:
         """Plot a fleet carrier route from source to destination.
 
-        The carrier router's parameters were confirmed against a saved job
-        envelope from spansh.co.uk, whose ``parameters`` block echoes exactly
-        what the server parsed:
-
           source_system        — the SOURCE system's id64 (NOT its name)
           destination_systems  — LIST of destination id64s.  Must be sent as
                                  repeated bare keys, not a JSON string; see
                                  _normalise_list_params and _plot_route.
           capacity             — the carrier's TOTAL capacity (25000 for a
                                  standard fleet carrier) — not the used figure
-          capacity_used        — tonnes currently used on the carrier
+          capacity_used        — tons currently used on the carrier
           current_fuel         — tritium currently in the carrier's tank
           mass                 — carrier mass (= total capacity)
           tritium_amount       — tritium available to load (0 lets Spansh
@@ -962,8 +908,8 @@ class SpanshPlugin(BasePlugin):
           calculate_starting_fuel — 1 to let Spansh work out the fill
           refuel_destinations  — LIST, omitted on the wire when empty
 
-        The result carries per-jump fuel planning, which is the whole point
-        of the carrier router for long hauls.  Each entry in ``jumps``:
+        The result carries per-jump fuel planning, which is the whole point of
+        the carrier router for long hauls.
 
           name, id64, x/y/z      — the system
           distance               — this leg, ly (capped at the 500 ly max jump)
@@ -977,19 +923,15 @@ class SpanshPlugin(BasePlugin):
           is_system_pristine     — whether tritium can be mined there
           is_desired_destination — marks the requested endpoint(s)
 
-        Note the carrier result uses ``jumps`` (not ``system_jumps``) and
-        carries no top-level ``total_jumps`` or ``distance``; the total
-        distance is jumps[0]["distance_to_destination"].
-
         Args:
             source / destination — system NAMES (resolved to id64 here)
-            capacity_used        — used capacity in tonnes
+            capacity_used        — used capacity in tons
             total_capacity       — total capacity (default 25000)
             current_fuel         — tritium on board
             calc_starting_fuel   — let Spansh compute the starting fill
 
-        Returns the Spansh response dict on success, or
-        {"_error": "<message>"} on failure.
+        Returns the Spansh response dict on success, or {"_error": "<message>"}
+        on failure.
         """
         # Resolve names → id64.  The carrier endpoint rejects plain names.
         src = self._edsm_system(source)
@@ -1017,16 +959,7 @@ class SpanshPlugin(BasePlugin):
                     store_key: str, method: str = "POST") -> dict | None:
         """Common driver: POST job, poll results, return parsed dict.
 
-        route_kind is "fsd" / "neutron" / "carrier" — used to pick the
-        candidate-endpoint list from _SPANSH_ROUTE_URLS (overridable via
-        config "spansh_route_urls").  Each candidate is tried in turn; a
-        404 falls through to the next, anything else (success, non-404
-        error, network failure) stops the walk.
-
         Spansh accepts the parameters as application/x-www-form-urlencoded.
-        The POST returns either {"job": "<job_id>"} or {"error": "..."}.
-        Polling /api/results/{job_id} returns
-        {"status":"queued|in_progress|ok|error", "result": {...}}.
 
         Returns:
           - On success: the parsed result dict from Spansh.
@@ -1054,7 +987,7 @@ class SpanshPlugin(BasePlugin):
         for post_url in candidates:
             tried.append(post_url)
             try:
-                # doseq=True gives jQuery's ``traditional: true`` serialisation:
+                # doseq=True gives jQuery's ``traditional: true`` serialization:
                 # a list value becomes repeated bare keys
                 # (destination_systems=A&destination_systems=B) rather than one
                 # JSON-encoded value.  Spansh's form parser only understands the

@@ -1,7 +1,4 @@
-"""
-tests/test_location.py — the location follows the commander.
-
-Two ways it stayed on the system just left:
+"""tests/test_location.py — the location follows the commander.
 
 * riding a fleet carrier. The game writes CarrierJump, not FSDJump, when the
   commander is aboard; nothing that keeps the location read it. From a real

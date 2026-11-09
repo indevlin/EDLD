@@ -1,9 +1,7 @@
-"""
-core/config.py — Configuration loading, defaults, profile resolution,
+"""core/config.py — Configuration loading, defaults, profile resolution,
                  and hot-reload.
 
 Depends only on core.state (for EDLD_DATA_DIR).
-Does not import from emit, journal, or gui.
 """
 
 import sys
@@ -14,7 +12,7 @@ from pathlib import Path
 from core.state import EDLD_DATA_DIR
 
 
-# ── Minimal terminal colour for pre-emit warnings ────────────────────────────
+# ── Minimal terminal color for pre-emit warnings ────────────────────────────
 # emit.py imports config, so we can't import Terminal from there.
 # Only _WARNING is needed here; full Terminal lives in core.emit.
 
@@ -56,7 +54,7 @@ def _scalar(v) -> str:
 
 
 def config_to_toml(d: dict) -> str:
-    """Serialise a config dict to canonical TOML.
+    """Serialize a config dict to canonical TOML.
 
     Rules:
       • Standard sections (Settings, Discord, UI, LogLevels, EDDN, EDSM,
@@ -67,9 +65,6 @@ def config_to_toml(d: dict) -> str:
             Settings.JournalFolder = "..."
             UI.Mode = "textual"
         The old [EDP1.Settings] / [EDP1.UI] sub-table style is NEVER produced.
-
-    This is the single authoritative writer for config.toml.  Both
-    gui/preferences.py and tui/preferences.py import and use this function.
     """
     lines: list[str] = []
 
@@ -141,10 +136,6 @@ def backfill_config_defaults(config_path: Path) -> list[str]:
     """Add newly-introduced default keys to an existing config.toml.
 
     Every release that adds a setting leaves existing configs without it.
-    Resolution already falls back to the default, so nothing breaks — but the
-    sections loaded with warnings print a line per missing key on every
-    launch, and a key that is not in the file is one the user cannot discover
-    or edit.
 
     The file is edited **in place, by line**, rather than reparsed and
     rewritten.  ``example.config.toml`` is a heavily commented reference that
@@ -152,11 +143,7 @@ def backfill_config_defaults(config_path: Path) -> list[str]:
     throw all of that away.  Insertions go at the end of the matching
     top-level section, keeping surrounding comments intact.
 
-    Only *adds*, and only to top-level sections.  Keys whose default is an
-    empty string are skipped — those are credentials and paths the user has to
-    supply, and writing ``ApiKey = ""`` into their file is noise, not help.
-    Profile sections are left alone: a profile is meant to be a sparse
-    override of the global values.
+    Only *adds*, and only to top-level sections.
 
     Returns the ``Section.Key`` names added, for the caller to report.
     """
@@ -245,15 +232,11 @@ _KEYLINE = re.compile(r'^(\s*)([A-Za-z0-9_-]+)(\s*=.*)$')
 
 
 def _collapse_subtables(raw: str) -> str | None:
-    """``[Profile.Section]`` tables folded into ``[Profile]`` as dotted keys,
-    by line, so every comment stays where it was.
+    """``[Profile.Section]`` tables folded into ``[Profile]`` as dotted keys, by
+    line, so every comment stays where it was.
 
-    A sub-table that follows its parent's block (the usual way they are
-    written) is folded in place; one elsewhere has its lines moved to the end
-    of the parent's block, and a parent with no block of its own gets one where
-    the sub-table was. Returns the new text, or None when the result would not
-    read back as exactly the same settings — the caller then leaves the file
-    alone rather than risk it.
+    Returns the new text, or None when the result would not read back as
+    exactly the same settings — the caller then leaves the file alone.
     """
     blocks: list[list] = [[None, None, []]]          # [name, header line, body]
     for line in raw.splitlines():
@@ -316,7 +299,6 @@ def migrate_config_if_needed(config_path: Path) -> bool:
       • ProfileName.GUI.Enabled = true in a profile block  →  UI.Mode = "textual"
       • [ProfileName.Section] sub-table headers  →  [ProfileName] + dotted keys
 
-    Detection uses a raw-text regex so clean canonical files are never touched.
     Returns True if the file was rewritten, False if no migration was needed.
 
     MUST be called before load_config_file() in edld.py.
@@ -329,10 +311,7 @@ def migrate_config_if_needed(config_path: Path) -> bool:
     if not _NEEDS_MIGRATION.search(raw):
         return False   # already canonical — nothing to do
 
-    # Only [Profile.Section] tables: fold them in by line. Regenerating the
-    # file, below, lost every comment in it — the whole of a config copied
-    # from example.config.toml — for a table that only needed its header
-    # turned into dotted keys.
+    # Only [Profile.Section] tables: fold them in by line.
     if not re.search(r'^\[(?:\w+\.)?GUI\]', raw, re.MULTILINE):
         folded = _collapse_subtables(raw)
         if folded is None:
@@ -390,12 +369,6 @@ def migrate_config_if_needed(config_path: Path) -> bool:
 
 def migrate_ui_interface(config_path: Path) -> list[str]:
     """Fold the old ``[UI] Mode`` and ``Style`` keys into ``Interface``.
-
-    Until EDCARS became the default, ``Mode`` chose between the terminal
-    dashboard, the scrolling log and the desktop window, and ``Style`` chose
-    the desktop window's layout.  Both are now one setting, ``Interface``
-    (core/modes.py), because the layout is part of which interface opens:
-    EDCARS and the Dashboard are separate launchers.
 
     ``Mode = "textual"`` was written into every config as the default, and
     Options never offered it, so it is not taken as a choice: such a config
@@ -632,9 +605,8 @@ CFG_DEFAULTS_NOTIFY = {
     "PeriodicCredits":  2,
     "PeriodicMerits":   2,
     # CAPI / external service health
-    # Frontier's CAPI refresh token is valid for ~30 days.  When it expires,
-    # all CAPI features stop working until the user re-runs the OAuth flow.
-    # Default level 3 so it pings Discord and lands in the Alerts pane.
+    # Frontier's CAPI refresh token is valid for ~30 days. When it expires, all
+    # CAPI features stop working until the user re-runs the OAuth flow.
     "CapiAuthRequired": 3,
     # Fleet / squadron carrier jump lifecycle.  A scheduled jump starts a
     # 15-minute lockdown during which the carrier cannot be boarded or
@@ -676,7 +648,6 @@ def resolve_config_path(script_path: Path) -> Path | None:
     return None
 
 
-
 def load_config_file(config_path: Path) -> dict:
     """Read and parse a TOML config file.  Calls sys.exit on decode error."""
     with open(config_path, mode="rb") as f:
@@ -713,17 +684,6 @@ def load_setting(
 
     ``include_extra`` also returns keys present in the file but absent from
     ``defaults``.
-
-    Without it the loop below iterates ``defaults`` and nothing else, so a key
-    that is not declared as a default is invisible however plainly it is
-    written in config.toml — read back as missing, reported as missing, and
-    silently discarded on the next write that rewrites the section. That is
-    correct for a fixed schema and wrong for a section whose keys are not known
-    until runtime: the overlay names one key per panel, and panels come from
-    whichever components happen to be loaded. Those sections pass True.
-
-    Extra keys are returned exactly as found, with no type checking, because
-    there is no declared type to check them against.
     """
     settings = {}
 
@@ -792,9 +752,7 @@ def _header_path(line: str) -> tuple[str, ...] | None:
 def _trailing_comment(rest: str) -> str:
     """The comment after a scalar value, with the spaces before it, or "".
 
-    ``rest`` is the line after ``key =``.  A ``#`` inside a quoted string is
-    part of the value, not a comment, so quotes are tracked: basic strings
-    honour backslash escapes, literal strings do not.
+    ``rest`` is the line after ``key =``.
     """
     quote = None
     i = 0
@@ -821,9 +779,8 @@ def edit_config_keys(config_path: Path,
                      edits: dict[tuple[str, ...], dict[str, object]]) -> None:
     """Set or remove keys in config.toml without rewriting the rest of it.
 
-    ``edits`` maps a table path — ``("Radio",)`` or ``("EDP1", "Radio")`` —
-    to ``{key: value}``, where a value of None removes the key.  Every edit in
-    one call lands in a single write.
+    ``edits`` maps a table path — ``("Radio",)`` or ``("EDP1", "Radio")`` — to
+    ``{key: value}``, where a value of None removes the key.
 
     ``ConfigManager.save()`` regenerates the whole file from parsed values,
     which discards every comment in a file most users copied from the heavily
@@ -834,11 +791,6 @@ def edit_config_keys(config_path: Path,
     table, and a table that does not exist is appended.  A profile table is
     edited where the user keeps it — ``[EDP1.Radio]`` if that header exists,
     otherwise dotted ``Radio.<key>`` lines under ``[EDP1]``.
-
-    Line editing cannot see TOML's full grammar, so the result is checked
-    before anything is written: the new text must parse, and must parse to
-    exactly the old document with these edits applied and nothing else.
-    Anything else raises ConfigEditError and leaves the file as it was.
     """
     import copy
     import os
@@ -964,8 +916,7 @@ def edit_config_keys(config_path: Path,
 class ConfigManager:
     """Holds live config state and supports hot-reload.
 
-    Instantiated once in edld.py after initial load.  Passed into CoreAPI
-    so all components access config through a single object.
+    Instantiated once in edld.py after initial load.
     """
 
     def __init__(
@@ -1008,18 +959,13 @@ class ConfigManager:
         """Write current resolved config sections back to config.toml.
 
         Writes into the global config sections (no profile nesting) which is
-        the canonical flat format.  If a profile was active, the resolved
-        values already incorporate it, so we write them to the global level
-        to make the change permanent regardless of which profile is loaded.
+        the canonical flat format.
         """
         d = dict(self.config)
         # Remove any existing section then write the resolved dict.
-        # This preserves sections we don't own (e.g. EDDN, EDSM, CAPI).
         d["Settings"]  = dict(self.app_settings)
         d["LogLevels"] = dict(self.notify_levels)
         d["UI"]        = dict(self.ui_cfg)
-        # Discord is not exposed in the prefs panel yet;
-        # preserve whatever was loaded so we don't lose webhook URLs.
         if self.discord_cfg:
             d["Discord"] = dict(self.discord_cfg)
         self.config_path.write_text(config_to_toml(d), encoding="utf-8")
@@ -1049,12 +995,7 @@ class ConfigManager:
         )
 
     def reload_now(self) -> None:
-        """Re-read config.toml immediately, after EDLD itself edited it.
-
-        ``refresh()`` compares modification times, and two writes inside the
-        filesystem's timestamp resolution look like one — the second edit
-        would not be seen until the next unrelated change.
-        """
+        """Re-read config.toml immediately, after EDLD itself edited it."""
         self.config = load_config_file(self.config_path)
         try:
             self._mtime = self.config_path.stat().st_mtime

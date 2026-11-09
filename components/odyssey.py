@@ -1,15 +1,10 @@
-"""
-components/odyssey.py — Odyssey on-foot and surface session tracking.
-
-Tracks meaningful Odyssey activities: planet surface deployments, SRV
-deployments, settlement/engineer/guardian site approaches, taxi journeys,
-on-foot material collection, and suit loadout used.
+"""components/odyssey.py — Odyssey on-foot and surface session tracking.
 
 Event mapping:
   Disembark          — on-foot deployment (planet or station); suit type captured
   Embark             — back to ship; clears on-foot state
   SuitLoadout        — current suit name on Disembark
-  ApproachSettlement — categorised as engineer / guardian / regular
+  ApproachSettlement — categorized as engineer / guardian / regular
   BookTaxi           — taxi booked (cost tracked)
   TakeTaxi           — taxi ride taken
   MaterialCollected  — raw / manufactured / encoded material collected on-foot
@@ -111,9 +106,6 @@ class ActivityOdysseyPlugin(BasePlugin, ActivityProviderMixin):
                 if not event.get("SRV") and not event.get("Taxi"):
                     self.current_suit = ""
 
-            # LaunchSRV / DockSRV are deliberately not counted.  How many
-            # times a vehicle was deployed says nothing about what a session
-            # produced; losing one would, and that arrives as SRVDestroyed.
 
             case "ApproachSettlement":
                 name = event.get("Name", "")
@@ -173,12 +165,7 @@ class ActivityOdysseyPlugin(BasePlugin, ActivityProviderMixin):
         return rows
 
     def get_session_rows(self) -> list[dict]:
-        """Places visited and materials gathered — not deployment counts.
-
-        How many times the commander stepped outside says nothing about what
-        the session produced, the same objection that retired the SRV
-        deployment counter.
-        """
+        """Places visited and materials gathered — not deployment counts."""
         """What this session produced, for the Session view.
 
         A line per material category is a breakdown, not a session figure;

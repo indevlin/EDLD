@@ -1,10 +1,6 @@
-"""
-gui/blocks/ship_info.py — Ship window (Qt).
+"""gui/blocks/ship_info.py — Ship window (Qt).
 
-The vessel's name, then Cargo, Modules and Engineering. What each shows is
-core/windows/ship.py, drawn the same way in the terminal dashboard and on a
-paired EDAM device; this file draws it and owns the cargo footer's market
-controls.
+The vessel's name, then Cargo, Modules and Engineering.
 """
 
 from __future__ import annotations
@@ -61,7 +57,7 @@ class ShipInfoBlock(GuiBlock):
         outer = self.layout()
         outer.insertWidget(0, hdr)
 
-        # Two tabs: Cargo is what the hold contains, Colonisation is what a
+        # Two tabs: Cargo is what the hold contains, Colonization is what a
         # construction depot still needs.  Same activity from opposite ends.
 
         self._cargo_scroll = RowScroll()
@@ -145,13 +141,7 @@ class ShipInfoBlock(GuiBlock):
         dlg.exec()
 
     def _on_galactic_average(self) -> None:
-        """Pin the manifest to galactic average.
-
-        One control, both effects: drop the target market and stop quoting
-        whatever station happens to be underfoot.  Clearing the target alone
-        would fall back to the docked station's prices, which is not what
-        "galactic average" means.
-        """
+        """Pin the manifest to galactic average."""
         self.core.state.cargo_price_galactic = True
         spansh = self.core._plugins.get("spansh")
         if spansh is not None:

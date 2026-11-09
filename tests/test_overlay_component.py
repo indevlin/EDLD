@@ -1,14 +1,4 @@
-"""
-tests/test_overlay_component.py — the overlay component's renderer lifecycle.
-
-The overlay drew from the same state as the dashboards and still drifted from
-them: after an Apply & Save it kept showing the frame it had when the button
-was pressed. Reloading config replaced the renderer client without stopping the
-old one, so the old renderer stayed on screen with its last frame while every
-new frame went to a client that had never been started, and was dropped. Only a
-TRACE line (``sent=False``) said so. These tests drive the component through
-config reloads with a fake renderer and check that what the dashboard state
-says is what reaches the screen.
+"""tests/test_overlay_component.py — the overlay component's renderer lifecycle.
 """
 
 from __future__ import annotations
@@ -25,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 # ── fakes ─────────────────────────────────────────────────────────────────────
 
 class _FakeClient:
-    """A renderer client that records frames instead of drawing them."""
+    """A renderer client that records frames."""
 
     instances: list["_FakeClient"] = []
 

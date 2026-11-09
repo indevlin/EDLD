@@ -1,13 +1,5 @@
-"""
-core/windows/ship.py — the Ship window: the vessel's name, then Cargo,
+"""core/windows/ship.py — the Ship window: the vessel's name, then Cargo,
 Modules and Engineering.
-
-Cargo leads: it changes constantly and is checked far more often than a
-module list that only moves when something takes damage. Modules are sorted
-by power priority, then health ascending within each group, so whatever most
-needs an AFM unit floats to the top of its group (priority shown 1-based, as
-the in-game power panel shows it). Engineering holds the material store, one
-page per grade.
 
 Hull, shields and fuel live in the Commander window's Info tab.
 """
@@ -89,7 +81,7 @@ def _table():
 
 
 def cargo(core) -> Tab:
-    """The hold, cheapest per tonne first so the jettison candidate leads,
+    """The hold, cheapest per ton first so the jettison candidate leads,
     limpets last; and the SRV's while one is out."""
     from core.ui_helpers import cargo_price_context, fmt_cargo_cr, srv_tonnage
     from data.ships import srv_cargo_capacity

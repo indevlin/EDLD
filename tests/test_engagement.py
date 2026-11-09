@@ -1,13 +1,5 @@
-"""
-tests/test_engagement.py — a fighter shot down is not a fighter left behind,
+"""tests/test_engagement.py — a fighter shot down is not a fighter left behind,
 and stolen cargo is not jettisoned cargo.
-
-The game writes FighterDestroyed for a fighter lost in a fight, left out of
-range, or left behind by a jump; and EjectCargo for a hatch breaker and for
-the commander's own jettison. Session management ended the game on every
-FighterDestroyed — mining, nothing hostile near, the ship simply jumping out —
-and every one-tonne jettison was reported as theft. The sequences below are
-from real journals.
 """
 from __future__ import annotations
 
@@ -87,9 +79,6 @@ def test_out_of_range_with_no_fight_does_not():
 
 
 def test_escaping_a_fight_by_jumping_does_not():
-    # 2026-09-24: shields down, the fighter hit, the jump started, a chat line,
-    # then the fighter gone — the old "previous event was StartJump" test
-    # missed it because of the chat line.
     state, ksw, flushed = _play([
         _ev("05:11:56", "ShieldState", ShieldsUp=False),
         _ev("05:12:34", "HullDamage", Health=0.68, PlayerPilot=False, Fighter=True),

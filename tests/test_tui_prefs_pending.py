@@ -1,12 +1,6 @@
-"""
-tests/test_tui_prefs_pending.py — opening Options is not an edit.
+"""tests/test_tui_prefs_pending.py — opening Options is not an edit.
 
-Textual posts a Changed message for every Input and Select as it mounts. The
-terminal Options screen recorded each as a change, so opening it put every
-setting on every tab into the pending set: the restart note showed before
-anything was touched, Apply wrote every value — into the active profile, where
-it then shadowed the global one — and restarted EDLD because Theme was among
-them. Only a value that differs from what the control opened with is a change.
+Textual posts a Changed message for every Input and Select as it mounts.
 """
 from __future__ import annotations
 

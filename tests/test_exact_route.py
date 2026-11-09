@@ -1,12 +1,5 @@
-"""
-tests/test_exact_route.py — FSD routes from Spansh's exact plotter, with the
+"""tests/test_exact_route.py — FSD routes from Spansh's exact plotter, with the
 ship's own drive; and plotting from a system no database knows yet.
-
-The FSD tab used to find its own way across EDSM's system list, greedily,
-jump by jump: it stalled where EDSM is sparse, stopped at 120 jumps, and knew
-nothing of fuel. Spansh's exact plotter simulates every jump with the drive's
-figures and the fuel aboard. The jump figures are checked in test_fsd.py;
-these pin what is sent and what comes back.
 """
 from __future__ import annotations
 

@@ -1,13 +1,4 @@
-"""
-tests/test_session_launch_boundary.py — a game launch ends the last session.
-
-From a real evening: the previous night's session ran from LoadGame at
-04:27:43Z to Shutdown at 07:02:35Z and earned 153,005,520 cr. The game was
-launched again at 01:53:04Z the next day and sat at the main menu. EDLD went
-on showing the previous night as "this session" — 153.01M on the Income tab,
-and 7.14M/hr on the overlay, because the rate now divided by the 21 hours
-since — until a mode was picked. The session ended long before; the
-launch is where EDLD can first tell.
+"""tests/test_session_launch_boundary.py — a game launch ends the last session.
 """
 from __future__ import annotations
 
@@ -131,8 +122,6 @@ def test_a_continued_journal_is_not_a_launch():
     """Part 2 of a journal is the same session in a new file."""
     core, clock, income, _ = _core()
     _feed(core, LAST_NIGHT[:2])
-    # The bootstrap dates the end of the previous file's session to its last
-    # event when it has no Shutdown, as for a crash.
     core.state.last_shutdown_time = SOLD
     _feed(core, [(SOLD + timedelta(minutes=30), {"event": "Fileheader", "part": 2})])
     assert income.total_income == 153_005_520

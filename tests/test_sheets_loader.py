@@ -1,13 +1,4 @@
-"""
-tests/test_sheets_loader.py — Installing and upgrading a sheet from its own menu.
-
-Loader.gs is the one file a sheet owner pastes; everything else arrives through
-ED Dashboard > Upgrade, from a branch of the repository — main unless the
-owner picks another — with no tag or GitHub Release involved. These run the real Loader.gs and the real generated
-bundle under Node, against tests/gas_fake.js, and check what an owner would
-notice: that an old sheet comes through with every deposit intact, that
-nothing is installed that does not match the release, that the token the
-squadron holds survives, and that a second Upgrade is a no-op.
+"""tests/test_sheets_loader.py — Installing and upgrading a sheet from its own menu.
 
 Skipped where Node is not installed.
 """

@@ -1,13 +1,4 @@
-"""
-core/explo_ingest.py — Exploration journal events → body-database writes.
-
-The honk, the FSS sweep, the Scan and the surface mapping: everything that
-records what a body *is* and how far the commander has got with surveying it.
-Sibling: :mod:`core.exobio_ingest` handles sampling.
-
-These are plain functions taking the :class:`core.body_ingest.Ingestor` that
-owns the commander/system context, rather than methods on it, so the dispatcher
-can import both domains without either importing the other.
+"""core/explo_ingest.py — Exploration journal events → body-database writes.
 
 :data:`EVENTS` is the set this module handles.
 """
@@ -54,14 +45,7 @@ def all_bodies_found(ing, event: dict) -> None:
 # ── Scan ──────────────────────────────────────────────────────────────────────
 
 def scan(ing, event: dict) -> None:
-    """``Scan`` — the body facts, for a star, a planet, or a belt cluster.
-
-    This is the only writer of a body's physical properties.  Everything the
-    Exobiology window derives from those properties — landability, gravity,
-    atmosphere, temperature — arrives here and nowhere else, which is why the
-    Exobiology repaint list has to include ``Scan`` even though the event
-    carries no biology of its own.
-    """
+    """``Scan`` — the body facts, for a star, a planet, or a belt cluster."""
     sid = ing.resolve_system(event)
     body_id = event.get("BodyID")
     if sid is None or body_id is None:

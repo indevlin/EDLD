@@ -1,38 +1,17 @@
 #!/usr/bin/env python3
-"""
-Build the EDLD mining dashboard template (Mining_Dashboard.xlsx).
+"""Build the EDLD mining dashboard template (Mining_Dashboard.xlsx).
 
 The output is meant for Google Sheets: File > Import > Upload, or open it from
-Drive. It is not meant to be used in Excel or LibreOffice, which cannot evaluate
-the dashboard's formulas.
-
-Why the odd formula wrapper
----------------------------
-The dashboard and the dropdown lists use Sheets-only constructs (FILTER, SORT,
-UNIQUE, LET, array literals over ranges). An xlsx cell cannot hold those
-directly, so they are written the way Sheets writes them when it exports:
+Drive.
 
     =IFERROR(__xludf.DUMMYFUNCTION("<formula text>"), <cached value>)
 
-Sheets recognises the wrapper on import and restores the formula inside. xlsx
-caps a string literal at 255 characters, so the text is split into chunks
-joined with &, as Google's own export does.
-
 The formula text itself lives in Dashboard.gs (FORMULAS), which is also what
-"Repair dashboard formulas" writes. One definition, two consumers.
-
-The sheet's code
-----------------
-The same run also writes what Loader.gs installs and upgrades from —
-edld_sheet.js and release.json — through build_bundle.py, which is where that
-is described and which can be run on its own without openpyxl.
+"Repair dashboard formulas" writes.
 
 Usage:
     python3 sheets/build_dashboard.py [--out PATH] [--version YYYYMMDD]
                                       [--bundle-dir DIR]
-
---version defaults to the repository's version file, so a template built for a
-release carries that release's datestamp in Settings!D1.
 
 Requires openpyxl.
 """
@@ -116,7 +95,7 @@ SETTINGS_NOTES = [
     '• Active Hex (column D) is what the dashboard uses: the chosen preset, or column B when Theme = Custom.',
     '• ED Dashboard ▸ Copy active theme to Custom starts you from a preset, so you only change what you want.',
     '• More presets: unhide the Themes tab and add a column before "Custom". It joins the Theme list.',
-    '• Colours re-apply on edit once EDLD is installed: Extensions ▸ Apps Script, Loader.gs, then ED Dashboard ▸ Upgrade.',
+    '• Colors re-apply on edit once EDLD is installed: Extensions ▸ Apps Script, Loader.gs, then ED Dashboard ▸ Upgrade.',
 ]
 
 LAST_ROW = 1000
@@ -145,7 +124,7 @@ SETTINGS_LABELS = {'A1': 'Squadron', 'A2': 'Maintainer', 'A4': 'DASHBOARD THEME'
 SETTINGS_HINTS = {'C5': 'Pick a preset, or "Custom" to use your own hex codes below',
                   'C6': 'Google Fonts — any Sheets font name works'}
 COLOR_TABLE_HEADERS = ['Color Role', 'Custom Hex', '', 'Active Hex', '', 'Used For']
-HEX_ERROR = 'Enter a colour as #RRGGBB, e.g. #FF7100'
+HEX_ERROR = 'Enter a color as #RRGGBB, e.g. #FF7100'
 THEMES_NOTE = ('Add your own scheme: insert a column before "Custom", name it in row 1 '
                'and put hex codes below. It joins the Settings theme list. "Custom" '
                'mirrors Settings!B10:B21; edit it there.')
@@ -293,10 +272,10 @@ def build_dashboard(wb, formulas):
             ds.cell(r, 4).number_format = '0'
             ds.cell(r, 8).number_format = '0'
 
-    # Conditional formatting. Sheets imports xlsx rules grouped by range, in the
-    # order each range first appears, and applies the first rule that matches —
-    # so ranges are added most-specific first, and rules that share a range are
-    # written to be mutually exclusive. Dashboard.gs rebuilds the same set.
+    # Conditional formatting. Sheets imports xlsx rules grouped by range, in
+    # the order each range first appears, and applies the first rule that
+    # matches — so ranges are added most-specific first, and rules that share a
+    # range are written to be mutually exclusive.
     def rule(formula, bg, fg, **kw):
         return FormulaRule(formula=[formula], stopIfTrue=True,
                            font=Font(color=h(fg), **kw),
@@ -385,7 +364,7 @@ def build_settings(wb, version):
         type='custom',
         formula1=f'AND(LEN(B{ROLE_ROW0})=7,LEFT(B{ROLE_ROW0},1)="#",'
                  f'ISNUMBER(HEX2DEC(MID(B{ROLE_ROW0},2,6))))',
-        showErrorMessage=True, errorTitle='Hex colour',
+        showErrorMessage=True, errorTitle='Hex color',
         error=HEX_ERROR)
     for dv, ref in ((dv_theme, 'B5'), (dv_font, 'B6:B7'),
                     (dv_hex, f'B{ROLE_ROW0}:B{ROLE_ROW0 + len(ROLES) - 1}')):

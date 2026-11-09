@@ -1,10 +1,4 @@
-"""
-tests/test_trace_redaction.py — no credentials in the --trace header.
-
-The trace header dumps the effective config on every launch, and those logs
-get attached to bug reports.  Before this, ``WebhookURL`` was written in full:
-a Discord webhook URL is a bearer credential, so anyone holding the log could
-post to the channel.
+"""tests/test_trace_redaction.py — no credentials in the --trace header.
 
 The redaction keeps the diagnostic value — whether a credential is configured
 — without the value itself.

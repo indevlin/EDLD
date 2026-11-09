@@ -1,13 +1,5 @@
-"""
-tests/test_options_pages.py — Options picks its pages from a column down the
+"""tests/test_options_pages.py — Options picks its pages from a column down the
 left, in both front ends.
-
-Sixteen pages had outgrown a row of tabs: the desktop window's tab bar and the
-terminal's both scrolled sideways, and the last pages were off the edge. Each
-page now has a selector in one column, every selector fits at once, the
-components' pages follow EDLD's own in alphabetical order, and the two front
-ends list the same pages in the same order. Opened from EDCARS the desktop
-window wears the rail's pills.
 """
 from __future__ import annotations
 

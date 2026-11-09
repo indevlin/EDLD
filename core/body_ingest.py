@@ -1,30 +1,6 @@
-"""
-core/body_ingest.py — Journal event → body-database dispatcher.
+"""core/body_ingest.py — Journal event → body-database dispatcher.
 
-A single :class:`Ingestor` owns the context both domains need — the current
-commander and the current system — and routes each journal event to the module
-that handles it: :mod:`core.explo_ingest` for scanning and mapping,
-:mod:`core.exobio_ingest` for sampling.  Both the historical journal importer
-and the live write-through path use it, so the event-to-row mapping exists in
-exactly one place.
-
-The ingestor is stateful: it tracks the commander (resolved from ``Commander``
-/ ``LoadGame``) and the system, so that body facts (commander-independent) and
-per-commander status are recorded against the right rows.  Body *facts* are
-written whenever they appear; per-commander *status* only once a commander is
-known.
-
-``FSSBodySignals`` / ``SAASignalsFound`` are handled here rather than in either
-domain module.  One such event carries biological, geological and human signals
-together into the shared ``planet_signals`` table, so it has one writer and two
-readers and belongs to neither side.
-
-Identifiers
------------
-Systems are keyed by ``SystemAddress`` and bodies by their per-system
-``BodyID`` — the game's own stable identifiers — so re-scanning a body updates
-the same rows instead of duplicating them, and events that arrive before a full
-``Scan`` (e.g. ``FSSBodySignals``) create a stub row the later scan fills in.
+``FSSBodySignals`` / ``SAASignalsFound`` are handled here.
 """
 
 from __future__ import annotations
@@ -161,11 +137,6 @@ class Ingestor:
 
     def _body_signals(self, event: dict) -> None:
         """``FSSBodySignals`` / ``SAASignalsFound`` — the shared signal table.
-
-        Kept out of both domain modules because one event carries biological,
-        geological and human signals together.  Note that the planet row this
-        creates is a *stub*: it has a name and a signal count and nothing else.
-        Everything describing the body itself arrives later, with the ``Scan``.
         """
         sid = self.resolve_system(event)
         body_id = event.get("BodyID")

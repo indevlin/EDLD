@@ -1,19 +1,8 @@
-"""
-gui/markup.py — Rich console markup → Qt rich text.
+"""gui/markup.py — Rich console markup → Qt rich text.
 
-The dashboard blocks build their display strings with Rich's inline markup
-(``[green]…[/green]``, ``[b]…[/b]``, ``[yellow]⚠ …[/yellow]``) because that is
-what Textual renders.  The Qt front end reuses those same strings verbatim
-rather than maintaining a second set of formatting rules, so this module
-translates the markup into the small HTML subset ``QLabel`` understands.
+Reusing the strings is the point.
 
-Reusing the strings is the point.  A block that adds a warning row gets it in
-both front ends with no GUI-side change, and the two can't drift apart in
-wording or emphasis.
-
-Only the tags the blocks actually emit are translated.  Anything unrecognised
-is dropped rather than shown raw — an unknown tag should never leak square
-brackets into the interface.
+Only the tags the blocks actually emit are translated.
 """
 
 from __future__ import annotations
@@ -21,7 +10,7 @@ from __future__ import annotations
 import html
 import re
 
-#: Rich colour name → concrete hex.  ``None`` means "use the theme's colour",
+#: Rich color name → concrete hex.  ``None`` means "use the theme's color",
 #: resolved at call time from the active palette so themed output tracks the
 #: chosen theme instead of hard-coding one scheme's greens and ambers.
 _THEME_COLOURS = {
@@ -35,7 +24,7 @@ _THEME_COLOURS = {
     "dim":     "dim",
 }
 
-#: Colours with no palette equivalent, used as-is.
+#: Colors with no palette equivalent, used as-is.
 _LITERAL_COLOURS = {
     "black":   "#000000",
     "grey":    "#808080",
@@ -58,9 +47,6 @@ def _colour(name: str, palette: dict[str, str]) -> str | None:
 
 #: A run of two or more spaces, or a space at the very start of the string.
 #: These are alignment padding, not word gaps.
-#: The longer branch is first so a two-space run at the start of the string
-#: is protected whole, rather than the ``^ `` branch taking its first space
-#: and leaving the second as an ordinary space Qt would then swallow.
 _PAD_RE = re.compile(r" {2,}|^ ")
 
 
@@ -68,16 +54,9 @@ def _keep_padding(escaped: str) -> str:
     """Make alignment padding survive Qt's rich-text whitespace collapsing.
 
     Qt collapses runs of spaces exactly as a browser does, and every label in
-    the GUI is ``Qt.RichText``.  The shared column helpers in core.ui_helpers
-    align by padding with spaces — ``cargo_cols`` pads the price column to
-    nine characters — so the columns the TUI lines up were arriving in the Qt
-    window with their padding squeezed to a single space, and the separators
-    in a cargo manifest did not line up with each other or with the totals
-    row below them.
+    the GUI is ``Qt.RichText``.
 
     Only runs of two or more, plus a leading single space, are protected.
-    Ordinary single spaces between words stay breakable, so wrapped labels
-    still wrap.
     """
     return _PAD_RE.sub(lambda m: "&nbsp;" * len(m.group(0)), escaped)
 
@@ -85,16 +64,14 @@ def _keep_padding(escaped: str) -> str:
 def to_html(text: str, palette: dict[str, str]) -> str:
     """Convert Rich markup in ``text`` to Qt-compatible HTML.
 
-    ``palette`` is a sigil-free palette dict (see ``core.palette.rgb``).  The
-    input is HTML-escaped first, so journal-derived content containing ``<``
-    or ``&`` — station names, faction names — cannot inject markup.
+    ``palette`` is a sigil-free palette dict (see ``core.palette.rgb``).
 
-    A bracketed token that names no tag we recognise is emitted as literal
+    A bracketed token that names no tag we recognize is emitted as literal
     text rather than being swallowed.  This matters because the game supplies
     plenty of bracketed strings that were never meant as markup: squadron tags
     render as ``[SOL]``, and faction names of the form ``[XYZ] Corporation``
     are common.  Dropping them would silently corrupt names in the Missions,
-    Assets and Colonisation windows.
+    Assets and Colonization windows.
     """
     if not text:
         return ""
@@ -105,9 +82,7 @@ def to_html(text: str, palette: dict[str, str]) -> str:
     escaped = html.escape(str(text))
 
     out: list[str] = []
-    # Each stack entry is (tag_name, closing_html).  A closing_html of None
-    # marks a token we passed through literally, so its matching close tag is
-    # passed through literally too.
+    # Each stack entry is (tag_name, closing_html).
     stack: list[tuple[str, str | None]] = []
     pos = 0
 
@@ -146,9 +121,6 @@ def to_html(text: str, palette: dict[str, str]) -> str:
                     closers.insert(0, "</span>")
 
         if len(opened) != len(parts):
-            # At least one component of the token is not a tag we know, so the
-            # whole token is data rather than markup — a squadron tag, a
-            # bracketed faction name, or similar.  Emit it verbatim.
             out.append(literal)
             stack.append((body, None))
             continue

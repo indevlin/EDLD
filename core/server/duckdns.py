@@ -1,17 +1,8 @@
-"""
-core/server/duckdns.py — keep a DuckDNS name pointed at this connection.
+"""core/server/duckdns.py — keep a DuckDNS name pointed at this connection.
 
-Off unless ``[Server] DuckDNSDomain`` and ``DuckDNSToken`` are both set.  Many
-people already run DuckDNS's own updater, or have their router do it; they
-leave these blank and nothing here runs.
+Off unless ``[Server] DuckDNSDomain`` and ``DuckDNSToken`` are both set.
 
-When set, EDLD sends DuckDNS one HTTPS request at start and every ten minutes,
-leaving the address blank so DuckDNS records the one the request came from.
-That is the only contact with any outside service server mode ever makes, and
-it happens only because the commander asked for it.
-
-The token is a credential.  It is never logged, and the config key's name puts
-it under the trace log's redaction.
+The token is a credential.
 """
 
 from __future__ import annotations

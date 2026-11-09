@@ -1,24 +1,8 @@
-"""
-core/route_view.py — the route being flown, and the ship's jump range.
+"""core/route_view.py — the route being flown, and the ship's jump range.
 
-One model for every place that shows a route: the Route tab of the
-Navigation window (desktop and terminal) and the Route / Ahead panels EDAM
-draws. It says where the commander is on the followed route, how far and how
-many jumps are left, and what is ahead — each system's star class, whether
-it can be scooped, and how long the leg to it is — measured against the
-range the current ship can actually jump.
-
-Jump range
-----------
-From the drive's own figures (core/fsd.py): the range the fuel and cargo
-aboard allow, limited by the fuel itself when the tank holds less than one
-jump's worth, and how many jumps the tank has in it. ``plan_range`` is the
-range with a full tank and the cargo now aboard: what a route should be
-plotted with, since the tank is filled by scooping on the way.
-
-Before a Loadout has been read with a drive the table knows, the range is
-the Loadout's MaxJumpRange scaled by mass alone, a fraction of a percent
-short.
+``plan_range`` is the range with a full tank and the cargo now aboard: what
+a route should be plotted with, since the tank is filled by scooping on the
+way.
 """
 from __future__ import annotations
 
@@ -59,8 +43,8 @@ def cargo_tons(state) -> int:
 
 
 def jump_range(state, fuel: float | None = None, cargo: float | None = None) -> float | None:
-    """The ship's jump range with ``fuel`` tonnes in the main tank and
-    ``cargo`` tonnes aboard — by default what it carries now. None when no
+    """The ship's jump range with ``fuel`` tons in the main tank and
+    ``cargo`` tons aboard — by default what it carries now. None when no
     Loadout has said what the ship is."""
     drive = getattr(state, "ship_drive", None)
     if drive is not None:
@@ -146,9 +130,7 @@ def route_view(core, ahead_max: int = 40) -> dict[str, Any] | None:
     """Everything the Route views show, or None when nothing is loaded.
 
     ``ahead`` lists the systems still to come, each with its leg length from
-    the system before it and how many jumps that leg is. A route plotted in
-    the game has one jump per leg; a neutron route from Spansh lists only its
-    waypoints, each leg several jumps, and says how many.
+    the system before it and how many jumps that leg is.
     """
     s = getattr(core, "state", None)
     plugins = getattr(core, "_plugins", None) or {}
@@ -355,12 +337,7 @@ def route_rows(view: dict | None) -> list[tuple]:
 # ── Plotted routes (FSD and Neutron tabs) ─────────────────────────────────────
 
 def plot_summary(result: dict, neutron: bool) -> tuple[str, list[tuple[str, str]]]:
-    """(status line, [(waypoint label, value)]) for a plotted ship route.
-
-    Spansh's neutron router lists waypoints, each with the number of jumps it
-    takes to reach it; the totals are worked out from those rather than taken
-    on trust, and only legs that end at a neutron star count as boosted.
-    """
+    """(status line, [(waypoint label, value)]) for a plotted ship route."""
     wps = result.get("system_jumps") or result.get("jumps") or []
     per_leg = []
     for wp in wps:
@@ -421,11 +398,7 @@ def plot_summary(result: dict, neutron: bool) -> tuple[str, list[tuple[str, str]
 
 
 def autofill(current: str, last_auto: str | None, value: str | None) -> str | None:
-    """The text a pre-filled field should now hold, or None to leave it.
-
-    A field EDLD filled follows the game — the system you are in, the range
-    your ship has — until you type in it; then it is yours.
-    """
+    """The text a pre-filled field should now hold, or None to leave it."""
     if not value:
         return None
     cur = (current or "").strip()

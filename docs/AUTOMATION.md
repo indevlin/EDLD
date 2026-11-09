@@ -180,7 +180,7 @@ Where it is:
   Helm section says why. See [SERVER.md](SERVER.md) for the protocol.
 
 On EDLD's own panel every control is shown; one that cannot be pressed —
-automation off, or bound only to a controller — is greyed, and its tooltip
+automation off, or bound only to a controller — is grayed, and its tooltip
 says what it is bound to and what to change. The line under the buttons says
 what the last press came to, or what the automation is set to do on its own.
 

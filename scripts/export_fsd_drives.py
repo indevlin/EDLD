@@ -1,26 +1,10 @@
 #!/usr/bin/env python3
-"""
-scripts/export_fsd_drives.py — every frame shift drive's jump figures.
-
-A Loadout names the drive and gives the ship's MaxJumpRange, but not the four
-numbers the drive's range and fuel use come from: its optimal mass, the most
-fuel one jump may burn, and the two constants of the fuel curve. The community
-keeps them — EDCD's coriolis-data, ``modules/standard/frame_shift_drive.json``
-(``optmass``, ``maxfuel``, ``fuelmul``, ``fuelpower``) — and data/fsd_drives.py
-is generated from it by this script:
+"""scripts/export_fsd_drives.py — every frame shift drive's jump figures.
 
     python3 scripts/export_fsd_drives.py              # fetch it, write the table
     python3 scripts/export_fsd_drives.py FILE.json    # from a copy on disk
 
-The figures are Frontier's game data. They were checked against a commander's
-journals (May to October 2026) before use: with them, core/fsd.py reproduces
-every ship's MaxJumpRange to the thousandth of a light year, engineered drives
-and the Caspian Explorer's Mk II included, and each jump's FuelUsed to within
-a hundredth of a percent at the median over 625 jumps.
-
-An engineered drive's optimal mass and fuel per jump come from its Loadout's
-Modifiers, not from here. Pre-engineered "V1" drives share a symbol with the
-stock drive and its stock figures; the stock entry is kept.
+The figures are Frontier's game data.
 """
 from __future__ import annotations
 

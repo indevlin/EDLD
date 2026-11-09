@@ -1,12 +1,4 @@
-"""
-tests/test_preferences_contract.py — The component/front-end call contract.
-
-The Survey preferences tab failed to appear in GUI mode three separate times,
-and every failure was the same shape: the component called something the GUI
-side did not offer in the form it was offered, the tab loop caught the
-exception, and the page silently did not exist. TUI kept working throughout,
-because it reaches the same settings by a different route — which is exactly
-what made it look like a rendering problem rather than a broken call.
+"""tests/test_preferences_contract.py — The component/front-end call contract.
 
   1. ``gui_preferences_tab()`` returned None for the no-argument discovery call.
   2. The component was never registered as a session provider, so its rows were
@@ -14,12 +6,6 @@ what made it look like a rendering problem rather than a broken call.
   3. The builder called ``dlg._cfg.load_setting(..., warn=False)``.
      ``ConfigManager.load_setting`` takes ``warn_missing``; only the
      ``core_api`` wrapper takes ``warn``. TypeError, swallowed, no tab.
-
-None of these could fail a test that only checked the component in isolation,
-because each is a disagreement *between* two files. So this module reads the
-real signatures out of the front-end sources with ``ast`` — no Qt, no Textual,
-no display needed — and binds the component's calls against them. A signature
-that drifts on either side fails here rather than in a debug log nobody reads.
 """
 
 from __future__ import annotations
@@ -71,9 +57,6 @@ def _signature_of(path: Path, qualname: str) -> inspect.Signature:
 
 def test_config_manager_and_core_wrapper_disagree_about_the_warn_argument():
     """Documents the trap, so nobody 'simplifies' one call into the other.
-
-    These two are not interchangeable and never have been. Anything reaching
-    settings from inside a preferences builder must use the core wrapper.
     """
     cm = _signature_of(ROOT / "core" / "config.py", "ConfigManager.load_setting")
     api = _signature_of(ROOT / "core" / "core_api.py", "CoreAPI.load_setting")
@@ -161,13 +144,7 @@ def test_both_front_ends_discover_the_tab_the_way_they_actually_call_it():
 
 
 def test_closed_vocabularies_use_pickers_not_text_fields():
-    """Zone, mode and hide-mode have fixed valid values.
-
-    A typed setting can be wrong, which means validating it, reporting it and
-    ignoring it — and the commander finds out by noticing nothing happened.
-    The dialog has had a combo helper all along; there was no reason to hand-
-    roll text entry for a three-item list.
-    """
+    """Zone, mode and hide-mode have fixed valid values."""
     src = (ROOT / "components" / "overlay.py").read_text(encoding="utf-8")
     for key in ("HideMode", '.Zone"', '.Mode"'):
         assert f'_text_edit' not in _calls_for(src, key), \

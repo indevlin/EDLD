@@ -1,11 +1,10 @@
-"""
-components/inara.py — Inara API uploader for EDLD.
+"""components/inara.py — Inara API uploader for EDLD.
 
 Posts commander activity to the Inara API (https://inara.cz/inapi/v1/).
 
 What is posted
 --------------
-Travel       — FSD jumps, dockings
+Travel       — FSD jumps, carrier jumps, locations, dockings
 Status       — credits, ranks (pilot, engineer, power), reputation
 Missions     — accepted, completed, failed, abandoned
 Ship         — current ship identity and full loadout
@@ -22,16 +21,9 @@ Config [Inara] in config.toml
     Enabled        = false          # opt-in
     ApiKey         = ""             # personal API key from inara.cz settings
 
-The commander name is sourced from journal data (state.pilot_name, populated
-by the commander plugin from the Commander/LoadGame events), so there is no
-CommanderName setting to keep in sync.  The API key must match the
-commander on Inara's end; mismatches surface as auth errors at send time.
-
 Rate limits
 -----------
-Inara enforces 2 requests per minute per API key across all apps.  We batch
-all events between session transitions and flush on FSDJump / Docked / LoadGame.
-The sender thread enforces a minimum 30-second gap between requests.
+Inara enforces 2 requests per minute per API key across all apps.
 
 Whitelisting
 ------------
@@ -49,6 +41,7 @@ from typing import Any
 
 from core.plugin_loader import BasePlugin
 from core import debug as _dbg
+from core import push_triggers as _push
 from core import integration_log as _ilog
 from core.state import EDLD_DATA_DIR, VERSION
 
@@ -102,14 +95,8 @@ def is_throttled(status: Any, text: str) -> bool:
 
 
 class _Gate:
-    """Every request EDLD makes to Inara — uploads and the community-goal
-    fetch alike — waits its turn here.
-
-    Inara allows two requests a minute per key, and counts the community-goal
-    fetch with the uploads; the two used to be paced separately, so together
-    they could exceed it. When Inara does revoke access, the gate stays shut
-    until the hour is up, and remembers that across a restart of EDLD:
-    requests made during the hour were refused, and dropped.
+    """Every request EDLD makes to Inara — uploads and the community-goal fetch
+    alike — waits its turn here.
     """
 
     def __init__(self, state_file) -> None:
@@ -155,12 +142,9 @@ class _Gate:
 # ── Sender thread ─────────────────────────────────────────────────────────────
 
 class _Sender(threading.Thread):
-    """
-    Background thread — batches Inara API events and POSTs them.
+    """Background thread — batches Inara API events and POSTs them.
 
     Call push(event_dict) to enqueue an individual Inara event.
-    Call flush() to force an immediate send of the accumulated batch.
-    Call stop() for clean shutdown.
     """
 
     def __init__(self, cmdr_provider, api_key: str, queue_file) -> None:
@@ -236,7 +220,6 @@ class _Sender(threading.Thread):
                     )
                     last_heartbeat = time.monotonic()
                 continue
-            push_count += 1
 
             if item is None:
                 if batch:
@@ -248,6 +231,8 @@ class _Sender(threading.Thread):
                     self._send_batch(batch)
                     batch = []
                 continue
+
+            push_count += 1
 
             batch.append(item)
             if len(batch) >= BATCH_MAX:
@@ -340,7 +325,7 @@ class _Sender(threading.Thread):
                                 _dbg.info(
                                     f"  [Inara] suppressing further "
                                     f"{name!r} events — Inara does not "
-                                    f"recognise this event name"
+                                    f"recognize this event name"
                                 )
                 else:
                     msg = header.get("eventStatusText", "")
@@ -441,6 +426,11 @@ class InaraPlugin(BasePlugin):
         "CommunityGoal", "CommunityGoalJoin", "CommunityGoalReward",
         # Multicrew
         "MulticrewJoin", "MulticrewEnd",
+        # core/push_triggers (flush only)
+        "Undocked", "StartJump", "ShipyardNew", "LaunchSRV", "DockSRV",
+        "SRVDestroyed", "LaunchFighter", "DockFighter", "FighterDestroyed",
+        "ModuleBuy", "ModuleSell", "ModuleSellRemote", "ModuleStore",
+        "ModuleRetrieve", "ModuleSwap", "MassModuleStore",
     ]
 
     def on_load(self, core) -> None:
@@ -448,15 +438,11 @@ class InaraPlugin(BasePlugin):
         self._enabled      = False
         self._sender: _Sender | None = None
 
-        # Internal tracking — maintained independently from MonitorState
-        # so we never accidentally send stale data.
         self._cmdr_name:    str = ""
         self._ship_type:    str = ""
         self._ship_id:      int | None = None
         self._system_name:  str | None = None
         self._star_pos:     list | None = None
-        # Rank snapshot — accumulated from Rank + Progress events
-        # so we can send a combined array to Inara on LoadGame
         self._rank_values:    dict[str, int]   = {}   # key → rankValue
         self._rank_progress:  dict[str, float] = {}   # key → fraction 0-1
         self._micro_items:    list[dict]        = []   # last ShipLockerMaterials snapshot
@@ -564,12 +550,17 @@ class InaraPlugin(BasePlugin):
         # again (core/upload_mark.py).
         mark = self._upload_mark()
         self._replaying = mark.replayed(event, state)
+        replayed = self._replaying
         try:
             self._on_event(event, state)
         finally:
             self._replaying = False
             if getattr(self, "_enabled", False):
                 mark.advance(event, state)
+                # core/push_triggers: send the batch now.
+                if (not replayed and getattr(self, "_sender", None) is not None
+                        and _push.is_push(event)):
+                    self._sender.flush()
 
     def _upload_mark(self):
         mark = self.__dict__.get("_mark")
@@ -612,10 +603,6 @@ class InaraPlugin(BasePlugin):
                 if credits is not None and credits >= 0:
                     self._last_credits = int(credits)
                     payload: dict = {"commanderCredits": int(credits)}
-                    # Bundle commanderAssets via carry-forward when we have
-                    # a Statistics anchor.  Without bundling, Inara falls
-                    # back to its internal rollup (no carrier), creating
-                    # the 5.7B fallback entries we don't want.
                     wealth = self._wealth_for_credits(int(credits))
                     if wealth is not None:
                         payload["commanderAssets"] = int(wealth)
@@ -647,16 +634,8 @@ class InaraPlugin(BasePlugin):
                 if wealth is not None and wealth >= 0:
                     # commanderCredits is mandatory on this Inara event; an
                     # assets-only payload is rejected outright with
-                    #   setCommanderCredits status=400: No credits value provided.
-                    # and the assets figure is lost with it.  Statistics does not
-                    # carry a credit balance of its own, so the most recently
-                    # observed one is used — in practice the LoadGame from a few
-                    # seconds earlier, which is exactly the balance this wealth
-                    # snapshot was taken against.
-                    #
-                    # Without a credits anchor there is no valid event to send,
-                    # so the wealth is cached and left for the next push that
-                    # does have one to carry forward via _wealth_for_credits.
+                    # setCommanderCredits status=400: No credits value
+                    # provided. and the assets figure is lost with it.
                     self._last_wealth = int(wealth)
                     if self._last_credits is not None:
                         self._push(ts, "setCommanderCredits", {
@@ -755,22 +734,35 @@ class InaraPlugin(BasePlugin):
                         data["rankValue"] = int(rank_v)
                     self._push(ts, "setCommanderRankPower", data)
 
-            case "FSDJump" | "CarrierJump":
+            case "FSDJump" | "CarrierJump" | "Location":
+                # FSDJump: own jump. CarrierJump: aboard a carrier that
+                # jumped. Location: login / respawn, no travel.
                 data: dict = {
                     "starsystemName": event.get("StarSystem", ""),
                 }
-                if self._star_pos:
-                    data["starsystemCoords"] = self._star_pos
-                jump_dist = event.get("JumpDist")
-                if jump_dist is not None:
-                    data["jumpDistance"] = round(float(jump_dist), 2)
+                pos = event.get("StarPos") or self._star_pos
+                if pos:
+                    data["starsystemCoords"] = pos
+                if ev == "FSDJump":
+                    jump_dist = event.get("JumpDist")
+                    if jump_dist is not None:
+                        data["jumpDistance"] = round(float(jump_dist), 2)
+                elif event.get("Docked") or ev == "CarrierJump":
+                    if event.get("StationName"):
+                        data["stationName"] = event["StationName"]
+                    if event.get("MarketID") is not None:
+                        data["marketID"] = int(event["MarketID"])
                 if self._ship_type:
                     data["shipType"] = self._ship_type
                 if self._ship_id is not None:
                     data["shipGameID"] = self._ship_id
-                self._push(ts, "addCommanderTravelFSDJump", data)
-                self._push_ranks(ts)
-                self._sender.flush()
+                name = {"FSDJump": "addCommanderTravelFSDJump",
+                        "CarrierJump": "addCommanderTravelCarrierJump",
+                        "Location": "setCommanderTravelLocation"}[ev]
+                if data["starsystemName"]:
+                    self._push(ts, name, data)
+                if ev == "FSDJump":
+                    self._push_ranks(ts)
 
             case "Docked":
                 data = {
@@ -785,7 +777,6 @@ class InaraPlugin(BasePlugin):
                 if self._ship_id is not None:
                     data["shipGameID"] = self._ship_id
                 self._push(ts, "addCommanderTravelDock", data)
-                self._sender.flush()
 
             case "MissionAccepted":
                 mission_id = event.get("MissionID")
@@ -968,8 +959,6 @@ class InaraPlugin(BasePlugin):
                     if ship_id is not None:
                         d["shipGameID"] = int(ship_id)
                     self._push(ts, "setCommanderShipDestroyed", d)
-                # Mirror the deletion in our seen set so reconcile won't
-                # ever try to re-emit destroy for an already-sold ship.
                 if ship_id is not None:
                     try:
                         self._seen_ship_ids.discard(int(ship_id))
@@ -1060,11 +1049,6 @@ class InaraPlugin(BasePlugin):
                 if not hasattr(self, "_cg_seen"):
                     self._cg_seen = {}
                 # Only submit on LIVE events, never during journal preload.
-                # Otherwise the dedup cache gets primed with the current value
-                # without actually sending it, the matching live event is then
-                # skipped, and Inara stays stuck at whatever was last sent
-                # before the restart.  CommunityGoal fires every minute or two
-                # during active CG play, so the first live one re-syncs.
                 goals = ([] if getattr(state, "in_preload", False)
                          else (event.get("CurrentGoals") or []))
                 for g in goals:
@@ -1246,11 +1230,7 @@ class InaraPlugin(BasePlugin):
                 return
 
     def _fetch_community_goals(self) -> None:
-        """One-shot fetch of getCommunityGoals.  Stores the result list on
-        state.inara_community_goals (oldest discoverable structure: each
-        entry has goalName, goalSystem, goalStation, contributors,
-        currentTotal, top tier rewards, etc — the exact fields are what
-        Inara returns and we pass through unmodified)."""
+        """One-shot fetch of getCommunityGoals."""
         import time
         # Commander name comes from journal data via state.pilot_name.  If
         # not yet populated, skip this cycle — the next interval will retry.
@@ -1310,8 +1290,7 @@ class InaraPlugin(BasePlugin):
                 gate.block()
             return
 
-        # The response events array mirrors the request.  Find the
-        # getCommunityGoals reply by position (we only sent one event).
+        # The response events array mirrors the request.
         events = result.get("events") or []
         if not events:
             return
@@ -1339,14 +1318,8 @@ class InaraPlugin(BasePlugin):
         return list(getattr(self.core.state, "inara_community_goals", []) or [])
 
     def push_credits(self, credits: int) -> None:
-        """Push an authoritative liquid credit balance to Inara.
-        Called by the CAPI plugin after a successful /profile poll.
-        Uses current time as the event timestamp.
-
-        Bundles commanderAssets via carry-forward when a Statistics anchor
-        exists, so this push doesn't create the 5.7B fallback entries that
-        Inara generates when given commanderCredits without an accompanying
-        commanderAssets value.
+        """Push an authoritative liquid credit balance to Inara. Called by the
+        CAPI plugin after a successful /profile poll.
         """
         import time
         ts = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
@@ -1385,10 +1358,6 @@ class InaraPlugin(BasePlugin):
 
     def _push_ship(self, ts: str, ship_data: dict) -> None:
         """setCommanderShip wrapper that records the ship ID for reconciliation.
-
-        Every code path that sends setCommanderShip should go through this so
-        we have a complete record of ships Inara has been told about.  The
-        record persists across runs in data.json.
         """
         self._push(ts, "setCommanderShip", ship_data)
         sid = ship_data.get("shipGameID")
@@ -1417,7 +1386,7 @@ class InaraPlugin(BasePlugin):
         """One-shot fleet reconciliation against the authoritative CAPI roster.
 
         Runs once per process, on the first event after a successful CAPI
-        /profile poll has populated state.capi_raw["profile"].  Three effects:
+        /profile poll has populated state.capi_raw["profile"].
 
           1. Ships in _seen_ship_ids that are no longer in CAPI get a
              setCommanderShipDestroyed — these are sells/transfers we missed
@@ -1508,18 +1477,12 @@ class InaraPlugin(BasePlugin):
 
             self._push_ship(ts, d)
 
-            # Change 5: emit setCommanderShipLoadout from CAPI per-ship modules.
-            # The active ship's loadout is already kept fresh by the journal
-            # Loadout handler — but stored ships only get loadout uploads here
-            # (or never, before this change).  CAPI's ships[<id>].modules dict
-            # carries the same data as a journal Loadout, just with different
-            # key casing; _capi_loadout_for_ship translates.
+            # Change 5: emit setCommanderShipLoadout from CAPI per-ship
+            # modules.
             loadout = self._capi_loadout_for_ship(ship, stype, sid)
             if loadout is not None:
                 self._push(ts, "setCommanderShipLoadout", loadout)
 
-        # Make sure every current ship is in the seen set, even ones we
-        # may not have touched (defensive).
         self._seen_ship_ids |= capi_ids
         self._save_seen()
         self._reconciled = True
@@ -1620,15 +1583,6 @@ class InaraPlugin(BasePlugin):
 
     def _wealth_for_credits(self, current_credits: int) -> int | None:
         """Carry-forward commanderAssets value for a given credits balance.
-
-        Replicates Inara's journal-import behavior: hold the non-credits
-        portion of the most recent Statistics.Bank_Account.Current_Wealth
-        constant, and adjust by the credit delta since that snapshot.
-
-        Returns None until we've seen at least one Statistics event AND have
-        a credits anchor for it — in that state the caller should push
-        commanderCredits without commanderAssets, accepting that Inara may
-        show a fallback rollup until the next Statistics arrives.
         """
         if self._last_wealth is None or self._last_wealth_credits is None:
             return None
@@ -1637,9 +1591,6 @@ class InaraPlugin(BasePlugin):
     def _capi_modules_value(self, state, ship_id: int | None) -> int | None:
         """Look up the CAPI-reported modules value for a given ship ID.
 
-        Used by the StoredShips handler (Change 2) — StoredShips events
-        carry only the hull value, so without this lookup Inara would keep
-        a stale shipModulesValue from before the ship was de-fitted.
         Returns None when CAPI data is missing or zero.
         """
         if ship_id is None:

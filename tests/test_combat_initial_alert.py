@@ -1,11 +1,4 @@
-"""
-tests/test_combat_initial_alert.py — WarnNoKillsInitial.
-
-The no-kill alert is timed from the last kill, so before the first kill of a
-session it could never fire, and WarnNoKillsInitial — documented, defaulted,
-read by nothing — was meant to cover that gap. It now does, timed from
-dropping into a combat site and only while still there.
-"""
+"""tests/test_combat_initial_alert.py — WarnNoKillsInitial."""
 from __future__ import annotations
 
 import sys

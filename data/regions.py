@@ -1,16 +1,9 @@
-"""
-data/regions.py — Elite Dangerous galactic regions, as a run-length map.
-
-From klightspeed's EliteDangerousRegionMap (RegionMapData.py),
-https://github.com/klightspeed/EliteDangerousRegionMap
-Copyright (c) 2020 Ben Peddell, MIT License (licenses/EliteDangerousRegionMap-MIT.txt).
-Used by core/region.py. Do not edit.
-"""
+"""data/regions.py — Elite Dangerous galactic regions, as a run-length map."""
 # fmt: off
 
 regions = [
     None,
-    'Galactic Centre',
+    'Galactic Center',
     'Empyrean Straits',
     "Ryker's Hope",
     "Odin's Hold",

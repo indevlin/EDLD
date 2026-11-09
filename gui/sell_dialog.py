@@ -1,16 +1,6 @@
-"""
-gui/sell_dialog.py — the sell table as a popup window.
+"""gui/sell_dialog.py — the sell table as a popup window.
 
-The GUI counterpart of tui/sell_modal.py.  Both render the same dict that the
-Markdown and HTML files are written from, so the four never disagree about
-what a commodity is worth or which market is being quoted.
-
-Two tabs.  Mineable opens first — of the things that can be dug up, what does
-this place pay most for — and All Items is the same table unfiltered.
-
-Opened from View → Sell Table or with Ctrl+S; closed with Ctrl+S again, with
-Escape, or with the window's own close button.  The window is non-modal, so
-the dashboard behind it keeps updating while it is open.
+The GUI counterpart of tui/sell_modal.py.
 """
 
 from __future__ import annotations

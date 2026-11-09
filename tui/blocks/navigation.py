@@ -1,18 +1,9 @@
-"""
-tui/blocks/navigation.py — Navigation block (Textual).
+"""tui/blocks/navigation.py — Navigation block (Textual).
 
 Route first, then the tabs described in core/tooltab.py: FSD, Neutron,
 Carrier, Survey, Nearby, Services, Discoveries.
 
-Route shows the route being flown — where you are on it, jumps and distance
-left, and what is ahead with each system's star class and leg length, against
-the range the ship has now (core/route_view.py). The same facts EDAM shows.
-
-Each of the others is a form and a button. Running one is asynchronous —
-the work runs on a background thread and posts the result back via
-Textual's call_from_thread when complete.
-
-
+Each of the others is a form and a button.
 """
 from __future__ import annotations
 
@@ -231,7 +222,7 @@ class NavigationBlock(TuiBlock):
             # Over SSH the clipboard lives on the machine running the
             # terminal, not on this host, so the OS backends above cannot
             # reach it.  Textual's copy_to_clipboard emits OSC 52, which the
-            # terminal emulator itself honours — the one mechanism that works
+            # terminal emulator itself honors — the one mechanism that works
             # remotely.  Belt and braces: both are attempted, and a duplicate
             # copy of the same string is harmless.
             system = getattr(self.core.state, "nav_follow_next", "")
@@ -284,9 +275,6 @@ class NavigationBlock(TuiBlock):
     # ── Refresh (state-driven content) ────────────────────────────────────────
 
     def refresh_data(self) -> None:
-        # Fields that follow the game — From the system you are in, Range the
-        # range your ship has with a full tank and its cargo, the carrier's
-        # system, cargo and tritium — follow it until you type in them.
         self._refresh_route()
         self._refresh_tools()
         self._refresh_footer()

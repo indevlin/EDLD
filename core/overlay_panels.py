@@ -1,42 +1,19 @@
-"""
-core/overlay_panels.py — What the overlay shows, and where.
+"""core/overlay_panels.py — What the overlay shows, and where.
 
-The overlay is not a second dashboard. EDLD already is one, on a second screen,
-and reproducing it over the game would be both unreadable and pointless. The
-overlay carries the *subset that matters while you cannot look away* — the
-numbers a commander would otherwise alt-tab for, and the ones a streamer would
-want on camera.
+The overlay is not a second dashboard.
 
 Ownership
 ---------
-Panels belong to the components that own the data. The cargo component knows
-what is in the hold and when that is worth showing; the exobiology component
-knows whether this body has anything to scan. A component contributes by
-implementing::
+Panels belong to the components that own the data.
 
     OVERLAY_PANELS = ("cargo", "cargo_srv")        # ids it can produce
 
     def overlay_panel(self, panel_id: str, ctx: PanelContext) -> Panel | None:
         ...                                        # None means "not now"
 
-Returning None is the component's own relevance test, and it is the only thing
-that decides whether a panel is eligible in ``auto`` mode. Nothing here knows
-what a bio signal is or how full a hold has to be to be interesting.
-
-Zones
------
-Three fixed anchors across the top of the screen: left, centre, right. Each
-holds a vertical stack. The commander assigns panels to zones and orders them
-within a zone; there is no free placement, no drag, and no overflow rule,
-because a stack too tall to fit is visible the moment it happens and the fix is
-to move a panel. Zones are anchors rather than boxes — a stack is as tall as
-what is in it, and nothing can wander into the middle of the viewport.
-
 Hidden panels
 -------------
-When a panel in ``auto`` mode is not currently eligible, the stack either
-closes up or holds the space. Both are defensible and neither is right for
-everyone, so it is :data:`HIDE_MODES` and the commander picks:
+When a panel in ``auto`` mode is not currently eligible, the stack either closes up or holds the space.
 
 ``collapse``  the stack closes up. Denser, no wasted screen, but the panels
               below move when one appears or goes, and something that moves is
@@ -52,14 +29,6 @@ from dataclasses import dataclass, field
 from typing import Iterable, NamedTuple, Optional
 
 #: Where a panel can be placed.
-#:
-#: "left", "centre" and "right" are the three columns of the top bar and keep
-#: those names deliberately: renaming them to "top-left" and so on would have
-#: silently unplaced every panel in every existing config, since an unknown
-#: zone is reported and skipped.
-#:
-#: "dock-left" and "dock-right" are separate windows against the side edges of
-#: the screen, each a single stacked column.
 ZONES = ("left", "centre", "right", "dock-left", "dock-right")
 
 #: Which window each zone is drawn in. The top bar holds three columns; each
@@ -76,19 +45,12 @@ ZONE_WINDOW = {
 WINDOWS = ("top", "dock-left", "dock-right")
 
 #: Positions a panel can take within its zone. A closed vocabulary, so it is a
-#: picker rather than a number field. Two panels given the same position fall
-#: back to panel id, which is stable and alphabetical — deliberately boring,
-#: because the alternative is a reorder that silently renumbers panels the
-#: commander did not touch.
+#: picker rather than a number field.
 POSITIONS = tuple(str(n) for n in range(1, 10))
 MODES = ("on", "off", "auto")
 HIDE_MODES = ("collapse", "reserve")
 
 #: Vertical space one line of panel text occupies, before scaling.
-#:
-#: Derived from the body size rather than fixed: a commander who raises the
-#: font and finds the rows overlapping has been given a setting that breaks
-#: the layout, which is worse than not offering it.
 LINE_HEIGHT = 17
 
 
@@ -115,9 +77,7 @@ class PanelContext(NamedTuple):
     """Everything a component needs to decide whether its panel applies now.
 
     Assembled once per frame from Status.json and MonitorState, so every panel
-    in a frame sees the same instant. A panel that read state directly could
-    answer from a position half a second newer than the one its neighbour used,
-    and the overlay would disagree with itself.
+    in a frame sees the same instant.
     """
     in_srv:       bool = False
     on_foot:      bool = False
@@ -141,15 +101,12 @@ class PanelContext(NamedTuple):
 class Panel:
     """One block of text the overlay can draw.
 
-    ``rows`` are ``(label, value)``. A row with an empty label is a full-width
-    line; a row with an empty value is a heading. The panel does not know where
-    it will be drawn or how wide the zone is — that is the layout's business,
-    and keeping it that way is what lets the same panel sit in any zone.
+    ``rows`` are ``(label, value)``.
     """
     id:     str
     title:  str = ""
     rows:   list[tuple[str, str]] = field(default_factory=list)
-    accent: str = ""          # optional colour override for the title
+    accent: str = ""          # optional color override for the title
 
     #: Set by the layout so height matches the configured body size.
     line_h: int = LINE_HEIGHT
@@ -175,17 +132,8 @@ class PanelPlacement:
         return self.zone in ZONES and self.mode in MODES
 
 
-#: Flat config key prefixes, one per placement field.
-#:
-#: Not a nested ``Panels.<id>.Zone`` table, though that reads better. The
-#: preferences writer stores a pending ``(section, key)`` pair by assigning
-#: ``target[key] = value`` — the key is written literally, so a dotted key
-#: becomes a flat string key containing dots rather than a nested table, and
-#: nothing ever reads it back. Panel placement could be changed in either front
-#: end, saved without error, and have no effect whatsoever.
-#:
-#: Flat keys survive that writer unchanged. A hand-written ``Panels`` table is
-#: still honoured, for anyone who prefers editing TOML.
+#: Flat config key prefixes, one per placement field. Not a nested
+#: ``Panels.<id>.Zone`` table, though that reads better.
 KEY_ZONE  = "PanelZone_"
 KEY_MODE  = "PanelMode_"
 KEY_ORDER = "PanelOrder_"
@@ -210,16 +158,7 @@ def placement_keys(panel_id: str) -> dict[str, str]:
 
 
 def placements_from_config(cfg: dict, log=None) -> list[PanelPlacement]:
-    """Read placements, dropping nonsense loudly.
-
-    Two sources, flat keys winning: a ``Panels`` table for hand-edited configs,
-    and the flat ``PanelZone_<id>`` / ``PanelMode_<id>`` / ``PanelOrder_<id>``
-    keys the preferences screens write.
-
-    An invalid zone or mode is reported and skipped rather than coerced to a
-    default, because a typo that silently relocates a panel is worse than one
-    that says so.
-    """
+    """Read placements, dropping nonsense loudly."""
     merged: dict[str, dict] = {}
 
     for panel_id, spec in (cfg.get("Panels") or {}).items():
@@ -280,11 +219,6 @@ def resolve_zone(placements: Iterable[PanelPlacement],
     the component said it does not apply now. ``mode`` overrides that: ``on``
     shows it whenever the component produced anything at all, ``off`` never
     shows it, ``auto`` defers to the component.
-
-    In ``reserve`` mode a hidden panel keeps the height it last had, which is
-    why ``reserve_heights`` is carried between frames — reserving nothing would
-    make the stack jump the first time a panel appeared, which is the exact
-    thing reserving is for.
     """
     reserve_heights = reserve_heights or {}
     slots: list[ResolvedSlot] = []
@@ -306,13 +240,7 @@ def resolve_zone(placements: Iterable[PanelPlacement],
 
 
 def zone_x(zone: str, width: int, margin: int = 16) -> tuple[int, str]:
-    """Anchor x and text alignment for a zone within its own window.
-
-    A dock is a single column filling its window, so it anchors at the margin
-    and reads left-to-right like the top bar's left column — a right-hand dock
-    right-aligned against a narrow window would put its text hard against the
-    screen edge, which is where it is least readable.
-    """
+    """Anchor x and text alignment for a zone within its own window."""
     if zone in ("left", "dock-left", "dock-right"):
         return margin, "left"
     if zone == "right":
@@ -336,13 +264,6 @@ def layout(placements: Iterable[PanelPlacement],
 
     Returns ``(elements, heights)`` — the drawable frame, and the height each
     panel actually occupied, to be fed back as ``reserve_heights`` next frame.
-
-    Every element carries its panel's id as ``group``, so the renderer can
-    draw one backing panel behind each, and ``backing`` when the colours name
-    one (``BackingColour``) for outlines and panels to use. With
-    ``emphasise_values`` a labelled row is two runs — the label in the label
-    colour, the value in the value colour and bold — instead of one line in
-    the label colour.
     """
     from core.overlay import text
 
@@ -409,8 +330,7 @@ def collect(components: Iterable, ctx: PanelContext,
     """Ask every component for the panels the commander has placed.
 
     Only ids that are actually placed are requested, so a component's panel
-    costs nothing while it is switched off. A component that raises is reported
-    and skipped — one broken panel must not blank the overlay.
+    costs nothing while it is switched off.
     """
     wanted = set(wanted)
     out: dict[str, Optional[Panel]] = {}

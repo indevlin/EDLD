@@ -1,8 +1,4 @@
-"""
-tests/test_carrier_jump_notifications.py — carrier jump lifecycle notifications.
-
-Sequences here are taken from a real 269-journal capture, because the events
-are thinner and noisier than they look:
+"""tests/test_carrier_jump_notifications.py — carrier jump lifecycle notifications.
 
   * ``CarrierJumpRequest``   names the destination and departure time, but not
                              the carrier — only ``CarrierID``.
@@ -15,10 +11,6 @@ are thinner and noisier than they look:
   * ``CarrierLocation`` is also a periodic status event. In the capture it
     outnumbers actual arrivals roughly two to one, so "the next location event
     after a request" is not an arrival.
-
-Replaying the full capture in chronological order accounts for every request
-exactly: 178 scheduled = 170 completed + 3 cancelled + 4 re-targeted + 1 still
-pending at the end of the logs.
 """
 
 from __future__ import annotations
@@ -142,9 +134,6 @@ def test_schedule_uses_the_configured_level(plugin):
 
 def test_schedule_falls_back_when_the_carrier_is_unknown(plugin):
     """A jump can be scheduled before CarrierStats has been seen this session.
-
-    The capture also contains four requests for a carrier that was later
-    decommissioned and is no longer in state.
     """
     plugin._schedule_carrier_jump(request(cid=3707917312), FakeState())
     text = texts(plugin)[0]
@@ -186,7 +175,7 @@ def test_cancel_names_the_destination_the_event_does_not_carry(plugin):
         {"timestamp": "2026-05-28T20:47:41Z", "event": "CarrierJumpCancelled",
          "CarrierType": "FleetCarrier", "CarrierID": CARRIER_ID}, state)
     text = texts(plugin)[-1]
-    assert "JUMP CANCELLED" in text
+    assert "JUMP CANCELED" in text
     assert "Kitchang Mu" in text
     assert NAME in text
 
@@ -207,7 +196,7 @@ def test_cancel_without_a_pending_jump_still_reports(plugin):
     plugin._cancel_carrier_jump(
         {"event": "CarrierJumpCancelled", "CarrierType": "FleetCarrier",
          "CarrierID": CARRIER_ID}, FakeState())
-    assert "JUMP CANCELLED" in texts(plugin)[0]
+    assert "JUMP CANCELED" in texts(plugin)[0]
 
 
 # ── Completion ────────────────────────────────────────────────────────────────
@@ -221,11 +210,7 @@ def test_arrival_at_the_destination_completes(plugin):
 
 
 def test_periodic_location_elsewhere_does_not_complete(plugin):
-    """The bug this rule exists for.
-
-    CarrierLocation fires as a status event roughly twice as often as an
-    arrival; taking the next one after a request reported the wrong system.
-    """
+    """The bug this rule exists for."""
     state = FakeState()
     plugin._schedule_carrier_jump(request(system="Bhutatani"), state)
     plugin._complete_carrier_jump(CARRIER_ID, "Sounti", state,

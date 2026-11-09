@@ -82,7 +82,7 @@ EDLD prints timestamped event lines to the terminal. Each line carries a fixed-w
 | `TERM` | Session management ended the game |
 | `CAPI` | Frontier sign-in for the Companion API expired |
 | `CRGO` | Cargo jettisoned |
-| `CARR` | Fleet carrier: jump scheduled, cancelled or completed, cooldown over, upkeep short |
+| `CARR` | Fleet carrier: jump scheduled, canceled or completed, cooldown over, upkeep short |
 | `ROUT` | Route checks — permit locks, a tank that runs dry, a dry stretch, the wrong target, a re-plot |
 | `SURV` | Arriving at a survey stop: what is left to do there |
 | `EXPL` | Exploration callouts — an undiscovered system, a world first mapped, untrodden ground, a targeted system never reported; unsold discoveries scanned by someone else |

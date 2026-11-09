@@ -1,13 +1,6 @@
-"""
-core/survey.py — survey routes: Road to Riches, Exomastery, Earth-like,
-ammonia and terraformable worlds, trade runs and a sweep through chosen
-systems, all from Spansh's routers.
-
-Each is planned by Spansh and then followed like any other route EDLD plots
-(components/navigation.py): the Route tab shows each stop, the follower
-copies the next system, and on arriving the commander is told what is still
-to do there — the bodies left to map, the species left to sample, what to buy
-and sell — checked against their own journal, not Spansh's list alone.
+"""core/survey.py — survey routes: Road to Riches, Exomastery, Earth-like, ammonia
+and terraformable worlds, trade runs and a sweep through chosen systems, all
+from Spansh's routers.
 
 The routers and their parameters (Spansh's own names):
 
@@ -231,7 +224,7 @@ def todo(core, system: str, address, stop: dict) -> dict:
     """What is still to do at one survey stop, from the commander's own
     journal: {"map": [(short, subtype, value)], "sample": [(short, species,
     value)], "done": int, "trade": {...}}. Bodies already mapped and species
-    already analysed there are counted as done."""
+    already analyzed there are counted as done."""
     out = {"map": [], "sample": [], "done": 0, "trade": stop.get("trade")}
     bodies = stop.get("bodies") or []
     if not bodies:

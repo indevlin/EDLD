@@ -1,8 +1,4 @@
-"""
-tui/confirm_modal.py — Minimal yes/no confirmation modal for the EDLD TUI.
-
-Used to guard destructive actions (e.g. a manual session termination) behind an
-explicit confirmation so a stray keypress cannot trigger them.
+"""tui/confirm_modal.py — Minimal yes/no confirmation modal for the EDLD TUI.
 
 Usage:
     def on_result(ok: bool | None) -> None:
@@ -13,9 +9,8 @@ Usage:
         on_result,
     )
 
-The screen is dismissed with True (confirmed) or False (cancelled); the result
-is delivered to the push_screen callback.  The "No" button is focused on open,
-so Enter cancels by default.
+The screen is dismissed with True (confirmed) or False (canceled); the result
+is delivered to the push_screen callback.
 """
 from __future__ import annotations
 

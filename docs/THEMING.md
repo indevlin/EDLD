@@ -1,22 +1,22 @@
 # EDLD Theming
 
-EDLD ships twelve built-in colour themes and supports user-defined custom
-themes.  A theme is just a palette — a small set of colour values.  All
+EDLD ships twelve built-in color themes and supports user-defined custom
+themes.  A theme is just a palette — a small set of color values.  All
 structural rules (layout, spacing, borders) are fixed in the UI and are not
-part of a theme, so switching themes only changes colours.
+part of a theme, so switching themes only changes colors.
 
 Themes apply to **both** interfaces.  The palettes live in `core/palette.py`,
 which the terminal dashboard turns into Textual CSS and the desktop window
 turns into a Qt stylesheet, so a theme is defined once and appears in both.
 Custom themes work the same way in each.
 
-The same palette also colours the [commander dossier](DOSSIER.md) — its web
+The same palette also colors the [commander dossier](DOSSIER.md) — its web
 page is regenerated when you change theme — and, if you choose **Follow
 dashboard** for it, the [streamer overlay](STREAMER_STATS_OVERLAY.md).
 
 [EDCARS](EDCARS.md), the desktop window's console style, draws from the same
 palette: its header band, rail and frames are the theme's accent, and its
-pills mix the accent towards the background. A custom theme reaches it with
+pills mix the accent toward the background. A custom theme reaches it with
 nothing extra to set.
 
 ---
@@ -51,7 +51,7 @@ terminal dashboard or the terminal text.
 
 | Theme | Accent |
 |-------|--------|
-| `elite-orange` | Orange `#ff7100` on near-black — the game's own HUD colours |
+| `elite-orange` | Orange `#ff7100` on near-black — the game's own HUD colors |
 | `default` | Orange `#e07b20` — Elite Dangerous orange |
 | `default-dark` | Orange `#e07b20` — identical to `default` |
 | `default-blue` | Blue `#3d8fd4` |
@@ -69,7 +69,7 @@ anywhere: the Dashboard window and the terminal dashboard wear them too.
 
 <div align="center">
 <img src="../images/themes.png" alt="The built-in themes side by side" width="900"/>
-<br><em>The built-in themes, each with a sample block and its ten colours</em>
+<br><em>The built-in themes, each with a sample block and its ten colors</em>
 </div>
 
 These palettes are built into the dashboard; no external files are required.
@@ -78,7 +78,7 @@ These palettes are built into the dashboard; no external files are required.
 
 ## Custom themes
 
-A custom theme is a single CSS file containing one `:root { }` block of colour
+A custom theme is a single CSS file containing one `:root { }` block of color
 variables.  To create one:
 
 1. Make a folder named `themes/custom` in EDLD's data directory and copy the
@@ -99,9 +99,9 @@ variables.  To create one:
    [`themes/custom-template.css`](../themes/custom-template.css) from the
    repository instead.
 
-2. Edit the colour values in the `:root { }` block of `my-theme.css`. Both
+2. Edit the color values in the `:root { }` block of `my-theme.css`. Both
    interfaces read the same file, so there is nothing further to do for the
-   desktop window. The recognised variables are:
+   desktop window. The recognized variables are:
 
    | Variable | Purpose |
    |----------|---------|
@@ -112,7 +112,7 @@ variables.  To create one:
    | `--fg-dim`   | Dimmed/secondary text |
    | `--accent`   | Accent (titles, highlights) |
    | `--border`   | Block borders |
-   | `--green` / `--amber` / `--red` | Status colours (good / warning / critical) |
+   | `--green` / `--amber` / `--red` | Status colors (good / warning / critical) |
 
    Any variable you omit falls back to a sensible default.
 
@@ -134,8 +134,8 @@ is in both places, the one in the data directory is used.
 ## On the EDAM app
 
 A paired EDAM device follows the theme EDLD is drawing with: every snapshot
-carries the theme's name and its colours, so a custom theme reaches the phone
-as the colours EDLD resolved and needs nothing installed there. The built-in
+carries the theme's name and its colors, so a custom theme reaches the phone
+as the colors EDLD resolved and needs nothing installed there. The built-in
 themes are also compiled into the app; after changing `core/palette.py`,
 regenerate that list with `scripts/export_edam_themes.py` (see
 [SERVER.md](SERVER.md)).

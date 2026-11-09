@@ -1,10 +1,5 @@
-"""
-tests/test_tool_tabs.py — the Navigation window's Survey, Nearby and
+"""tests/test_tool_tabs.py — the Navigation window's Survey, Nearby and
 Services tabs, drawn from one description in both front ends.
-
-Both windows must draw every field of every tab with the same ids, hide the
-fields that do not apply to the route kind chosen, pre-fill from the game,
-and run a tab off the interface thread, showing what it returns.
 """
 from __future__ import annotations
 

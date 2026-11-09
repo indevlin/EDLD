@@ -1,15 +1,4 @@
-"""
-tests/test_deposit_notes.py — A commander's note on a deposit, end to end.
-
-A note is the one deposit field that is writing rather than observation, and
-the rest of the survey's merge rules are built for observation: fill blanks,
-follow the freshest sighting, never let a blank overwrite. Applied to a note
-those rules would make it impossible to withdraw, and would let anyone who
-drove onto a site re-send a copy they imported weeks ago over its author's
-correction. These tests pin the rule that replaces them — the most recently
-written note wins, a blank one included — at every place a note passes
-through: the form, the store, the publisher and the import from the sheet.
-The sheet's own half is in test_sheets_code_gs.py.
+"""tests/test_deposit_notes.py — A commander's note on a deposit, end to end.
 """
 from __future__ import annotations
 
@@ -245,7 +234,7 @@ def test_a_note_is_normalised(typed, stored):
 
 
 def test_an_emptied_note_is_a_value_not_an_absence():
-    """The one field where blank means nothing rather than leave-it-alone."""
+    """The one field where blank means nothing."""
     assert clean({"notes": ""}).values == {"notes": ""}
     assert "notes" not in clean({}).values
 

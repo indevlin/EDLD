@@ -1,12 +1,4 @@
-"""
-core/dossier/names.py — journal ids as the dossier prints them.
-
-Mostly a thin layer over the tables EDLD already has (data/modules.py,
-data/ships.py, data/engineering.py, data/ranks.py), plus what only the dossier
-needs: how a ``Loadout`` slot is labelled and grouped, and on-foot suit and
-modification names. Module names come from the shared normaliser, so the
-dossier and the dashboard name a module the same way.
-"""
+"""core/dossier/names.py — journal ids as the dossier prints them."""
 
 from __future__ import annotations
 

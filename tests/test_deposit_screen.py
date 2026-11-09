@@ -1,14 +1,7 @@
-"""
-tests/test_deposit_screen.py — the deposit window actually mounts.
+"""tests/test_deposit_screen.py — the deposit window actually mounts.
 
 Textual validates a Select's value when the widget mounts, not when it is
-constructed. A bad value therefore raises nothing at build time and then throws
-inside a mount handler, where an unhandled exception takes the whole
-application down — so a broken field presented as EDLD vanishing on a keypress.
-
-Every field is blank on a new deposit, which made that certain the first time
-anyone pressed Ctrl+D on unrecorded ground. Constructing the screen is not
-enough to catch it; these tests run it.
+constructed.
 """
 
 from __future__ import annotations
@@ -149,8 +142,8 @@ def test_the_store_refuses_vocabulary_it_does_not_know(tmp_path):
         "amount": "Very High", "density_observed": "high",
         "last_confirmed": "2026-09-01T00:00:00Z"}])
     row = db.deposits_on(1, 2)[0]
-    assert row["amount"] == "", "unrecognised amount is dropped"
-    assert row["density_observed"] == "High", "recognisable one is normalised"
+    assert row["amount"] == "", "unrecognized amount is dropped"
+    assert row["density_observed"] == "High", "recognisable one is normalized"
 
 
 def test_the_form_shows_a_just_refined_deposit_as_an_edit(tmp_path, monkeypatch):
@@ -186,8 +179,6 @@ def test_every_field_the_form_produces_is_one_the_store_accepts():
     produced = set(clean(sample).values)
     accepted = set(inspect.signature(MiningDB.annotate_deposit).parameters)
 
-    # commodity is handled separately: it sets a new deposit's identity and is
-    # deliberately refused on an edit.
     produced -= {"commodity", "commodity_display"}
     assert produced <= accepted, \
         f"the form produces {sorted(produced - accepted)}, which the store rejects"
@@ -326,3 +317,41 @@ def test_escape_from_the_note_box_closes_the_window():
 
     _, out = _drive(prefill(STORED), steps)
     assert out["top"] is not out["screen"]
+
+
+def test_the_window_edits_a_deposit_by_id():
+    """dep_id: form_for / submit_form_for; commodity disabled."""
+    from textual.app import App
+    from textual.widgets import Input
+
+    from tui.deposit_screen import DepositScreen
+
+    class _ById(_Plugin):
+        def form_for(self, dep_id):
+            self.asked = dep_id
+            return prefill(STORED), f"Editing Helium-3 ({dep_id})"
+
+        def submit_form_for(self, dep_id, values):
+            self.submitted = (dep_id, values)
+            return "nothing to change"
+
+    plugin = _ById(None, "")
+    seen = {}
+
+    class _Harness(App):
+        def on_mount(self) -> None:
+            self.push_screen(DepositScreen(None, plugin, dep_id="abc123def456"))
+
+    async def run():
+        app = _Harness()
+        async with app.run_test() as pilot:
+            await pilot.pause()
+            seen["disabled"] = app.screen.query_one("#dep-commodity", Input).disabled
+            await pilot.click("#dep-save")
+            await pilot.pause()
+            seen["screen"] = type(app.screen).__name__
+
+    asyncio.run(run())
+    assert plugin.asked == "abc123def456" and seen["disabled"]
+    assert plugin.submitted[0] == "abc123def456"
+    assert seen["screen"] != "DepositScreen"

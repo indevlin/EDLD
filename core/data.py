@@ -1,9 +1,6 @@
-"""
-core/data.py — Unified DataProvider for EDLD.
+"""core/data.py — Unified DataProvider for EDLD.
 
-Single source of truth for all game state. All core components, activity
-plugins, and third-party plugins read from here rather than from individual
-state fields or by scanning journals themselves.
+Single source of truth for all game state.
 
 Priority order: CAPI > Journal events > local JSON files.
 
@@ -69,17 +66,7 @@ All access is via the DataProvider instance exposed as core.data.
 
 Architecture notes
 ------------------
-DataProvider wraps MonitorState rather than replacing it. state.* fields are
-still the underlying store — DataProvider provides a clean typed API over them
-so consumers never need to know field names or which source provided the data.
-
-CAPI machinery (OAuth, polling, token management) lives in CAPISource, a
-private inner object that runs the background poll thread. CAPISource is
-configured here rather than as a standalone plugin.
-
-The event ring buffer holds the last RING_SIZE events (default 200) per event
-type. Consumers call data.events("HullDamage", n=5) to get the 5 most recent
-HullDamage events, newest first.
+The event ring buffer holds the last RING_SIZE events (default 200) per event type.
 """
 
 from __future__ import annotations
@@ -122,7 +109,7 @@ SCOPE        = "auth capi"
 #
 # 127.0.0.1 (the loopback literal) is the RFC 8252-recommended form for native
 # apps and avoids any DNS/hosts dependency.  The port is deliberately outside
-# the usual Linux ephemeral range (32768+) to minimise clashes; EDLD aborts the
+# the usual Linux ephemeral range (32768+) to minimize clashes; EDLD aborts the
 # flow cleanly and alerts if it is already in use.  Change CALLBACK_PORT here if
 # you re-register a different port with Frontier.
 CALLBACK_HOST = "127.0.0.1"
@@ -483,9 +470,9 @@ class CAPISource:
 
     def auth_status(self) -> dict:
         t = self._tokens
-        # pilot_name from the game journal is the actual in-game CMDR name.
-        # The stored "cmdr" token field is the Frontier account firstname —
-        # not the same thing.  Prefer pilot_name when available.
+        # pilot_name from the game journal is the actual in-game CMDR name. The
+        # stored "cmdr" token field is the Frontier account firstname — not the
+        # same thing.
         pilot = getattr(getattr(self._dp, "_state", None), "pilot_name", None)
         return {
             "connected":   bool(t.get("access_token")),
@@ -533,8 +520,6 @@ class CAPISource:
             raw = self._storage.read_json("capi_tokens.json")
             return raw if isinstance(raw, dict) else {}
         except Exception as exc:
-            # Unreadable tokens mean re-authorising; say why.  Exception type
-            # and message only — never the file's contents.
             _log_token_fault("read", exc)
             return {}
 
@@ -542,9 +527,6 @@ class CAPISource:
         try:
             self._storage.write_json(tokens, "capi_tokens.json")
         except Exception as exc:
-            # Previously swallowed: a refreshed token that failed to save
-            # worked for this run and then demanded a fresh login next launch,
-            # with nothing recorded to say why.
             _log_token_fault("save", exc)
 
     def _enqueue(self, endpoint_or_none, force: bool) -> None:
@@ -585,9 +567,6 @@ class CAPISource:
             return True
         except urllib.error.HTTPError as e:
             if e.code in (400, 401):
-                # Frontier rejected the refresh token — typically because
-                # it's older than ~30 days.  Tokens are no longer usable;
-                # surface a re-auth-required alert and wipe state.
                 self._tokens = {}
                 self._save_tokens({})
                 self._notify_reauth_needed()
@@ -597,12 +576,6 @@ class CAPISource:
 
     def _notify_reauth_needed(self) -> None:
         """Surface a one-shot alert that the user must re-run the OAuth flow.
-
-        Routes through the alerts plugin's push_external so the message
-        lands in the alerts pane, the terminal, the event log, and
-        Discord (with @-ping at loglevel 3 — the configured default).
-        Cleared by a successful authenticate() or an explicit disconnect()
-        so the next refresh failure alerts again.
         """
         if self._auth_alerted:
             return
@@ -630,13 +603,7 @@ class CAPISource:
             self._trace(f"re-auth notify failed: {e}")
 
     def _notify_callback_port_busy(self) -> None:
-        """Alert that the local OAuth callback port is already in use.
-
-        The loopback redirect server binds a fixed port (CALLBACK_PORT); if
-        another process holds it we abort before sending the user to Frontier.
-        Routed through the alerts plugin like the re-auth notice so it reaches
-        the alerts pane, terminal, event log, and Discord.
-        """
+        """Alert that the local OAuth callback port is already in use."""
         try:
             self._dp._plugin_call(
                 "alerts", "push_external",
@@ -664,10 +631,7 @@ class CAPISource:
             cb_q: queue.Queue = queue.Queue()
 
             # Bind the loopback callback server up-front so a port clash is
-            # caught *before* the user is sent to Frontier (rather than after
-            # they have already authorised).  The redirect URI is the fixed
-            # 127.0.0.1:<port> registered against our client_id — no hosted
-            # page is involved.
+            # caught *before* the user is sent to Frontier.
             try:
                 srv = _make_callback_server(CALLBACK_PORT, cb_q)
             except OSError as exc:
@@ -960,7 +924,7 @@ class CAPISource:
             sq.get("rank") or sq.get("Rank") or
             sq.get("rankName") or sq.get("currentRankName") or ""
         )
-        # Strip Frontier localisation key wrapper: $SQUADRON_DEFAULTRANKNAME_RANK0;
+        # Strip Frontier localization key wrapper: $SQUADRON_DEFAULTRANKNAME_RANK0;
         if _sq_rank_raw.startswith("$") and _sq_rank_raw.endswith(";"):
             _m = re.match(r"\$SQUADRON_(?:DEFAULT)?RANKNAME_(?:\w+);", _sq_rank_raw, re.I)
             _sq_rank_raw = ""  # unresolved key — show nothing rather than raw key
@@ -1058,10 +1022,6 @@ class CAPISource:
         if stored:
             # CAPI /profile ships{} is the authoritative owned-ship list.
             # Replace state directly — do not merge with any prior list.
-            # Ships absent from this response are no longer owned (sold,
-            # transferred, etc.).  journal_extra location/hot enrichment
-            # is already applied per-ship during the stored[] construction
-            # above, so no data is lost by replacing rather than merging.
             state.assets_stored_ships = stored
 
         try:
@@ -1131,12 +1091,7 @@ class CAPISource:
         processed = {}
         from core.commodity_ledger import canonical_name as _canon
         for c in items:
-            # Canonicalise exactly as the Market.json path does.  These two
-            # build the same structure and are looked up with the same keys,
-            # but only one of them was normalising: a CAPI name that differs in
-            # form from the canonical one produced an entry nothing could find,
-            # so the commodity silently fell through to the persisted galactic
-            # average while its neighbours priced correctly off the station.
+            # Canonicalize exactly as the Market.json path does.
             key = _canon(c.get("name") or "")
             if not key:
                 continue
@@ -1157,11 +1112,6 @@ class CAPISource:
             "star_system":  data.get("starsystem", ""),
             "commodities":  processed,
         }
-        # Merge rather than replace.  This is the fallback map the manifest
-        # prices against when a commodity is missing from the current market,
-        # and assigning a single station's subset over it discarded every
-        # average learned elsewhere — including for the commodities most likely
-        # to need the fallback, which are the ones this station does not trade.
         mean_prices = {k: v["mean_price"] for k, v in processed.items() if v["mean_price"]}
         if mean_prices:
             existing = getattr(state, "cargo_mean_prices", None) or {}
@@ -1277,7 +1227,7 @@ class CAPISource:
 
         # Extract full physical cargo hold — CAPI format:
         # [{"commodity": "steel", "qty": 3720, "value": N}, ...]
-        # This includes unlisted cargo (e.g. colonisation bulk goods) that
+        # This includes unlisted cargo (e.g. colonization bulk goods) that
         # FCMaterials and Market.json do not expose.
         cargo_hold: dict = {}
         for item in (data.get("cargo") or []):
@@ -1287,7 +1237,7 @@ class CAPISource:
                 cargo_hold[name] = cargo_hold.get(name, 0) + qty
         state.assets_carrier_hold = cargo_hold
 
-        # Notify the colonisation plugin with the authoritative cargo snapshot.
+        # Notify the colonization plugin with the authoritative cargo snapshot.
         if cargo_hold:
             try:
                 self._dp._plugin_call("colonisation", "on_capi_fleetcarrier", cargo_hold)
@@ -1295,9 +1245,8 @@ class CAPISource:
                 pass
 
 class EventBuffer:
-    """
-    Ring buffer of recent journal events keyed by event type.
-    Thread-safe. Holds the last RING_SIZE events per type.
+    """Ring buffer of recent journal events keyed by event type. Thread-
+    safe.
     """
 
     def __init__(self, size: int = RING_SIZE):
@@ -1329,12 +1278,9 @@ class EventBuffer:
 # ── DataProvider ──────────────────────────────────────────────────────────────
 
 class DataProvider:
-    """
-    Unified data provider — single source of truth for all EDLD consumers.
+    """Unified data provider — single source of truth for all EDLD consumers.
 
     Instantiated once by edld.py and exposed as core.data.
-    All core components, activity plugins, and third-party plugins read
-    from here. No consumer should access MonitorState fields directly.
     """
 
     def __init__(self, state, storage, gui_queue_fn=None, plugin_call_fn=None,

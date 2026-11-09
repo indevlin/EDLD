@@ -1,18 +1,7 @@
-"""
-core/edcars.py — the EDCARS style: its name, its sections, and its header strip.
+"""core/edcars.py — the EDCARS style: its name, its sections, and its header strip.
 
-EDCARS is EDLD's default interface: the desktop window drawn as a console,
-with a header band and a rail down the left, the rail switching between
-sections of two or three framed windows, where the Dashboard layout (--dashg /
---gui) shows every window at once. It is drawn by the desktop window and by
-EDAM; the terminal dashboard cannot draw curves. Which layout the desktop
-window uses is part of which interface was launched (core/modes.py), not a
-separate setting.
-
-Helm is the panel of controls and automation (core/helm.py), which EDCARS
-gives a section of its own.
-
-Everything the two front ends must agree on lives here, so they cannot drift:
+Helm is the panel of controls and automation (core/helm.py), which EDCARS gives
+a section of its own.
 
 * the style's name — ``EDCARS_NAME`` is the only place it is spelled. Renaming
   the style is a change to this one constant; the value stored in config.toml
@@ -20,7 +9,7 @@ Everything the two front ends must agree on lives here, so they cannot drift:
   to anyone;
 * the sections, in rail order, and which windows and wire panels each holds;
 * the header strip — the handful of facts that stay on screen whichever
-  section is showing — and how each is worded and coloured;
+  section is showing — and how each is worded and colored;
 * which alerts are urgent enough to pulse the Alerts pill.
 """
 from __future__ import annotations
@@ -65,7 +54,7 @@ ALERTS_KEY = "EdcarsAlerts"
 # are homages to a galaxy far, far away, each with a theme of the same name
 # whose lights and screens match it (core/palette.py). The panels are the
 # console's own paint and stay as they are whatever theme is chosen; the
-# lights, the screens and the text take the theme's colours. Chosen in Options
+# lights, the screens and the text take the theme's colors. Chosen in Options
 # → Appearance as ``[UI] Console``; the interface is still EDCARS.
 
 #: The consoles' display names, each written only here.
@@ -92,7 +81,7 @@ CONSOLES: tuple[Console, ...] = (
     Console(EDCARS_ID, EDCARS_NAME, "",
             "the band and the elbow, pills down the rail"),
     Console(ORDER_ID, ORDER_NAME, ORDER_ID,
-            "an Imperial fleet console: grey steel, indicator lights, "
+            "an Imperial fleet console: gray steel, indicator lights, "
             "readouts behind chamfered black glass"),
     Console(REBEL_ID, REBEL_NAME, REBEL_ID,
             "a Rebel ops board: cream consoles, orange and yellow lamps, "
@@ -109,7 +98,7 @@ CONSOLE_KEY = "Console"
 
 
 def console_of(ui_cfg: Optional[dict]) -> str:
-    """The configured console, EDCARS's own for anything unrecognised."""
+    """The configured console, EDCARS's own for anything unrecognized."""
     raw = str((ui_cfg or {}).get(CONSOLE_KEY, EDCARS_ID) or EDCARS_ID).strip().lower()
     return raw if raw in CONSOLE_BY_ID else EDCARS_ID
 
@@ -147,22 +136,21 @@ class Part:
     """One framed window in a section.
 
     ``window`` is a layout-model window name (core.layout_model.BLOCK_DISPLAY),
-    or ``"alerts"`` for the Alerts list EDCARS draws itself,
-    or ``"helm"`` for the Helm panel (core/helm.py). ``part`` picks a
-    piece of a window that EDCARS splits between sections: the Commander window's
-    identity tabs and its fleet tabs, and the Crew half of Crew / Alerts.
-    ``column`` and ``weight`` place it: parts sharing a column stack, columns
-    sit side by side, and weight is the share of the column or row it gets.
+    or ``"alerts"`` for the Alerts list EDCARS draws itself, or ``"helm"`` for
+    the Helm panel (core/helm.py). ``part`` picks a piece of a window that EDCARS
+    splits between sections: the Commander window's identity tabs and its fleet
+    tabs, and the Crew half of Crew / Alerts. ``column`` and ``weight`` place it:
+    parts sharing a column stack, columns sit side by side, and weight is the
+    share of the column or row it gets.
 
-    ``groups`` and ``panels`` say which of the section's wire panels EDAM puts
-    in this frame, by the same rule as sections (see part_for_panel), so a
-    device frames the same windows, in the same places, as the desktop does.
-    ``tabs`` is whether the desktop window is tabbed: a device shows a frame's
-    panels as tabs when it is, and one under another when it is not.
-    ``header`` is a panel drawn as the line above the tabs rather than as a
-    tab — the vessel's name over the Ship window's tabs. ``tools`` puts the
-    Navigation window's forms (header "tools") after the frame's panels, as
-    the desktop's tabs follow Route.
+    ``groups`` and ``panels`` say which of the section's wire panels EDAM puts in
+    this frame, by the same rule as sections (see part_for_panel), so a device
+    frames the same windows, in the same places, as the desktop does. ``tabs`` is
+    whether the desktop window is tabbed: a device shows a frame's panels as tabs
+    when it is, and one under another when it is not. ``header`` is a panel drawn
+    as the line above the tabs. ``tools`` puts the Navigation window's forms
+    (header "tools") after the frame's panels, as the desktop's tabs follow
+    Route.
     """
     window: str
     part: str = ""
@@ -232,11 +220,11 @@ SECTIONS: tuple[Section, ...] = (
     Section(
         "objectives", "Objectives",
         parts=(Part("objectives", title="Objectives"),),
-        groups=("missions", "colonisation"),
+        groups=("missions", "colonisation", "survey"),
     ),
     Section(
         "career", "Career",
-        parts=(Part("career", title="Session / Career"),),
+        parts=(Part("career", title="Career / Session"),),
         groups=("session", "career"),
     ),
     Section(
@@ -273,12 +261,7 @@ def section_for_panel(panel_id: str, group: str) -> Optional[str]:
 
 
 def part_for_panel(sec: Section, panel_id: str, group: str) -> Part:
-    """Which frame of ``sec`` a wire panel already placed in it goes in.
-
-    Named panels first, then groups, as for sections; a panel no frame names
-    goes in the last frame, so it is shown rather than lost. EDAM applies the
-    same rule to the ``parts`` it is sent.
-    """
+    """Which frame of ``sec`` a wire panel already placed in it goes in."""
     for p in sec.parts:
         if any(panel_id == x or panel_id.startswith(x + ".") or panel_id.startswith(x + "-")
                for x in p.panels):
@@ -299,9 +282,8 @@ def wire_sections() -> list[dict]:
     """The sections as EDAM receives them, in rail order.
 
     ``columns`` and ``parts`` are the desktop window's own layout — the frames,
-    their titles, which column each sits in and its share of it — so EDAM
-    draws each section as the desktop does rather than laying the panels out
-    by itself.
+    their titles, which column each sits in and its share of it — so EDAM draws
+    each section as the desktop does.
     """
     return [{"id": s.id, "label": s.label, "groups": list(s.groups),
              "panels": list(s.panels), "columns": section_columns(s),
@@ -339,16 +321,13 @@ class Field:
 
 
 #: The strip's long facts. On a narrow window, a tablet or a phone they end in
-#: "…" rather than push fuel, hull and mode — what is checked at a glance —
-#: off the end. Every other fact is shown whole.
+#: "…" rather than push fuel, hull and mode — what is checked at a glance — off
+#: the end.
 GIVES_WAY = ("vessel", "location")
 
 
 def location_text(state) -> str:
     """Where the commander is: the system, and the body or station within it.
-
-    The body is written without the system's name when it starts with it —
-    "Col 285 Sector NK-R b20-0 · A 2" rather than the system twice.
     """
     system = str(getattr(state, "pilot_system", "") or "")
     body = str(getattr(state, "pilot_body", "") or "")
@@ -450,9 +429,8 @@ def squadron_text(state) -> str:
 
 def title_text(state) -> str:
     """The band's title: the commander, and their squadron when they are in
-    one — "CMDR MERRICK CALBRUIN // MINING AND LOGISTICS LTD [MALL]". The
-    squadron was a fact on the strip, the longest after the location, and
-    pushed fuel, hull and mode off the end of a tablet's screen."""
+    one — "CMDR MERRICK CALBRUIN // MINING AND LOGISTICS LTD [MALL]".
+    """
     return title_forms(state)[0]
 
 
@@ -479,11 +457,7 @@ def title_forms(state) -> list[str]:
 
 
 def strip(state) -> list[Field]:
-    """The header strip, left to right. Empty values are left out.
-
-    Credits are not here on purpose: EDCARS's header carries what a pilot checks
-    at a glance between other things, and the balance is not that.
-    """
+    """The header strip, left to right. Empty values are left out."""
     if state is None:
         return []
     out: list[Field] = []
@@ -513,24 +487,12 @@ def strip(state) -> list[Field]:
 
 
 def clock_text(now: Optional[datetime] = None) -> str:
-    """The local time of day, for the end of the strip.
-
-    Local whatever UseUTC says: that setting is for timestamps in the event
-    log, and this is the clock on the wall — the thing a commander who has
-    been flying since dinner has lost track of. The device draws its own.
-    """
+    """The local time of day, for the end of the strip."""
     return (now or datetime.now()).strftime("%H:%M")
 
 
 # ── Alerts ────────────────────────────────────────────────────────────────────
 
 def is_urgent(alert: dict) -> bool:
-    """Whether an alert should pulse the Alerts pill.
-
-    Danger and loss — shields down, hull, fuel, a fighter or the ship lost,
-    cargo stolen, an attack, session management ending the game. Not status:
-    a carrier's jump schedule, shields coming back up, a sign-in that has
-    expired, or a component that failed to load. The alerts component marks
-    each alert as it is raised; one without the mark is not urgent.
-    """
+    """Whether an alert should pulse the Alerts pill."""
     return bool((alert or {}).get("urgent"))

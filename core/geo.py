@@ -1,11 +1,4 @@
-"""
-core/geo.py — Planetary surface geometry helpers.
-
-Great-circle distance and bearing between two latitude/longitude points on a
-body of a given radius, used by the on-foot exobiology aid to tell a commander
-how far they are from a previous organic sample (clonal-distance spacing) and
-which way to head.
-"""
+"""core/geo.py — Planetary surface geometry helpers."""
 
 from __future__ import annotations
 
@@ -15,7 +8,7 @@ from typing import Optional
 
 def surface_distance(lat1: float, lon1: float, lat2: float, lon2: float,
                      radius_m: float) -> float:
-    """Great-circle distance in metres between two points on a sphere."""
+    """Great-circle distance in meters between two points on a sphere."""
     if radius_m <= 0:
         return 0.0
     p1, p2 = math.radians(lat1), math.radians(lat2)

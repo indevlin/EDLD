@@ -1,18 +1,12 @@
-"""
-core/panel_actions.py — the buttons under a window's tabs, for EDAM.
-
-The desktop window and the terminal dashboard draw these as footer buttons;
-a paired device is sent them with the panel they belong to and asks EDLD to
-press one (``cmd action``). Each runs exactly what the desktop button does.
+"""core/panel_actions.py — the buttons under a window's tabs, for EDAM.
 
     navigation.route   Follow: on/off · Copy Next · Clear Route
     cargo              Set Target · Gal. Avg
-    commander.info     Set Home System
+    commander.info     Set Home System (row: Home System)
+    colonisation.colonisation  clear:<market id> (row: Stop tracking)
 
-Copy Next copies to the clipboard of the computer EDLD runs on — the game's —
-ready to paste into the galaxy map, which is the point of pressing it from a
-phone. Set Target and Set Home take a search: the first press sends the text
-and gets back what matched, the second sends the one chosen.
+Set Target and Set Home take a search: the first press sends the text and
+gets back what matched, the second sends the one chosen.
 """
 from __future__ import annotations
 
@@ -39,7 +33,14 @@ def actions(core, panel_id: str) -> list[dict]:
                 {"id": "galavg", "label": "Gal. Avg"}]
     if panel_id == "commander.info" and plugins.get("spansh") is not None \
             and plugins.get("commander") is not None:
-        return [{"id": "home", "label": "Set Home System", "input": "System or station name…"}]
+        return [{"id": "home", "label": "Set Home System", "input": "System or station name…",
+                 "row": True}]
+    if panel_id == "colonisation.colonisation" and plugins.get("colonisation") is not None:
+        return [{"id": f"clear:{site.get('market_id')}",
+                 "label": f"Clear {site.get('station') or site.get('system') or 'site'}",
+                 "row": True}
+                for site in getattr(s, "colonisation_sites", []) or []
+                if site.get("market_id") is not None]
     return []
 
 
@@ -51,12 +52,6 @@ def footer(core, panel_id: str) -> str:
     if panel_id == "cargo":
         tgt = getattr(s, "cargo_target_market_name", "") or ""
         return f"→ {tgt}" if tgt else "No target set"
-    if panel_id == "commander.info":
-        from core.windows.commander import home_line
-        try:
-            return home_line(core)[1]
-        except Exception:
-            return ""
     return ""
 
 
@@ -67,6 +62,9 @@ def run(core, panel_id: str, action_id: str, *, device: str = "",
     if not any(a["id"] == action_id for a in actions(core, panel_id)):
         return {"ok": False, "message": "Not available."}
     plugins = core._plugins
+    if panel_id == "colonisation.colonisation" and action_id.startswith("clear:"):
+        ok = plugins["colonisation"].clear_site(int(action_id.split(":", 1)[1]))
+        return {"ok": ok, "message": "Site cleared." if ok else "Not tracked."}
     nav = plugins.get("navigation")
     if panel_id == "navigation.route":
         if action_id == "follow":

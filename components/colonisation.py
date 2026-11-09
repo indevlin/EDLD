@@ -1,32 +1,17 @@
-"""
-components/colonisation.py — Colonisation construction tracking with
-Raven Colonial API integration.
-
-Local tracking
-──────────────
-Watches ColonisationConstructionDepot, ColonisationContribution, CargoDepot,
-and related events to maintain a live picture of each active construction
-site's resource requirements and delivery progress.  Data is persisted to
-plugin storage and survives restarts.
-
-Raven Colonial integration
-──────────────────────────
-Syncs supply and contribution data to the Raven Colonial server when an API
-key is configured ([Colonisation] ApiKey in config.toml).  API calls run on
-a background daemon thread via a queue — all journal event handlers return
-immediately and never block.
+"""components/colonisation.py — Colonization construction tracking with Raven Colonial
+API integration.
 
 API base: https://ravencolonial100-awcbdvabgze4c5cq.canadacentral-01.azurewebsites.net
 Auth:
   Construction endpoints — no authentication headers required.
   Fleet carrier endpoints — rcc-cmdr and rcc-key headers.
 
-Commodity name normalisation
+Commodity name normalization
 ────────────────────────────
-Raven Colonial identifies commodities by their normalised journal name:
+Raven Colonial identifies commodities by their normalized journal name:
   strip leading '$', strip trailing '_name;', lowercase.
   e.g. '$grain_name;' → 'grain'
-       'grain' → 'grain' (already normalised)
+       'grain' → 'grain' (already normalized)
 
 State written to MonitorState
 ──────────────────────────────
@@ -49,8 +34,22 @@ _RAVEN_API_BASE = (
 _RAVEN_UA = f"EDLD/{VERSION} (ravencolonial integration)"
 
 
+#: Days without a contribution before a site is dropped.
+INACTIVE_DAYS = 7
+
+
+def _iso_now() -> str:
+    from datetime import datetime, timezone
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _iso_ago(days: int) -> str:
+    from datetime import datetime, timedelta, timezone
+    return (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
 def _raven_name(raw: str) -> str:
-    """Normalise a commodity name to the Raven Colonial canonical form.
+    """Normalize a commodity name to the Raven Colonial canonical form.
 
     Strips the '$' prefix and '_name;' suffix that Frontier uses in journal
     event fields, then lowercases.  Matches the reference plugin exactly:
@@ -73,7 +72,7 @@ def _short_station(station: str, system: str) -> str:
     if not station:
         return system or "Unknown"
     if station.startswith("$EXT_PANEL_ColonisationShip"):
-        return f"{system} (colonisation ship)" if system else "Colonisation Ship"
+        return f"{system} (colonization ship)" if system else "Colonization Ship"
     if "Construction Site: " in station:
         return station.split("Construction Site: ", 1)[1].strip()
     return station
@@ -81,9 +80,9 @@ def _short_station(station: str, system: str) -> str:
 
 class ColonisationPlugin(BasePlugin):
     PLUGIN_NAME        = "colonisation"
-    PLUGIN_DISPLAY     = "Colonisation"
+    PLUGIN_DISPLAY     = "Colonization"
     PLUGIN_DESCRIPTION = (
-        "Tracks colonisation construction resource requirements and delivery "
+        "Tracks colonization construction resource requirements and delivery "
         "progress.  Syncs to Raven Colonial (ravencolonial.com) when an API "
         "key is configured."
     )
@@ -157,26 +156,74 @@ class ColonisationPlugin(BasePlugin):
     def _restore(self) -> None:
         data = self.storage.read_json() or {}
         self.core.state.colonisation_sites = data.get("sites", [])
-        # Prune sites that were completed or failed — clear them so the block
-        # doesn't accumulate stale entries across sessions.
+        # market id → ISO time cleared by hand; depot events at or before it
+        # do not re-add the site.
+        self._cleared: dict[str, str] = dict(data.get("cleared", {}) or {})
+        self._backfill_activity()
         self._prune_finished_sites()
 
     def _save(self) -> None:
-        self.storage.write_json({"sites": self.core.state.colonisation_sites})
+        self.storage.write_json({"sites": self.core.state.colonisation_sites,
+                                 "cleared": self._cleared})
+
+    def _backfill_activity(self) -> None:
+        """Sites saved without "added": last ColonisationContribution, else
+        first ColonisationConstructionDepot, from the journal index; else now."""
+        missing = [s for s in self.core.state.colonisation_sites
+                   if not s.get("added") and not s.get("last_contribution")]
+        if not missing:
+            return
+        found: dict[int, dict] = {}
+        jdir = getattr(self.core, "journal_dir", None)
+        if jdir:
+            try:
+                from core.journal_index import index_for
+                want = {s.get("market_id") for s in missing}
+                for _f, ev in index_for(jdir).events(
+                        ("ColonisationContribution", "ColonisationConstructionDepot")):
+                    mid = ev.get("MarketID")
+                    if mid not in want:
+                        continue
+                    rec = found.setdefault(mid, {})
+                    if ev.get("event") == "ColonisationContribution":
+                        rec["last_contribution"] = ev.get("timestamp", "")
+                    else:
+                        rec.setdefault("added", ev.get("timestamp", ""))
+            except Exception as exc:
+                from core import debug as _dbg
+                _dbg.exception("[Colonization] site activity not read from the journals", exc)
+        now = _iso_now()
+        for site in missing:
+            rec = found.get(site.get("market_id"), {})
+            site["added"] = rec.get("added") or now
+            if rec.get("last_contribution"):
+                site["last_contribution"] = rec["last_contribution"]
+        self._save()
+
+    def clear_site(self, market_id) -> bool:
+        """Stop tracking a site. A later depot visit tracks it again."""
+        site = self._find_site(int(market_id))
+        if site is None:
+            return False
+        self.core.state.colonisation_sites.remove(site)
+        self._cleared[str(int(market_id))] = _iso_now()
+        self._save()
+        gq = self.core.gui_queue
+        if gq:
+            gq.put(("plugin_refresh", "colonisation"))
+        return True
 
     def _prune_finished_sites(self) -> None:
-        """Remove completed and failed sites from the tracked list.
-
-        Called on startup (after restore) and at the start of each new
-        session (LoadGame).  Completed/failed sites show a summary tick/cross
-        in the block during the session they finish; on the next login they
-        are gone automatically.
-        """
+        """Drop complete, failed and inactive sites (no contribution for
+        INACTIVE_DAYS since the last contribution, or since added).
+        Runs at restore and LoadGame."""
         state = self.core.state
         before = len(state.colonisation_sites)
+        cutoff = _iso_ago(INACTIVE_DAYS)
         state.colonisation_sites = [
             s for s in state.colonisation_sites
             if not s.get("complete") and not s.get("failed")
+            and (s.get("last_contribution") or s.get("added") or "9") >= cutoff
         ]
         if len(state.colonisation_sites) != before:
             self._save()
@@ -192,9 +239,14 @@ class ColonisationPlugin(BasePlugin):
     def _upsert_site(self, market_id: int, system_address: int | None,
                      system: str, station: str,
                      progress: float, complete: bool, failed: bool,
-                     resources: dict) -> None:
+                     resources: dict, at: str = "") -> None:
         state    = self.core.state
         existing = self._find_site(market_id)
+        cleared = self._cleared.get(str(market_id))
+        if existing is None and cleared and at and at <= cleared:
+            return
+        if existing is None and at and at < _iso_ago(INACTIVE_DAYS):
+            return
         if existing is not None:
             if system_address:
                 existing["system_address"] = system_address
@@ -214,7 +266,9 @@ class ColonisationPlugin(BasePlugin):
                 "complete":       complete,
                 "failed":         failed,
                 "resources":      resources,
+                "added":          at or _iso_now(),
             })
+            self._cleared.pop(str(market_id), None)
 
     # ── Event handling ────────────────────────────────────────────────────────
 
@@ -240,7 +294,8 @@ class ColonisationPlugin(BasePlugin):
                 system_address = event.get("SystemAddress")
                 if market_id is not None:
                     self._upsert_site(market_id, system_address, system, "",
-                                      0.0, False, False, {})
+                                      0.0, False, False, {},
+                                      event.get("timestamp", ""))
                     self._save()
                     if gq: gq.put(("plugin_refresh", "colonisation"))
 
@@ -275,7 +330,8 @@ class ColonisationPlugin(BasePlugin):
                 if market_id is not None:
                     self._upsert_site(market_id, self._current_system_address,
                                       system, station,
-                                      progress, complete, failed, resources)
+                                      progress, complete, failed, resources,
+                                      event.get("timestamp", ""))
                     self._current_market_id = market_id
                     state.colonisation_docked = True
                     self._save()
@@ -309,6 +365,8 @@ class ColonisationPlugin(BasePlugin):
                 site      = self._find_site(market_id) if market_id else None
                 if site is None:
                     return
+                site["last_contribution"] = max(site.get("last_contribution", ""),
+                                                event.get("timestamp", ""))
 
                 cargo_diff: dict = {}
                 for contrib in event.get("Contributions", []):
@@ -369,26 +427,23 @@ class ColonisationPlugin(BasePlugin):
                 if gq: gq.put(("plugin_refresh", "colonisation"))
 
             case "CarrierStats":
-                # Identifies our own FC — record the marketId so we know
-                # which carrier is ours when CargoTransfer/MarketBuy/Sell fire.
-                self._own_fc_market_id = event.get("CarrierID")
+                if event.get("CarrierType", "FleetCarrier") == "FleetCarrier":
+                    self._own_fc_market_id = event.get("CarrierID")
 
             case "FCMaterials":
                 # FCMaterials contains only commodities listed on the carrier's
-                # market, not the full physical cargo hold.  Full-replace syncs
+                # market, not the full physical cargo hold. Full-replace syncs
                 # are handled by on_capi_fleetcarrier() which receives the
                 # authoritative hold contents from the CAPI /fleetcarrier poll.
-                # Incremental deltas (CargoTransfer / MarketBuy / MarketSell)
-                # keep the server in sync between CAPI polls.
                 pass
 
             case "CargoTransfer":
                 # Fired when cargo moves between ship and carrier.
-                # Only act when we're docked at our own FC.
                 if (not self._api_key
                         or not self._fc_linked
                         or self._current_station_type != "FleetCarrier"
-                        or not self._own_fc_market_id):
+                        or not self._own_fc_market_id
+                        or self._current_market_id != self._own_fc_market_id):
                     return
                 diff: dict = {}
                 for t in event.get("Transfers", []):
@@ -410,7 +465,8 @@ class ColonisationPlugin(BasePlugin):
                 if (not self._api_key
                         or not self._fc_linked
                         or self._current_station_type != "FleetCarrier"
-                        or not self._own_fc_market_id):
+                        or not self._own_fc_market_id
+                        or self._current_market_id != self._own_fc_market_id):
                     return
                 key = _raven_name(event.get("Type", ""))
                 n   = int(event.get("Count", 0))
@@ -423,7 +479,8 @@ class ColonisationPlugin(BasePlugin):
                 if (not self._api_key
                         or not self._fc_linked
                         or self._current_station_type != "FleetCarrier"
-                        or not self._own_fc_market_id):
+                        or not self._own_fc_market_id
+                        or self._current_market_id != self._own_fc_market_id):
                     return
                 key = _raven_name(event.get("Type", ""))
                 n   = int(event.get("Count", 0))
@@ -599,8 +656,6 @@ class ColonisationPlugin(BasePlugin):
         """PATCH /api/project/{buildId} to strip construction-site prefix from buildName.
 
         The game writes station names like 'Orbital Construction Site: Khan Enterprise'.
-        Raven Colonial's reference plugin strips the prefix before saving so the
-        project shows a clean name on the website.
         """
         for prefix in ("Orbital Construction Site: ", "Planetary Construction Site: "):
             if raw_name.startswith(prefix):
@@ -611,7 +666,7 @@ class ColonisationPlugin(BasePlugin):
                         {"buildName": raw_name})
 
     def create_project(self, project_data: dict) -> dict | None:
-        """PUT /api/project/ to create a new colonisation project on Raven Colonial.
+        """PUT /api/project/ to create a new colonization project on Raven Colonial.
 
         project_data should contain at minimum:
             buildId, buildName, systemAddress, marketId, systemName
@@ -637,11 +692,7 @@ class ColonisationPlugin(BasePlugin):
 
     def _raven_get_and_contribute(self, system_address: int, market_id: int,
                                    cmdr: str, cargo_diff: dict) -> None:
-        """Look up project then POST commander contribution.
-
-        cargo_diff: {normalised_commodity_name: quantity_delivered}
-        No auth headers required for construction contribution endpoints.
-        """
+        """Look up project then POST commander contribution."""
         project = self._get_project(system_address, market_id)
         if not project:
             return
@@ -672,10 +723,8 @@ class ColonisationPlugin(BasePlugin):
     def _raven_check_completion(self, system_address: int, market_id: int) -> None:
         """Check whether a project completed on Raven Colonial while offline.
 
-        Fetches the project record and marks the local site complete if the
-        server reports it is finished.  Fires a dashboard refresh if state changes.
-        Only called when the site is still active locally — avoids redundant
-        network calls for sites already marked complete.
+        Fetches the project record and marks the local site complete if the server
+        reports it is finished.
         """
         project = self._get_project(system_address, market_id)
         if not project:
@@ -694,8 +743,6 @@ class ColonisationPlugin(BasePlugin):
     def _init_fc_link(self, cmdr_name: str) -> None:
         """Check whether this commander's FC is linked on Raven Colonial.
 
-        Calls GET /api/cmdr/{cmdr}/fc/all.  If the response contains our
-        FC's marketId we mark _fc_linked=True so cargo events are forwarded.
         Runs on the background API thread so it never blocks the event loop.
 
         Note: no initial cargo snapshot is pushed here.  assets_fc_materials
@@ -719,8 +766,6 @@ class ColonisationPlugin(BasePlugin):
     def _raven_update_fc_cargo(self, market_id: int, cargo: dict) -> None:
         """POST full cargo snapshot to /api/fc/{marketId}/cargo (full replace).
 
-        Used when FCMaterials fires — this is the authoritative snapshot of
-        what is physically stocked on the carrier.
         Requires rcc-cmdr and rcc-key authentication headers.
         """
         headers = {}
@@ -734,9 +779,6 @@ class ColonisationPlugin(BasePlugin):
     def _raven_supply_fc(self, market_id: int, diff: dict) -> None:
         """PATCH incremental cargo delta to /api/fc/{marketId}/cargo.
 
-        Used for CargoTransfer, MarketBuy, MarketSell — updates only the
-        commodities that changed rather than replacing the full manifest.
-        Positive values = cargo added to carrier; negative = removed.
         Requires rcc-cmdr and rcc-key authentication headers.
         """
         headers = {}
@@ -759,11 +801,6 @@ class ColonisationPlugin(BasePlugin):
 
     def _check_all_sites(self) -> None:
         """Query Raven Colonial for every active site and update completion state.
-
-        Uses GET /api/cmdr/{cmdr} to fetch all known projects in one call,
-        then matches against locally tracked sites by marketId.  Falls back
-        to per-site GET /api/system/{addr}/{mid} for sites not returned by
-        the commander endpoint (e.g. unlinked or legacy entries).
         """
         if not self._api_key:
             return
@@ -786,8 +823,6 @@ class ColonisationPlugin(BasePlugin):
         for site in active:
             market_id = site["market_id"]
             project   = cmdr_projects.get(market_id)
-            # Fall back to per-site lookup if not in commander list and we
-            # have a system address to query.
             if project is None and site.get("system_address"):
                 project = self._get_project(site["system_address"], market_id)
             if not project:
@@ -807,8 +842,7 @@ class ColonisationPlugin(BasePlugin):
         """Daemon thread: check all active sites for completion periodically.
 
         Waits 90 seconds on startup to let preload finish before the first
-        check, then repeats every hour.  Uses the API queue so checks run
-        on the API worker thread and don't block the main loop.
+        check, then repeats every hour.
         """
         import time as _time
         _time.sleep(90)   # let preload complete before hitting the network
@@ -822,9 +856,6 @@ class ColonisationPlugin(BasePlugin):
         """Called by DataProvider after a successful CAPI /fleetcarrier poll.
 
         cargo is the full physical hold: {commodity_name_lower: total_qty}.
-        This is authoritative — it includes unlisted colonisation bulk goods
-        that FCMaterials and Market.json do not expose.  Send as a full
-        replace to Raven Colonial so the server's state is exactly in sync.
         """
         if not (self._api_key and self._fc_linked and self._own_fc_market_id):
             return
@@ -853,4 +884,4 @@ class ColonisationPlugin(BasePlugin):
             parts.append(
                 f"{s['station'] or s['system']}: {pct}% ({remaining:,} t remaining)"
             )
-        return "- Colonisation: " + " | ".join(parts)
+        return "- Colonization: " + " | ".join(parts)

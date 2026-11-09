@@ -1,19 +1,14 @@
-"""
-tui/sell_modal.py — the sell table as a modal popup.
+"""tui/sell_modal.py — the sell table as a modal popup.
 
 Shows what the currently quoted market pays for each commodity, highest
-first, under a heading naming that market.  The table is the same dict the
-Markdown and HTML files are rendered from, so the popup and the files cannot
-disagree.
+first, under a heading naming that market.
 
 Two tabs.  Mineable opens first and is the short answer to the question
 actually asked on arriving with a hold full of ore: of the things that can be
 dug up, what does this place pay most for.  All Items is the same table
 unfiltered, for everything else being carried.
 
-Opened and closed with Ctrl+S, and closed with Escape.  The toggle works
-because a modal screen's own bindings take precedence over the app's, which
-is the same arrangement Ctrl+O uses for Preferences.
+Opened and closed with Ctrl+S, and closed with Escape.
 """
 
 from __future__ import annotations
@@ -74,9 +69,5 @@ class SellModal(ModalScreen):
     @staticmethod
     def _empty_text(kind: str) -> str:
         if kind == "mineable":
-            # Distinguished from the other empty case on purpose: a market
-            # that buys no ore is a real and useful answer, and reads very
-            # differently from having no prices at all.  Kept short enough to
-            # sit on one line in the modal, which is ~38 columns wide.
             return "No mineable goods bought here."
         return "No prices available yet."

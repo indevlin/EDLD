@@ -1,7 +1,4 @@
-"""
-components/explo_sync.py — keep the shared body database current.
-
-This component has no UI.  It does two things:
+"""components/explo_sync.py — keep the shared body database current.
 
 1. **Live write-through.**  It subscribes to the exploration / exobiology
    journal events and feeds each one to the shared :class:`Ingestor`, so the
@@ -13,9 +10,6 @@ This component has no UI.  It does two things:
    for the rest of the archive (every journal *except* the currently-active
    one, which the live path owns).  The import runs on a daemon thread so a
    multi-year archive never blocks startup, and is incremental across launches.
-
-The Exploration and Exobiology windows read the data this component maintains
-and can poll :meth:`import_progress` to show backfill status.
 """
 
 from __future__ import annotations
@@ -53,11 +47,6 @@ class ExploSyncPlugin(BasePlugin):
         self._db_error      = ""
         self._ingestor      = None
 
-        # A database that cannot be opened used to take the whole component
-        # down with it: on_load raised, the loader dropped explo_sync, and the
-        # Exploration and Exobiology windows fell back to their "nothing here
-        # yet" text.  Keep the component alive with the reason recorded so the
-        # windows can say what is actually wrong.
         try:
             self._ingestor = Ingestor(get_db())
             get_db().current_version()      # forces connect + migration
@@ -78,11 +67,6 @@ class ExploSyncPlugin(BasePlugin):
             if self._ingestor is not None:
                 self._ingestor.ingest(event)
         except Exception as e:
-            # A single unsupported/malformed event must never disrupt play, but
-            # the bare pass this used to be also hid a database that was failing
-            # every single write — the windows then showed their empty-state
-            # placeholder with nothing anywhere to say why.  Swallow it still,
-            # and count it so health() can report the truth.
             self._ingest_errors += 1
             if not self._first_error:
                 self._first_error = f"{type(e).__name__}: {e}"
@@ -144,7 +128,7 @@ class ExploSyncPlugin(BasePlugin):
         exclude = [active] if active else []
 
         # The importer gets its own connection so its per-journal transactions
-        # don't serialise against the live write-through path's connection.
+        # don't serialize against the live write-through path's connection.
         self._importer = JournalImporter(
             jdir,
             db=BodyDB(db_path()),
@@ -180,11 +164,7 @@ class ExploSyncPlugin(BasePlugin):
     # ── health (for the Exploration / Exobiology windows) ─────────────────────
 
     def health(self) -> Optional[str]:
-        """One-line reason the body data is unusable, or None when healthy.
-
-        The windows call this before falling back to their empty-state text so
-        a broken database reads as a fault rather than as an unvisited system.
-        """
+        """One-line reason the body data is unusable, or None when healthy."""
         if self._db_error:
             return f"body database unavailable — {self._db_error}"
         if self._ingestor is None:

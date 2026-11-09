@@ -1,18 +1,9 @@
-"""
-gui/blocks/navigation.py — Navigation block (Qt).
+"""gui/blocks/navigation.py — Navigation block (Qt).
 
 Route first, then the tabs described in core/tooltab.py: FSD, Neutron,
 Carrier, Survey, Nearby, Services, Discoveries.
 
-Route shows the route being flown — where you are on it, jumps and distance
-left, and what is ahead with each system's star class and leg length, against
-the range the ship has now (core/route_view.py). The same facts EDAM shows.
-
-Each of the others is a form and a button. Running one is asynchronous — the
-Spansh call runs on a background thread and posts the result back to the GUI
-thread through a Qt signal, which is the Qt equivalent of the Textual block's
-call_from_thread. Touching widgets from the worker thread would be a crash;
-the signal hop is what makes it safe.
+Each of the others is a form and a button.
 """
 
 from __future__ import annotations
@@ -304,9 +295,6 @@ class NavigationBlock(GuiBlock):
     # ── Refresh (state-driven content) ────────────────────────────────────────
 
     def refresh_data(self) -> None:
-        # Fields that follow the game — From the system you are in, Range the
-        # range your ship has with a full tank and its cargo, the carrier's
-        # system, cargo and tritium — follow it until you type in them.
         self._route_rows.set_rows(self._route_widgets())
         self._refresh_tools()
         self._refresh_footer()

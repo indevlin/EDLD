@@ -1,12 +1,5 @@
-"""
-tests/test_automation.py — bindings, the key table, and the sequences that
+"""tests/test_automation.py — bindings, the key table, and the sequences that
 press them.
-
-No key reaches a real keyboard here: the sequences run against a recording
-keyboard and a Status.json the test writes, and the focus check is stood in
-for. What is checked is what each sequence presses, in what order, and that
-it stops — releasing the fire group it moved — the moment the game's state
-says it should.
 """
 from __future__ import annotations
 

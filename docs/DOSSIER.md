@@ -68,7 +68,7 @@ it arrives.
 For a ring hotspot, the rate counts the hotspot's commodity refined while
 mining: the refinements of a visit over the time from its first refinement to
 its last. Visits shorter than five refinements over two minutes still count
-toward the total refined, but not toward the rate. A visit is recognised when
+toward the total refined, but not toward the rate. A visit is recognized when
 the hotspot was your supercruise destination and you dropped into its ring.
 
 ## What is left out
@@ -92,7 +92,7 @@ dossier, nor in `dossier.json`.
   stored, transferred or sold, a carrier update — so a burst of changes is one
   rewrite.
 * When the dashboard theme or a `[Dossier]` setting changes. The web page uses
-  the theme's colours, custom themes included.
+  the theme's colors, custom themes included.
 * On request: **Rewrite now** in Options → Dossier.
 
 The first run reads every journal, which takes a second or two. After that

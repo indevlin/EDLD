@@ -1,5 +1,4 @@
-"""
-components/callouts.py — things worth saying the moment they happen.
+"""components/callouts.py — things worth saying the moment they happen.
 
 Sounds        One switch and a volume for every cue (core/sounds.py), and a
               cue on targeting a system: never reported, reported but not
@@ -16,10 +15,6 @@ Exobiology    A genus not yet in the commander's codex for this region,
               enough from every earlier sample to take the next.
 Limpets       Undocking with a limpet controller fitted and no limpets aboard,
               each type of controller switched on or off on its own.
-
-Mining callouts (prospector, motherlode, hold, ring) live with the Mining
-component, which owns that data; their settings are here so every callout is
-set up in one place. Each callout honours its level under Notifications.
 """
 from __future__ import annotations
 
@@ -388,8 +383,6 @@ class CalloutsPlugin(SettingsSpecMixin, BasePlugin):
         if drones > 0:
             warned.discard(ship)
             return
-        # Once per ship until it next leaves with limpets: a mining ship sent
-        # hauling empty on purpose is reminded once, not at every station.
         if ship in warned:
             return
         warned.add(ship)

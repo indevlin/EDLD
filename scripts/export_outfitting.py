@@ -1,29 +1,16 @@
 #!/usr/bin/env python3
-"""
-scripts/export_outfitting.py — every module's in-game name, class and rating.
+"""scripts/export_outfitting.py — every module's in-game name, class and rating.
 
-A journal module id says what a module is but not always how the game names or
-rates it. ``hpt_miningtoolv2_fixed_large`` is a 3C Mining Volley Repeater, and
-nothing in the id says C; ``int_largebuggybay_size4_class3`` is rated F, not
-the C its "class3" suggests. The community keeps that list — EDCD's FDevIDs,
-``outfitting.csv``: id, symbol, category, in-game English name, mount, class,
-rating — and data/outfitting.py is generated from it by this script:
+``hpt_miningtoolv2_fixed_large`` is a 3C Mining Volley Repeater, and nothing in
+the id says C; ``int_largebuggybay_size4_class3`` is rated F, not the C its
+"class3" suggests.
 
     python3 scripts/export_outfitting.py            # fetch it, write the table
     python3 scripts/export_outfitting.py FILE.csv   # from a copy on disk
 
 Names are FDevIDs' unless the game's journal names a module more fully.
-The journal's ``*_Localised`` names were checked for every module in a
-commander's journals (May to October 2026). Most are the game's abbreviations
-— "FSD (SCO)", "AFM Unit", "Heatsink", "Prospector" — where the outfitting
-and modules screens use the full name FDevIDs carries. A few are fuller than
-FDevIDs, and the modules screen agrees with the journal; those are
-JOURNAL_NAMES, below, and they win. Ratings were also checked against
-EDSY's module database; its corrections and the modules FDevIDs lacks are
-EDSY, below.
 
-Run it again when Frontier adds modules. A module the table does not have yet
-is still named, by the rules in data/modules.py, only without its rating.
+Run it again when Frontier adds modules.
 """
 from __future__ import annotations
 
@@ -45,8 +32,7 @@ CATEGORIES = ("standard", "internal", "hardpoint", "utility")
 MOUNTS = {"Fixed": "Fixed", "Gimballed": "Gimballed", "Turreted": "Turret"}
 
 
-#: Where the game's own name is fuller than FDevIDs'. Each was seen in
-#: journal ``*_Localised`` fields and on the in-game modules screen.
+#: Where the game's own name is fuller than FDevIDs'.
 JOURNAL_NAMES = {
     # "POINT DEFENCE TURRET" on the modules screen; FDevIDs: "Point Defence".
     "Point Defence": "Point Defence Turret",

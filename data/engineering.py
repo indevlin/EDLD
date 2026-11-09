@@ -1,8 +1,7 @@
-"""
-data/engineering.py — Engineering blueprint and experimental effect display names.
+"""data/engineering.py — Engineering blueprint and experimental effect display names.
 
-Keys are lowercase internal names as emitted in journal events
-(BlueprintName, ExperimentalEffect).  Values are the in-game display strings.
+Keys are lowercase internal names as emitted in journal events (BlueprintName,
+ExperimentalEffect).
 """
 from __future__ import annotations
 import re as _re

@@ -1,5 +1,4 @@
-"""
-core/server/service.py — the listener, connections, and change publishing.
+"""core/server/service.py — the listener, connections, and change publishing.
 
 Threads
 -------
@@ -7,10 +6,6 @@ accept      takes connections and hands each to its own thread
 connection  one per device: TLS handshake, pairing or hello, then commands
 publisher   while any device is connected, rebuilds the model every
             :data:`TICK_S` and sends each device the panels that changed
-
-The publisher does nothing at all while no device is connected, which is the
-normal state: a glance-and-go client connects when the app opens and leaves
-when it closes.
 
 Trust
 -----
@@ -21,9 +16,7 @@ OpenSSL itself refuses any certificate that was never paired or has since been
 revoked.  A connection presenting no certificate may do exactly one thing:
 offer a pairing code, and only while a ticket from ``edld --pair`` is open.
 
-Failures here are never silent.  A port that cannot be bound, a device that
-fails the handshake, a component that throws while building a panel — each is
-logged, and the ones a commander must act on are raised in the Alerts pane.
+Failures here are never silent.
 """
 
 from __future__ import annotations
@@ -135,7 +128,7 @@ class ServerService:
     # ── lifecycle ─────────────────────────────────────────────────────────────
 
     def start(self) -> None:
-        """Bind and start serving.  Raises OSError if the port cannot be had."""
+        """Bind and start serving."""
         self._rebuild_context()
         self._sock = self._bind(str(self.settings.get("BindAddress", "") or ""),
                                 int(self.settings.get("Port", 0) or 0))
@@ -156,9 +149,6 @@ class ServerService:
         for line in self.firewall_advice:
             self._log(f"[server] {line}")
         # Pushed at every start only when EDLD can see the port is blocked.
-        # A firewall whose rules it cannot read — ufw, from an ordinary
-        # account — would otherwise raise the same alert on every launch
-        # long after the commander had opened the port.
         if self.firewall_certain:
             self._alert("This computer's firewall blocks devices — see "
                         "Options → Server, or run edld --pair")
@@ -323,11 +313,8 @@ class ServerService:
             try:
                 tls = ctx.wrap_socket(conn, server_side=True)
             except (ssl.SSLEOFError, ConnectionResetError):
-                # Connected and hung up without a word.  From this machine that
+                # Connected and hung up without a word. From this machine that
                 # is the port check edld --pair makes, and not worth a line.
-                # From anywhere else it is a device that reached EDLD and gave
-                # up, which is exactly what someone chasing a failed pairing
-                # needs to see, so it is logged, once a minute per address.
                 conn.close()
                 if not _is_loopback(host):
                     now = time.monotonic()
@@ -503,10 +490,6 @@ class ServerService:
 
     def end_session_allowed(self) -> tuple[bool, str]:
         """Whether a device may end the game session right now, and why not.
-
-        The same Solo-only rule session management enforces on its own
-        triggers, checked here so the device can say why the button is
-        unavailable, and enforced again by the session manager itself.
         """
         if not bool(self.settings.get("AllowEndSession", False)):
             return False, "disabled in EDLD settings"
@@ -599,10 +582,9 @@ class ServerService:
         threading.Thread(target=_work, daemon=True, name=f"server-tool-{tool_id}").start()
 
     def _action(self, client: _Client, cid, msg: dict) -> None:
-        """A button under a window's tabs (core/panel_actions.py): Follow,
-        Copy Next, Clear Route, Set Target, Gal. Avg, Set Home. A search can
-        take a while, so it runs on its own thread; the result carries what
-        matched, for the device to choose from."""
+        """A button under a window's tabs (core/panel_actions.py): Follow, Copy
+        Next, Clear Route, Set Target, Gal. Avg, Set Home.
+        """
         from core import panel_actions
         panel_id, action_id = str(msg.get("panel") or ""), str(msg.get("action") or "")
         text = msg.get("input")

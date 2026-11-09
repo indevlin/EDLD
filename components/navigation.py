@@ -1,7 +1,4 @@
-"""
-components/navigation.py — route store and clipboard route-follower.
-
-Two jobs:
+"""components/navigation.py — route store and clipboard route-follower.
 
 1. **Route store.**  Routes plotted inside EDLD (Spansh neutron, EDSM FSD,
    Spansh fleet carrier) are converted to the game's own ``NavRoute.json``
@@ -14,18 +11,10 @@ Two jobs:
    That is the whole workflow for neutron jumping and carrier hauling, where
    every leg has to be plotted by hand.
 
-Which route is followed
------------------------
-Whichever was created most recently — the EDLD route's stored timestamp
-against ``NavRoute.json``'s.  A neutron route plotted in EDLD is the master
-waypoint list, while the in-game route only ever holds the current leg, so
-EDLD normally wins; but plotting fresh in-game then correctly takes over
-instead of being shadowed by a week-old Spansh route.
-
 Hyperspace awareness
 --------------------
 ``StartJump`` with ``JumpType: "Hyperspace"`` names the system being jumped
-to, and once that fires the jump cannot be cancelled.  The commander's
+to, and once that fires the jump cannot be canceled.  The commander's
 effective position is therefore the destination, not the system they are
 leaving.  Copy Next uses that so pressing it mid-tunnel gives the system
 *after* the one you are arriving at, not the one you are arriving at.
@@ -76,12 +65,7 @@ def read_nav_route_file(journal_dir) -> dict | None:
 
 
 def route_signature(doc: dict | None) -> str:
-    """Stable identity for a route document.
-
-    Timestamp plus endpoints plus length — enough that re-plotting the same
-    trip produces a different signature (the timestamp moves), which is what
-    "Clear Route, then plot again" depends on.
-    """
+    """Stable identity for a route document."""
     if not doc:
         return ""
     route = doc.get("Route") or []
@@ -100,11 +84,6 @@ def spansh_result_to_navroute(result: dict, kind: str, plot: dict | None = None)
       neutron  Spansh /api/route      → system_jumps[], keys system/x/y/z
       fsd      EDSM greedy router     → system_jumps[], keys system/star_pos
       carrier  Spansh fleetcarrier    → jumps[],        keys name/id64/x/y/z
-
-    Extra per-waypoint detail that the game's schema has no room for
-    (fuel, restock, neutron flags) is preserved under an ``EDLD`` key on each
-    entry, so the route file stays readable as a NavRoute while keeping
-    everything the UI wants to show.
     """
     if not isinstance(result, dict):
         return None
@@ -240,8 +219,7 @@ class NavigationPlugin(SettingsSpecMixin, BasePlugin):
     def active_route(self) -> tuple[list, str]:
         """Return (route entries, source label).
 
-        Source is "edld", "journal", or "" when there is no route.  The more
-        recently created of the two wins; see the module docstring.
+        Source is "edld", "journal", or "" when there is no route.
         """
         edld = self._edld_route
         journal = self._journal_route()
@@ -362,11 +340,6 @@ class NavigationPlugin(SettingsSpecMixin, BasePlugin):
 
     def _retire_completed_route(self) -> None:
         """Drop the EDLD route once its final destination has been reached.
-
-        Without this the route outlives the trip: the commander jumps onward,
-        is no longer on it, and the footer reports being off a route they
-        finished days ago.  Only EDLD's own route is retired — the game's
-        NavRoute.json is the game's to manage.
         """
         doc = self._edld_route
         route = (doc or {}).get("Route") or []
@@ -420,11 +393,7 @@ class NavigationPlugin(SettingsSpecMixin, BasePlugin):
         return self.core.state.nav_follow_enabled
 
     def effective_current_system(self) -> str:
-        """The system to route from.
-
-        Mid-hyperspace this is the destination, because the jump can no
-        longer be cancelled — see the module docstring.
-        """
+        """The system to route from."""
         s = self.core.state
         return (s.nav_transit_to or "").strip() or (s.pilot_system or "").strip()
 

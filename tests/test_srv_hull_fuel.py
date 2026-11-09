@@ -1,13 +1,7 @@
-"""
-tests/test_srv_hull_fuel.py — an SRV's hull and fuel are not the ship's.
+"""tests/test_srv_hull_fuel.py — an SRV's hull and fuel are not the ship's.
 
 From a real session, 20261018: driving the SRV Rhino, it rolled and its hull
-fell to 20% in a second. The alerts component wrote that to the ship's hull
-and announced "Ship hull: 20%" over a ship at 100%; the crew component posted
-the same damage to the terminal and Discord a second time; and on the next
-start the hull bootstrap read it back as the ship's. Resuming in the SRV,
-LoadGame's FuelLevel — the SRV's, 0 — and Status.json's FuelMain — 0 in an
-SRV — put the ship's fuel at 0% in red.
+fell to 20% in a second.
 """
 from __future__ import annotations
 

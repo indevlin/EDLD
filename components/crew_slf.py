@@ -1,8 +1,6 @@
-"""
-components/crew_slf.py — NPC Crew and SLF (Support Landing Fighter) state.
+"""components/crew_slf.py — NPC Crew and SLF (Support Landing Fighter) state.
 
 Owns: crew_*, slf_*, has_fighter_bay, cmdr_in_slf, fighter_integrity.
-Dashboard block: crew / SLF.
 """
 
 import re
@@ -57,11 +55,6 @@ class CrewSlfPlugin(BasePlugin):
 
     def _bootstrap_type_from_journals(self) -> None:
         """Scan journals for the most recent RestockVehicle for the CURRENT ship.
-
-        Scans newest-first, tracking which ShipID was active at each point via
-        Loadout events. Only accepts a RestockVehicle that occurred while the
-        current ship was active — avoids picking up fighter types from other
-        ships the player owns.
         """
         try:
             from core.state import resolve_fighter_name as _rfn
@@ -115,8 +108,6 @@ class CrewSlfPlugin(BasePlugin):
         """Scan recent journals for the last CrewAssign {Role: Active} event.
 
         Called when Loadout fires and SLF type is unknown (state reset path).
-        Finds the most recent CrewAssign to restore crew_name authorit-
-        atively — regardless of NpcCrewPaidWage event ordering.
         """
         try:
             from core.journal_index import index_for
@@ -153,8 +144,6 @@ class CrewSlfPlugin(BasePlugin):
                 if gq: gq.put(("plugin_refresh", "crew_slf"))
 
             case "Loadout":
-                # Track which ship we're on — used by bootstrap to avoid
-                # picking up RestockVehicle events from other ships.
                 state.slf_ship_id = event.get("ShipID")
                 # Fighter bay detection — drives crew and SLF visibility
                 slf_found = False
@@ -186,9 +175,6 @@ class CrewSlfPlugin(BasePlugin):
                     state.slf_loadout  = None
                     state.crew_active  = False
                     state.crew_name    = None
-                    # Bootstrap crew_name from the last CrewAssign in journals
-                    # so we don't rely on NpcCrewPaidWage ordering to identify
-                    # who the active crew member is.
                     import threading as _ct
                     _ct.Thread(
                         target=self._bootstrap_crew_from_journals,
@@ -202,10 +188,7 @@ class CrewSlfPlugin(BasePlugin):
 
             case "FighterDestroyed":
                 # The fighter is gone whichever way it went; the display
-                # follows. Whether it was lost is core/engagement.py's call:
-                # the game writes this event for a fighter the ship jumps
-                # away from, and earlier tests of "the previous event was
-                # StartJump" missed it whenever a chat line came between.
+                # follows.
                 from core import engagement
                 state.slf_deployed = False
                 state.slf_docked   = False
@@ -299,9 +282,7 @@ class CrewSlfPlugin(BasePlugin):
                             timestamp=logtime, loglevel=notify["FighterDamage"],
                         )
                 # The commander's own hull — ship or SRV — is the alerts
-                # component's: it records it and announces it. This branch did
-                # both again, so every hit was printed and posted to Discord
-                # twice, and an SRV's damage was written over the ship's hull.
+                # component's: it records it and announces it.
 
             case "CrewHire":
                 # Hiring a new NPC crew member.  Frontier supplies their
@@ -329,10 +310,7 @@ class CrewSlfPlugin(BasePlugin):
                         if gq: gq.put(("crew_update", None))
 
             case "CrewFire":
-                # Firing an NPC.  Drop them from the rank cache, and if
-                # they were the active crew, clear active state so the
-                # display doesn't keep showing a fired pilot's name and
-                # rank between the fire and the next CrewAssign.
+                # Firing an NPC.
                 name = event.get("Name")
                 if name:
                     if hasattr(state, "crew_known_ranks"):
@@ -385,9 +363,6 @@ class CrewSlfPlugin(BasePlugin):
             case "NpcCrewRank":
                 rank_name = event.get("NpcCrewName")
                 new_rank  = event.get("RankCombat")
-                # Always cache by name — even when the rank-up is for an
-                # inactive crew member, we want the value ready for the
-                # moment they're activated.
                 if rank_name and isinstance(new_rank, int):
                     if not hasattr(state, "crew_known_ranks"):
                         state.crew_known_ranks = {}

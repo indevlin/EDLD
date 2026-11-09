@@ -1,11 +1,4 @@
-"""
-components/exploration.py — Exploration session tracking.
-
-Tracks FSD jumps and distance, FSS/DSS scans, estimated unsold scan value
-(accumulated from Scan events using Frontier's body value formula), realised
-cartography sale value, notable body type counts (ELW, Water Worlds, etc.),
-FSS completion progress, habitable zone for the current system's arrival star,
-and active nav route progress.
+"""components/exploration.py — Exploration session tracking.
 
 Body value formula (from Frontier community research):
   Base = k + (3 * k * mass^0.199977 / 5.3)
@@ -63,7 +56,7 @@ _HZ_TARGETS: list[tuple[str, float, float]] = [
     ("Water",  307.0, 156.0),
     ("Ammonia",193.0, 117.0),
 ]
-_LS = 300_000_000.0   # 1 ls in metres
+_LS = 300_000_000.0   # 1 ls in meters
 
 
 def _hz_dist_ls(radius_m: float, t_star: float, t_hz: float) -> float:
@@ -263,7 +256,7 @@ class ActivityExplorationPlugin(BasePlugin, ActivityProviderMixin):
                 if gq: gq.put(("stats_update", None))
 
             case "NavRouteClear":
-                # Route was cancelled; state.nav_route will be empty
+                # Route was canceled; state.nav_route will be empty
                 if gq: gq.put(("stats_update", None))
 
     # ── Helpers ───────────────────────────────────────────────────────────────
@@ -350,10 +343,5 @@ class ActivityExplorationPlugin(BasePlugin, ActivityProviderMixin):
                     "rate":  None,
                 })
 
-        # Nav route progress is deliberately absent here.  The Navigation
-        # window owns the route — including the follower's next-system
-        # readout in its footer — and repeating remaining jumps and next
-        # destination in the Session summary duplicated it in a place nobody
-        # looks for routing.
 
         return rows

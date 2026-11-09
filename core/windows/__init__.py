@@ -1,33 +1,16 @@
-"""
-core/windows — what each dashboard window shows, as data, once.
-
-Every window used to be written three times: as Qt widgets for the desktop
-window, as Textual widgets for the terminal dashboard, and a third time for
-EDAM in core/panel_model.py, each deciding for itself which rows to show and
-how to word them. They drifted: the desktop's Ship window had an Engineering
-tab EDAM never received, its Career window ten tabs where EDAM had twelve
-different ones, its Navigation window eight tabs where EDAM had two.
-
-Here each window's tabs are built once as rows, in the vocabulary the blocks
-were already written in, and all three draw them:
+"""core/windows — what each dashboard window shows, as data, once.
 
     ("hdr", title)                       a section heading
-    ("kv", label, value, classes)        a row; classes as the blocks use them
-                                         ("val", "val dim", "val health-warn"…)
+    ("kv", label, value, classes[, action])  a row; classes as the blocks use them
+                                         ("val", "val dim", "val health-warn"…);
+                                         action: a core.panel_actions id pressed
+                                         by clicking the row
     ("text", body, classes)              a line of text
     ("rule",)                            a horizontal rule
     ("toggle", text, "system"|"site", key) a heading that collapses its group
     ("table", label, [(heading, width), …])  column headings over the cells
                                          below; label heads the label column
-    ("cells", label, [value, …], classes) a row of a table
-
-Text may carry the markup both interfaces draw ([green]…[/green], [b]…[/b]).
-gui/block_base.py and tui/block_base.py render rows with ``render_rows``;
-core/server/protocol.py turns them into wire rows, the markup and classes
-into a tone, the tables into cells (``wire_rows``).
-
-A window's model is a list of Tabs. A tab can hold pages — tabs of its own,
-as the Ship window's Engineering tab holds one per grade of material.
+    ("cells", label, [value, …], classes[, action]) a row of a table
 """
 from __future__ import annotations
 
@@ -78,9 +61,10 @@ class R:
     """Row constructors, named as the blocks' own helpers are."""
 
     @staticmethod
-    def kv(label, value="—", classes: str = "val") -> tuple:
-        return ("kv", "" if label is None else str(label),
-                "—" if value is None else str(value), classes)
+    def kv(label, value="—", classes: str = "val", action: str | None = None) -> tuple:
+        row = ("kv", "" if label is None else str(label),
+               "—" if value is None else str(value), classes)
+        return row + (action,) if action else row
 
     @staticmethod
     def hdr(title) -> tuple:
@@ -99,8 +83,9 @@ class R:
         return ("table", str(label), [(str(h), int(w)) for h, w in columns])
 
     @staticmethod
-    def cells(label, values, classes: str = "val") -> tuple:
-        return ("cells", str(label), [str(v) for v in values], classes)
+    def cells(label, values, classes: str = "val", action: str | None = None) -> tuple:
+        row = ("cells", str(label), [str(v) for v in values], classes)
+        return row + (action,) if action else row
 
 
 @dataclass
@@ -171,6 +156,8 @@ def wire_rows(rows) -> list[dict]:
             tone = tone_of(row[3] if len(row) > 3 else "", row[2]) or vtone or ltone
             if tone:
                 r["tone"] = tone
+            if len(row) > 4 and row[4]:
+                r["action"] = row[4]
             out.append(r)
         elif kind == "text":
             body, tone = plain(row[1])
@@ -194,5 +181,7 @@ def wire_rows(rows) -> list[dict]:
             tone = tone_of(row[3] if len(row) > 3 else "", " ".join(row[2]))
             if tone:
                 r["tone"] = tone
+            if len(row) > 4 and row[4]:
+                r["action"] = row[4]
             out.append(r)
     return out

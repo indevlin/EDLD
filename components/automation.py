@@ -1,11 +1,5 @@
-"""
-components/automation.py — auto honk, the next route system after a
+"""components/automation.py — auto honk, the next route system after a
 supercharge, and the Helm panel's keys.
-
-Everything here presses the game's own keys (core/keys.py) through the
-commander's own bindings (core/binds.py), and only while the game has the
-focus and nothing has changed under the sequence (core/automation.py). All of
-it is off until turned on.
 
 Auto honk       On arriving in a system this commander has never honked or
                 mapped, hold the discovery scanner's trigger once the ship is
@@ -252,7 +246,7 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
 
     def helm_view(self):
         """The Helm panel for EDLD's own interfaces (core/helm.View): every
-        control, those that cannot be pressed greyed with the reason."""
+        control, those that cannot be pressed grayed with the reason."""
         from core import helm as H
         cfg = self.settings()
         enabled = bool(cfg.get("Enabled"))
@@ -361,8 +355,8 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
 
     def binding_report(self) -> str:
         """What each sequence presses, what it is bound to, and whether EDLD
-        can press it — so a binding EDLD cannot use is found here rather
-        than halfway through a jump."""
+        can press it — so a binding EDLD cannot use is found here.
+        """
         from core import automation as A
         from core.binds import action_name
         cfg = self.settings()

@@ -97,11 +97,7 @@ class AddStationDialog(QDialog):
 class EditStationDialog(QDialog):
     """Change the selected station's name and address.
 
-    exec() returns Accepted once the change is written.  Where it is written
-    is not a choice here: it goes to the layer the station already lives in,
-    which the form states so the commander knows which file section changed.
-    Validation and the write are ``RadioController.edit_station``'s, shared
-    with the terminal form.
+    exec() returns Accepted once the change is written.
     """
 
     def __init__(self, controller, station_id: str, parent=None) -> None:

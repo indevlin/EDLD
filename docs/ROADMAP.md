@@ -78,10 +78,10 @@ filename rather than modification time, and the SRV's hold is restored at
 startup. Each of these was a case of the manifest disagreeing with the game;
 see the changelog for what each one looked like from the outside.
 
-**Sell table and commodity catalogue** (20260912) — `Ctrl+S` in either
+**Sell table and commodity catalog** (20260912) — `Ctrl+S` in either
 interface opens what the quoted market pays for each commodity, most valuable
 first, on a Mineable tab with All Items behind it. The same table is written
-beside the catalogue as Markdown and HTML on every market read.
+beside the catalog as Markdown and HTML on every market read.
 
 Two decisions in there are worth keeping if this is extended. Carrier markets
 are excluded everywhere the table is concerned — they are player-run and
@@ -89,7 +89,7 @@ mobile, and the test is a substring match on the station type rather than a
 list, because Frontier writes `FleetCarrier` and Spansh writes `Drake-Class
 Carrier`. And a commodity with no galactic average is dropped from the table
 rather than shown: stations quote a sell price for carrier-only goods that no
-NPC will honour, which otherwise put a Titan Maw tissue sample near the top of
+NPC will honor, which otherwise put a Titan Maw tissue sample near the top of
 almost every market in the bubble.
 
 What can be mined lives in `data/mining.py` and is mostly category rather than
@@ -113,7 +113,7 @@ is on screen at once and rearranging swaps two windows rather than hiding one.
 
 Assets became tabs on Commander, Exobiology nested under the body it describes
 in Exploration, Cargo and Engineering became tabs on Ship, missions and
-colonisation became the Objectives window, Session became Career's first tab,
+colonization became the Objectives window, Session became Career's first tab,
 and Crew / SLF merged with Alerts. Hull, shields and fuel live on Commander's
 Info tab, which is the default view and therefore the one place they cost
 nothing to reach.
@@ -125,7 +125,7 @@ current defaults and rewritten once, on the next launch.
 **Spansh fleet-carrier routing** (20260905) — carrier routing works. The endpoint and parameter names had been correct all
 along; the two list-shaped parameters were being sent as JSON strings where
 Spansh's form parser expects repeated bare keys — jQuery's `traditional`
-serialisation — so a job was accepted with `HTTP 202` and then had no
+serialization — so a job was accepted with `HTTP 202` and then had no
 destination to route to. Routes come back with full per-jump fuel planning:
 tritium burned, tank level on arrival, restock stops and amounts, and which
 systems have a market or a pristine icy ring to mine.

@@ -1,9 +1,7 @@
-"""One rig site, one deposit — however the commodity was spelled, wherever
-the SRV was standing when it refined.
+"""One rig site, one deposit — however the commodity was spelled, wherever the
+SRV was standing when it refined.
 
-Reproduces Kitchang Mu 3 d on 2026-10-11: a Low Temp. Diamonds site recorded
-from the deposit form, then refined from two spots 180 m apart, became three
-deposits on the shared sheet.
+Reproduces Kitchang Mu 3 d on 2026-10-11: a Low Temp.
 """
 import pytest
 
@@ -66,7 +64,7 @@ def test_refines_across_one_rig_site_are_one_deposit(db):
 
 def test_a_neighbouring_site_stays_separate(db):
     db.record_deposit(SA, BID, "lowtemperaturediamond", *FORM, refined=1)
-    # 450 m due north: the closest real neighbours are 400-500 m apart.
+    # 450 m due north: the closest real neighbors are 400-500 m apart.
     north = (FORM[0] + 450 / (R * 3.141592653589793 / 180), FORM[1])
     _, created = db.record_deposit(SA, BID, "lowtemperaturediamond", *north, refined=1)
     assert created

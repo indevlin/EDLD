@@ -1,7 +1,6 @@
-"""
-tests/test_route_follower.py — route store and clipboard follower.
+"""tests/test_route_follower.py — route store and clipboard follower.
 
-Covers the behaviours that are easy to get subtly wrong:
+Covers the behaviors that are easy to get subtly wrong:
 
   * converting all three EDLD route shapes into the game's NavRoute schema
   * which route wins when both an EDLD route and an in-game route exist
@@ -9,9 +8,6 @@ Covers the behaviours that are easy to get subtly wrong:
     arrived at, not the one being left
   * Clear Route suppressing the *current* NavRoute.json but not a later one
   * never touching the clipboard during preload
-
-The clipboard itself is stubbed throughout; the container has no clipboard
-backend and the point here is the decision logic, not the OS call.
 """
 
 from __future__ import annotations
@@ -219,7 +215,7 @@ def test_mid_hyperspace_current_is_the_destination(plugin):
     plugin.core.state.pilot_system = "Sol"
     assert plugin.next_system()[0] == "Wolf 359"
 
-    # Tunnel to Wolf 359 — the jump can no longer be cancelled.
+    # Tunnel to Wolf 359 — the jump can no longer be canceled.
     plugin.on_event({"event": "StartJump", "JumpType": "Hyperspace",
                      "StarSystem": "Wolf 359"}, plugin.core.state)
     assert plugin.effective_current_system() == "Wolf 359"
@@ -370,11 +366,7 @@ def test_signature_changes_when_the_route_changes():
 
 
 def test_completed_edld_route_retires_itself(plugin):
-    """A finished route must not outlive the trip.
-
-    Otherwise the commander jumps onward, is no longer on it, and the footer
-    reports being off a route they finished days ago.
-    """
+    """A finished route must not outlive the trip."""
     st = plugin.core.state
     plugin.store_route(FSD, "fsd")            # Shana Bei -> Deciat
     assert plugin.active_route()[1] == "edld"

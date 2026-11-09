@@ -1,21 +1,9 @@
-"""
-gui/edcars.py — the desktop window in the EDCARS style.
+"""gui/edcars.py — the desktop window in the EDCARS style.
 
-A header band across the top, joined by an elbow to a rail down the left; the
-rail switches between sections of two or three framed windows. What is in
-each section, what the header carries and which alerts count as urgent are
-decided in core/edcars.py, which EDAM follows too. This file only draws them.
+The windows themselves are the dashboard's own blocks, unchanged, framed.
 
-The windows themselves are the dashboard's own blocks, unchanged, framed. Two
-are split between sections: the Commander window's fleet tabs make the Fleet
-section, and Crew / Alerts gives its crew half to Command while alerts get a
-section of their own and the radio a strip along the foot. The Helm panel
-(gui/blocks/helm.py) has a section to itself, its buttons drawn as pills.
-
-Shapes are painted, colours come from the theme's palette — custom themes
-included. How the band, the pills and the frames are drawn, and in which
-faces, is the console's (gui/consoles.py): EDCARS's own, with its headings in
-Euro Caps, or ORDER, REBEL or ROGUE, chosen in Options → Appearance.
+Shapes are painted, colors come from the theme's palette — custom themes
+included.
 """
 from __future__ import annotations
 
@@ -55,28 +43,16 @@ def caps_family() -> str:
 
 
 def caps_font(pt: float, bold: bool = True) -> QFont:
-    """The worn console's chrome face — the band's title and clock, the
-    strip's labels and the rail's pills.
-
-    For EDCARS, bold, which Euro Caps has no weight of: it is drawn
-    thickened, with its kerning off and a little more spacing (see
-    gui/consoles.py). A style sheet cannot turn kerning off, so this is set on
-    the widget as well as its rule. The two merge: the rule gives the family,
-    size and weight (and must, or the application's own style sheet's size
-    wins), and this font the kerning and spacing the rule says nothing about.
+    """The worn console's chrome face — the band's title and clock, the strip's
+    labels and the rail's pills.
     """
     return C.worn().font(pt, bold)
 
 
-# ── Colours ───────────────────────────────────────────────────────────────────
+# ── Colors ───────────────────────────────────────────────────────────────────
 
 class Ink:
-    """The theme's palette, plus the mixes EDCARS draws with.
-
-    The same proportions the dossier's web page uses, so the two read as one
-    design: pills are the accent 58 % of the way from the background, the
-    rail's filler 35 %, a hovered pill 82 %.
-    """
+    """The theme's palette, plus the mixes EDCARS draws with."""
 
     def __init__(self, theme: str) -> None:
         c = rgb(theme)
@@ -100,7 +76,7 @@ class Ink:
 
 
 def _qss(ink: Ink) -> str:
-    # The scrollbars are EDCARS's own thin ones, a 3 px thumb in the cap colour
+    # The scrollbars are EDCARS's own thin ones, a 3 px thumb in the cap color
     # with no track, as EDAM draws them (ui/Scrollbars.kt); the Dashboard
     # layout keeps the theme's. The pills, the band's text, the frames' titles
     # and the Helm panel's buttons are the worn console's.
@@ -132,7 +108,7 @@ def dialog_qss(theme: str) -> str:
 
 def thin_scrollbars(ink: Ink, scope: str) -> str:
     """The thin scrollbars for everything under ``scope``: a 3 px thumb in the
-    cap colour with no track. Shared with the Options window when it is opened
+    cap color with no track. Shared with the Options window when it is opened
     from EDCARS (gui/preferences.py)."""
     s = scope
     return f"""
@@ -149,9 +125,7 @@ def thin_scrollbars(ink: Ink, scope: str) -> str:
 # ── Header ────────────────────────────────────────────────────────────────────
 
 class _ElidedLabel(QLabel):
-    """A label that ends in "…" when it does not fit, rather than holding the
-    window wider than the screen: a long squadron name after the
-    commander's would otherwise push the clock off a narrow window."""
+    """A label that ends in "…" when it does not fit."""
 
     def minimumSizeHint(self):
         hint = super().minimumSizeHint()
@@ -190,13 +164,7 @@ class _ElidedLabel(QLabel):
 
 
 class EdcarsHeader(QWidget):
-    """The band, the elbow, and the strip of facts.
-
-    The band carries the commander's name — and squadron, core.edcars.title_text
-    — and the clock; the strip under it
-    carries core.edcars.strip() — vessel, cargo, location, fuel, hull, mode —
-    and, while one is unacknowledged, the newest urgent alert.
-    """
+    """The band, the elbow, and the strip of facts."""
 
     def __init__(self, ink: Ink, parent=None) -> None:
         super().__init__(parent)
@@ -330,9 +298,7 @@ class _RailFill(QWidget):
 class RailPill(QPushButton):
     """A pill on the rail, or a page selector in a dialog dressed as one.
 
-    The style sheet draws it; the worn console then adds what a style sheet
-    cannot — ORDER's and REBEL's lamps — or, for ROGUE's tape and
-    toggles, draws all of it. ``ink`` is None for a plain button.
+    ``ink`` is None for a plain button.
     """
 
     def __init__(self, text: str, ink: Optional["Ink"] = None) -> None:
@@ -356,9 +322,6 @@ class RailPill(QPushButton):
 class EdcarsRail(QWidget):
     """The section pills, then Settings — the last pill, as on EDAM's rail —
     then the rail running on down to its foot.
-
-    Settings is not a section: it opens Options (``on_settings``) and leaves
-    the section showing as it was, so it is not one of the checkable pills.
     """
 
     def __init__(self, ink: Ink, on_pick: Callable[[str], None],
@@ -459,7 +422,7 @@ class EdcarsFrame(QWidget):
 
 class EdcarsAlerts(QWidget):
     """Every alert the alerts component holds, newest first, urgent ones in
-    the alert colour. The dashboard's Crew / Alerts window shows five; with a
+    the alert color. The dashboard's Crew / Alerts window shows five; with a
     section to itself there is room for all of them."""
 
     def __init__(self, core, ink: Ink, on_clear: Callable[[], None]) -> None:
@@ -521,13 +484,7 @@ class EdcarsAlerts(QWidget):
 # ── Radio strip ───────────────────────────────────────────────────────────────
 
 class EdcarsRadio(RadioPanel):
-    """The radio as a strip along the foot of the window.
-
-    The Radio tab's own controller and dialogs, laid out in one row: station,
-    add / edit / delete, play, volume, mute, and what is playing. Reuses the
-    tab's logic for everything but the drawing, so the two cannot disagree
-    about what a click does.
-    """
+    """The radio as a strip along the foot of the window."""
 
     def __init__(self, core) -> None:  # noqa: D401 — not RadioPanel.__init__
         QWidget.__init__(self)
@@ -609,12 +566,7 @@ class _Group:
 
 
 class EdcarsShell(QWidget):
-    """Header, rail, sections and radio strip.
-
-    Owns the blocks it frames and hands them to the window as ``blocks`` —
-    the same ids the Dashboard uses — so the window's event dispatch drives
-    both styles without knowing which one is showing.
-    """
+    """Header, rail, sections and radio strip."""
 
     #: Pulse half-period, and how long a pulse runs before it settles to a
     #: steady red: long enough to be noticed from the other side of a room,
@@ -774,9 +726,7 @@ class EdcarsShell(QWidget):
     def note_alerts(self) -> None:
         """Look for urgent alerts not seen before; pulse, and maybe switch.
 
-        Called whenever the alerts may have changed. An alert is identified by
-        when it was raised and what it says, so the same alert seen on the
-        next refresh is not new again.
+        Called whenever the alerts may have changed.
         """
         alerts = self.core.plugin_call("alerts", "get_alerts") or []
         fresh = []

@@ -1,8 +1,6 @@
-"""
-components/commander.py — Commander, ship, location, and powerplay state.
+"""components/commander.py — Commander, ship, location, and powerplay state.
 
 Owns: pilot_*, pp_*, ship_*, in_game, pilot_mode, location tracking.
-Dashboard block: commander.
 """
 
 import re
@@ -11,7 +9,6 @@ from core.plugin_loader import BasePlugin
 from core.state import RANK_NAMES
 from data.ships import SRV_TYPE_NAMES, is_suit, resolve_vehicle_name, suit_display
 from core.emit import Terminal
-
 
 
 def _read_nav_route_json(journal_dir) -> list | None:
@@ -140,14 +137,9 @@ class CommanderPlugin(BasePlugin):
         self.storage.write_json({}, "data.json")
 
     def home_distance_ly(self, current_star_pos: list | None) -> float | None:
-        """
-        Return distance in ly from current position to home, or None if
+        """Return distance in ly from current position to home, or None if
         either position is unknown or the current position has not yet been
         confirmed by a live (post-preload) Location or FSDJump event.
-
-        Returning None when position is stale prevents the block/bridge from
-        showing a wildly wrong distance calculated from the last historical
-        journal position rather than the player's actual current location.
         """
         import math
         if not self._star_pos_live:
@@ -180,11 +172,7 @@ class CommanderPlugin(BasePlugin):
     def _close_session_if_over(self, state, logtime) -> bool:
         """End the last session if it ended SESSION_GAP_MINUTES or more ago.
 
-        ``state.last_shutdown_time`` is when it ended: set by Shutdown, by an
-        exit to the main menu, or — when the client crashed and wrote neither
-        — by the last event of the previous journal, recovered before the
-        replay begins. A shorter gap is a bounce or a relaunch after a crash,
-        and the session carries on. Returns whether the session was ended.
+        Returns whether the session was ended.
         """
         from core.state import SESSION_GAP_MINUTES
         shutdown_ts = getattr(state, "last_shutdown_time", None)
@@ -218,8 +206,6 @@ class CommanderPlugin(BasePlugin):
                 # commander can sit at the main menu for hours, and until a
                 # mode is picked the dashboard would go on showing the last
                 # session as this one, its rates divided by every hour since.
-                # (Part 2 onward is the same session continuing in a new
-                # file, never a launch.)
                 if self._close_session_if_over(state, logtime):
                     state.last_shutdown_time = None
 
@@ -266,17 +252,13 @@ class CommanderPlugin(BasePlugin):
                 state.output_suspended   = False   # back in the game: speak again
                 # Resuming a save while in a surface vehicle reports the
                 # *vehicle* here — "Ship": "MEV_Rhino" — with ShipName and
-                # ShipIdent blank.  Taking that as the ship replaced the
-                # commander's actual vessel with "SRV Rhino" in every window
-                # that names it, and reset vessel_mode to "ship" when they
-                # were plainly in an SRV.
+                # ShipIdent blank.
                 raw_ship = str(event.get("Ship", "") or "")
-                # Resuming on foot names the *suit* the same way —
-                # "Ship": "ExplorationSuit_Class3", and for some suits a
-                # Ship_Localised the game never translated,
-                # "$ExplorationSuit_Class1_Name;" — which became the ship's
-                # type beside the last ship's name: "PROCURATOR (AN-PRO) ·
-                # $ExplorationSuit_Class1_Name;". The ship is left as it was.
+                # Resuming on foot names the *suit* the same way — "Ship":
+                # "ExplorationSuit_Class3", and for some suits a Ship_Localised
+                # the game never translated, "$ExplorationSuit_Class1_Name;" —
+                # which became the ship's type beside the last ship's name:
+                # "PROCURATOR (AN-PRO) · $ExplorationSuit_Class1_Name;".
                 on_foot = is_suit(raw_ship)
                 if raw_ship.lower() in SRV_TYPE_NAMES:
                     state.vessel_mode = "srv"
@@ -291,11 +273,6 @@ class CommanderPlugin(BasePlugin):
                     state.pilot_fid = fid
                     from core.state import set_active_fid
                     set_active_fid(fid)
-                # Reset timing anchors on every game launch — prevents a stale
-                # anchor from a previous session (e.g. crash, no Shutdown event)
-                # producing a wildly wrong burn rate estimate. The rate itself is
-                # kept as a warm-start estimate (same ship, same consumption)
-                # and will be refined after two ReservoirReplenished events.
                 core.active_session.fuel_check_time  = 0
                 core.active_session.fuel_check_level = 0
                 # A new session if the last one ended long enough ago —
@@ -319,15 +296,11 @@ class CommanderPlugin(BasePlugin):
                 state.suit_loadout = ""
                 state.suit_shields = True
                 if event.get("ShipIdent"): state.ship_ident = event["ShipIdent"]
-                # LoadGame carries FuelLevel (current) and FuelCapacity (tank max).
-                # Set both immediately so the fuel display is correct on login
-                # without waiting for the first ReservoirReplenished or Loadout.
-                # FuelCapacity in LoadGame is a plain float (not the {Main,Reserve}
-                # dict from the Loadout event), so handle both forms.
+                # LoadGame carries FuelLevel (current) and FuelCapacity (tank
+                # max). Set both immediately so the fuel display is correct on
+                # login without waiting for the first ReservoirReplenished or
+                # Loadout.
                 lg_fuel = event.get("FuelLevel")
-                # Resumed in an SRV, these are the SRV's — FuelLevel 0 — and
-                # put the ship's fuel at 0% until it was next reported. On
-                # foot they are the suit's: 1 of 1.
                 if lg_fuel is not None and state.vessel_mode == "ship":
                     state.fuel_current = float(lg_fuel)
                 lg_cap = event.get("FuelCapacity")
@@ -384,7 +357,7 @@ class CommanderPlugin(BasePlugin):
             case "Loadout":
                 # More fuel than the new tank holds is the last ship's: a swap
                 # writes no fuel level, so until Status.json or a refuel says,
-                # it is unknown rather than 128 t in a 32 t tank (400%).
+                # it is unknown.
                 _main = float((event.get("FuelCapacity") or {}).get("Main") or 0)
                 if (state.fuel_current is not None and _main >= 2
                         and state.fuel_current > _main + 0.01):
@@ -668,11 +641,6 @@ class CommanderPlugin(BasePlugin):
                 state.sessionend()
 
             case "CarrierJump":
-                # Written instead of FSDJump when the commander is aboard a
-                # fleet carrier as it jumps — docked or on foot in it.  Nothing
-                # read it here, so riding a carrier left the old system in the
-                # header, the Commander window and EDAM until the next jump of
-                # the commander's own.
                 state.pilot_system = event.get("StarSystem", state.pilot_system)
                 state.docked_at = _docked_record(event) if event.get("Docked") else None
                 if event.get("Docked") and event.get("StationName"):
@@ -803,12 +771,7 @@ class CommanderPlugin(BasePlugin):
 
 
 def _overlay_credits(value) -> str:
-    """Short credit formatting for the overlay.
-
-    Deliberately not fmt_credits(): the overlay has a fraction of the width of
-    a dashboard panel, and a full-precision balance is the single widest thing
-    that would ever be on it.
-    """
+    """Short credit formatting for the overlay."""
     try:
         v = float(value)
     except (TypeError, ValueError):

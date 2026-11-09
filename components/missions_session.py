@@ -1,10 +1,6 @@
-"""
-components/missions_session.py — Mission session tracking.
+"""components/missions_session.py — Mission session tracking.
 
 Tracks missions accepted, completed, failed, and credits earned.
-Includes massacre stack analysis: per-source-faction kill requirements,
-rewards (wing vs non-wing), stack height, delta-to-max, and warnings for
-mixed stacks (multiple target factions, types, or systems).
 
 Tab title: Missions
 """
@@ -17,7 +13,7 @@ from core.emit import fmt_credits
 def _strip_target_type(raw: str) -> str:
     """Return a clean target type label from a raw journal value."""
     s = raw or ""
-    # Strip localisation wrappers e.g. $MissionUtil_FactionTag_Pirate;
+    # Strip localization wrappers e.g. $MissionUtil_FactionTag_Pirate;
     if s.startswith("$") and s.endswith(";"):
         inner = s[1:-1]
         if "_" in inner:
@@ -184,10 +180,7 @@ class ActivityMissionsPlugin(BasePlugin, ActivityProviderMixin):
         return self.completed > 0 or self.failed > 0 or self.accepted > 0
 
     def get_session_rows(self) -> list[dict]:
-        """Accepted and Completed, plus Failed only when it happened.
-
-        A permanent "Failed  0" is a row that never says anything.
-        """
+        """Accepted and Completed, plus Failed only when it happened."""
         return [r for r in self.get_summary_rows()
                 if r["label"] != "Failed" or self.failed]
 

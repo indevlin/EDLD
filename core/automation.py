@@ -1,16 +1,4 @@
-"""
-core/automation.py — short key sequences, pressed only while it is safe.
-
-A binding is pressed as the commander has it: a key, or a mouse button when
-the action has no key — a mouse button only while the pointer is over the
-game, since a click goes to the window under it. An action bound only to a
-controller cannot be pressed, and the sequence says what it is bound to and
-what to change.
-
-Every sequence checks, before each key, that the game still has the focus and
-that nothing has changed under it — a panel opened, the ship dropped out of
-supercruise, a fight started — and stops there, releasing what it holds.
-Status.json, rewritten by the game twice a second, is how it knows.
+"""core/automation.py — short key sequences, pressed only while it is safe.
 
 ``honk``   hold the discovery scanner's trigger in its fire group.
 ``plot``   type a system into the galaxy map and plot to it, by a short
@@ -172,8 +160,7 @@ class Automation:
         """Why the discovery scanner cannot be fired now, or "" when it can.
 
         Auto honk (``anywhere`` False) waits for supercruise, where it always
-        is just after a jump. A honk from the Helm panel needs only the ship
-        in flight, in supercruise or normal space, as the game itself does.
+        is just after a jump.
         """
         if not st:
             return "the game's Status.json is not readable"
@@ -203,9 +190,7 @@ class Automation:
         one selected), then put the fire group back.
 
         ``anywhere``: in normal space as well as supercruise, for a honk
-        asked for from the Helm panel. Either way the ship must stay where
-        it began — dropping out of supercruise, or going into it, mid-honk
-        stops the sequence.
+        asked for from the Helm panel.
         """
         def _do():
             st = self._check(gui=None, bad_flags=0)

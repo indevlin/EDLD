@@ -1,11 +1,11 @@
 # Third-party notices
 
-ED Live Dashboard (EDLD) is distributed under the MIT licence (see `LICENSE`).
-It incorporates or depends on the components listed below. Where a licence
+ED Live Dashboard (EDLD) is distributed under the MIT license (see `LICENSE`).
+It incorporates or depends on the components listed below. Where a license
 requires its text to accompany distribution, that text is in `licenses/` and
 ships inside every release archive and every binary.
 
-| Component | Licence | Used by | Bundled in binaries |
+| Component | License | Used by | Bundled in binaries |
 |---|---|---|---|
 | **PySide6 / Qt** | **LGPL v3** | desktop window (EDCARS and `--dashg`) | yes |
 | **Textual** | MIT | terminal dashboard (`--dasht`) | yes |
@@ -35,11 +35,11 @@ charset-normalizer, markdown-it-py, mdurl, mdit-py-plugins, Pygments,
 platformdirs, typing-extensions, pycparser — are MIT, BSD, Apache 2.0 or PSF,
 all permissive. Their exact set varies with the versions a build picks up.
 
-**Every bundled package's own licence text ships inside each binary**, under
+**Every bundled package's own license text ships inside each binary**, under
 `licenses/third-party/<package>-<version>/`, copied at build time from the
 package metadata of the build environment, so the texts always match the
 versions actually shipped. Apache 2.0 NOTICE files are included the same way.
-A package with no licence file stops the build rather than shipping without
+A package with no license file stops the build rather than shipping without
 one. See `licence_files()` in `packaging/build_common.py`.
 
 Only PySide6 constrains how EDLD is packaged. See
@@ -52,8 +52,8 @@ Copyright 2020 The JetBrains Mono Project Authors
 <https://github.com/JetBrains/JetBrainsMono>
 
 Licensed under the SIL Open Font License, Version 1.1. The full text travels
-with the font in `fonts/OFL.txt`, which is what the licence requires. The OFL
-permits bundling with software provided the licence accompanies the font, the
+with the font in `fonts/OFL.txt`, which is what the license requires. The OFL
+permits bundling with software provided the license accompanies the font, the
 font is not sold by itself, and a modified copy is not distributed under the
 reserved family name. EDLD ships the files unmodified and sells nothing.
 
@@ -65,7 +65,7 @@ Saira: Copyright 2016 The Saira Project Authors, with reserved font name
 "Saira".
 VT323: Copyright 2011, The VT323 Project Authors.
 
-Each licensed under the SIL Open Font License, Version 1.1, and each licence's
+Each licensed under the SIL Open Font License, Version 1.1, and each license's
 full text travels beside its font: `fonts/OFL-Rajdhani.txt`,
 `fonts/OFL-SairaCondensed.txt` and `fonts/OFL-VT323.txt`. EDLD ships the
 files unmodified, under their own names, and sells nothing. The faces come
@@ -113,11 +113,11 @@ compiled-in certificate paths do not exist on most target machines. See
 
 The MPL is a file-level copyleft: it attaches to the covered files themselves,
 not to a work that merely ships alongside them. Bundling the certificate store
-unmodified therefore places no condition on EDLD's own licence. Were you to
+unmodified therefore places no condition on EDLD's own license. Were you to
 modify the bundle, those modifications would need to be made available under
 the MPL.
 
-The licence text is at https://mozilla.org/MPL/2.0/ and travels inside the
+The license text is at https://mozilla.org/MPL/2.0/ and travels inside the
 certifi package included in each binary.
 
 ## psutil
@@ -127,7 +127,7 @@ running, and by the session-management component to stop it.
 
 ## miniaudio
 
-pyminiaudio: Copyright © Irmen de Jong. MIT licence.
+pyminiaudio: Copyright © Irmen de Jong. MIT license.
 <https://github.com/irmen/pyminiaudio>
 
 It compiles in David Reid's miniaudio library and dr_mp3 and dr_flac, and Sean
@@ -138,7 +138,7 @@ audio output. See `core/radio.py`.
 
 ## Textual and Rich
 
-Copyright © Will McGugan and contributors. MIT licence. Used for the terminal
+Copyright © Will McGugan and contributors. MIT license. Used for the terminal
 dashboard and for the console markup the dashboard blocks emit.
 
 ## cryptography and segno
@@ -150,24 +150,24 @@ QR code.
 
 ## discord-webhook and requests
 
-discord-webhook is under the MIT licence, and requests, which it uses, under
+discord-webhook is under the MIT license, and requests, which it uses, under
 Apache 2.0. They post to the Discord webhook you configure.
 
-The full licence text of each, with its copyright notice, ships inside every
+The full license text of each, with its copyright notice, ships inside every
 binary as described above.
 
 ## Region map
 
 `data/regions.py` is the run-length map of the galaxy's 42 regions from Ben
 Peddell's [EliteDangerousRegionMap](https://github.com/klightspeed/EliteDangerousRegionMap),
-copyright (c) 2020 Ben Peddell, MIT licence; the text is in
+copyright (c) 2020 Ben Peddell, MIT license; the text is in
 `licenses/EliteDangerousRegionMap-MIT.txt`. `core/region.py`, which reads it,
 is EDLD's own.
 
 ## Callout sounds
 
 The chimes in `sounds/` were made with
-[earcongen](https://github.com/indevlin/earcongen), MIT licence, as one family
+[earcongen](https://github.com/indevlin/earcongen), MIT license, as one family
 so they read as related and sit at the same loudness.
 
 ## Services

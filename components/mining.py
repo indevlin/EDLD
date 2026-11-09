@@ -1,10 +1,4 @@
-"""
-components/mining.py — Mining session tracking.
-
-Tracks prospected asteroids (with content distribution and per-commodity
-yield % statistics), refined tonnage and tonnes-per-hour, real-time
-refinement RPM via a rolling window, collection and prospector limpet
-counts, and duplicate/already-mined asteroid detection.
+"""components/mining.py — Mining session tracking.
 
 Income from selling mined cargo is tracked by the trade component.
 
@@ -30,7 +24,7 @@ _RPM_WINDOW = 10
 
 
 def _canonicalise(raw: str) -> str:
-    """Strip $..._name; localisation wrapper and lowercase."""
+    """Strip $..._name; localization wrapper and lowercase."""
     s = (raw or "").strip().lower()
     if s.startswith("$") and s.endswith(";"):
         inner = s[1:-1]
@@ -68,10 +62,6 @@ _NON_HOTSPOT_PREFIXES = ("$saa_signaltype_", "$planetarymininglocation")
 
 def _hotspot_name(signal: dict) -> str:
     """Return the commodity name for a hotspot signal, or "" if it is not one.
-
-    Falls back to the raw type when the journal supplies no localised name,
-    which it does not for most commodities, and normalises case — the same
-    commodity appears as both "Tritium" and "tritium" across a real journal.
     """
     raw = str(signal.get("Type", "") or "").strip()
     if not raw:
@@ -89,8 +79,7 @@ def _hotspot_name(signal: dict) -> str:
 def _ring_hotspot_name(event: dict) -> str:
     """Commodity name from a SupercruiseDestinationDrop onto a ring hotspot.
 
-    The type reads ``$SAA_RingHotspot:#type=$painite_name;;``; the localised
-    form is "Painite Hotspot".  Returns "" for any other drop destination.
+    Returns "" for any other drop destination.
     """
     raw = str(event.get("Type", "") or "")
     if "RingHotspot" not in raw:
@@ -106,12 +95,7 @@ def _ring_hotspot_name(event: dict) -> str:
 
 
 def _ring_class(raw: str) -> str:
-    """Turn eRingClass_Metalic into "Metallic".
-
-    The journal's spellings are internal and inconsistent ("Metalic" has one
-    l, "MetalRich" is camel case), so they are mapped rather than prettified
-    by string surgery.
-    """
+    """Turn eRingClass_Metalic into "Metallic"."""
     key = (raw or "").replace("eRingClass_", "").strip().lower()
     return {
         "metalic":   "Metallic",
@@ -123,10 +107,7 @@ def _ring_class(raw: str) -> str:
 
 
 def _prospect_key(materials: list[dict]) -> tuple:
-    """
-    Deterministic key for a set of prospected materials.
-    Used to detect duplicate prospecting of the same asteroid.
-    """
+    """Deterministic key for a set of prospected materials."""
     return tuple(sorted(
         (_canonicalise(m.get("Name", "")), round(m.get("Proportion", 0.0), 1))
         for m in materials
@@ -148,12 +129,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         # place the journal reports it.  Running dry ends a session, so the
         # remaining count is the single most actionable number here.
         "Cargo",
-        # Raw materials picked up while mining are a real part of the haul
-        # and were previously invisible.
         "MaterialCollected",
-        # Ring context: what you are sitting in and whether it is worth
-        # sitting in.  Reserve level and ring class come from the parent
-        # body's Scan; hotspots from the ring's surface scan.
         "Scan",
         "SAASignalsFound",
         # Names the specific ring hotspot dropped into, which overlapping
@@ -193,7 +169,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         # key: canonical commodity name, value: list of float proportions
         self.yield_samples: dict[str, list[float]] = {}
 
-        # Per-commodity refined tonnes (for tab breakdown)
+        # Per-commodity refined tons (for tab breakdown)
         self.material_tally: dict[str, float] = {}
 
         # Duplicate detection: set of prospect keys seen this session
@@ -213,9 +189,6 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         # Raw materials collected while mining (MaterialCollected)
         self.materials_collected: dict[str, int] = {}
 
-        # Where we are mining.  This is whatever body the surface scan
-        # covered — a ring, or a planet with a planetary mining location —
-        # so it is named for the body rather than assuming a ring.
         self.mining_body:   str = ""
 
         # Every body scanned this session that can be mined, keyed by body
@@ -255,7 +228,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         return rpm
 
     def _tph(self) -> float | None:
-        """Tonnes per session hour, or None if insufficient data.
+        """Tons per session hour, or None if insufficient data.
 
         Divides by the session clock, like every other rate in the summary;
         see ActivityProviderMixin._duration_seconds.
@@ -359,9 +332,6 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
                         drones = int(item.get("Count", 0) or 0)
                         break
                 self.limpets_remaining = drones
-                # Highest stock seen this session is the best available
-                # estimate of what we set out with, since a restock mid-run
-                # should not make consumption look negative.
                 if self.limpets_start is None or drones > self.limpets_start:
                     self.limpets_start = drones
                 if gq: gq.put(("stats_update", None))
@@ -424,8 +394,6 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
                         break
 
             case "SAASignalsFound":
-                # Hotspots: the reason to work this body rather than the
-                # identical-looking one next door.
                 body = str(event.get("BodyName", "") or "")
                 if body:
                     self.mining_body = body
@@ -568,7 +536,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         callout.say(self.core, "MiningCallout", "🪐", text, sigil="*  MINE")
 
     def fill_estimate(self) -> tuple[float, float] | None:
-        """(tonnes a minute lately, minutes to a full hold), or None."""
+        """(tons a minute lately, minutes to a full hold), or None."""
         fill = self.cargo_fill()
         now = time.monotonic()
         while self._fill_times and self._fill_times[0] < now - _FILL_WINDOW:
@@ -587,7 +555,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         if not fill:
             return
         carried, cap = fill
-        # MiningRefined comes before the Cargo event that counts the tonne.
+        # MiningRefined comes before the Cargo event that counts the ton.
         carried = min(carried + 1, cap)
         if carried >= cap:
             if self._hold_said != "full":
@@ -633,12 +601,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         })
 
     def sites_by_kind(self) -> tuple[list, list]:
-        """Return (ring sites, planetary sites) as (body, record) pairs.
-
-        A body with neither hotspots nor surface sites is dropped: it was
-        scanned but has nothing to mine, and listing it would pad the panel
-        with bodies the commander has no reason to visit.
-        """
+        """Return (ring sites, planetary sites) as (body, record) pairs."""
         rings, planets = [], []
         for body, rec in sorted(self.mining_sites.items()):
             if rec.get("kind") == "planet" and rec.get("planetary_sites"):
@@ -648,11 +611,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         return rings, planets
 
     def ring_context(self) -> str:
-        """One-line description of where we're mining, or "" if unknown.
-
-        Leads with the body, because that is the thing being described; then
-        the reserve level, which decides whether it is worth working at all.
-        """
+        """One-line description of where we're mining, or "" if unknown."""
         parts = [p for p in (self.mining_body, self.reserve_level,
                              self.ring_type) if p]
         if self.hotspots:
@@ -662,7 +621,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         return " · ".join(parts)
 
     def cargo_fill(self) -> tuple[int, int] | None:
-        """(tonnes carried, capacity), or None when capacity is unknown."""
+        """(tons carried, capacity), or None when capacity is unknown."""
         state = self.core.state
         cap = int(getattr(state, "cargo_capacity", 0) or 0)
         if cap <= 0:
@@ -682,7 +641,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
             if value_est:
                 rate_parts.append(f"{fmt_credits(value_est)} est.")
             rows.append({
-                "label": "Tonnes refined",
+                "label": "Tons refined",
                 "value": f"{self.tonnes_refined:.0f} t",
                 "rate":  "  ".join(rate_parts) if rate_parts else None,
             })
@@ -768,9 +727,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
         # print the ring twice.
         rows = [r for r in self.get_summary_rows() if r["label"] != "Site"]
 
-        # Limpet stock belongs here rather than in either summary: on the
-        # Mining tab the question is "how is this run going", and running dry
-        # ends it.
+        # Limpet stock belongs here.
         if self.limpets_remaining is not None and (
                 self.limpets_prospector or self.limpets_collection):
             used = None
@@ -782,10 +739,7 @@ class ActivityMiningPlugin(BasePlugin, ActivityProviderMixin):
                 "rate":  f"{used} used" if used else None,
             })
 
-        # Mining sites, ring and planetary under separate headings.  They
-        # are different kinds of place — a ring has hotspots you fly into, a
-        # planet has surface sites you land at — and merging them under one
-        # heading made a planetary body look like a ring with no hotspots.
+        # Mining sites, ring and planetary under separate headings.
         rings, planets = self.sites_by_kind()
 
         if rings:

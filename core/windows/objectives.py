@@ -1,15 +1,7 @@
-"""
-core/windows/objectives.py — the Objectives window: the mission board and
-colonisation construction sites.
+"""core/windows/objectives.py — the Objectives window: the mission board and
+colonization construction sites.
 
-Missions: every active mission, one table per kind. Massacres first, by
-source faction — kills needed, missions done of missions held, reward — with
-a Totals row and any mixed targets; then deliveries, collections, couriers,
-passengers and the rest, each by what it is about (commodity, destination,
-target, faction), with what it asks for, the time it has left (READY once it
-can be turned in) and its reward. Colonisation: active sites grouped by system,
-each with what it still needs and how much of that is in the hold; a system
-or a site can be collapsed by clicking its heading.
+Missions: every active mission, one table per kind.
 """
 from __future__ import annotations
 
@@ -76,9 +68,9 @@ def _destination(m: dict) -> str:
     return station or system or m.get("name") or "Mission"
 
 
-#: Kind → (heading: what each row is, the asked-for column, what labels a
-#: row, what fills the asked-for column). Kinds not here get the name and no
-#: asked-for column. Listed in the order the tables appear.
+#: Kind → (heading: what each row is, the asked-for column, what labels a row,
+#: what fills the asked-for column). Kinds not here get the name and no asked-
+#: for column.
 _KINDS = {
     "Delivery":      ("DELIVERY COMMODITY", "TONS",
                       lambda m: m.get("commodity") or m.get("name"), _tons),
@@ -102,6 +94,32 @@ _KINDS = {
                       lambda m: m.get("faction") or m.get("name"),
                       lambda m: fmt_reward(int(m.get("donation", 0) or 0))),
 }
+
+
+def _ore_held(core, ms: list) -> list:
+    """Mining missions' commodities held: ship hold + own carrier (not the
+    squadron carrier). Green when held covers what is still to deliver."""
+    s = core.state
+    ship = getattr(s, "cargo_items", {}) or {}
+    carrier = getattr(s, "assets_carrier_hold", None) or {}
+    need: dict[str, list] = {}
+    for m in ms:
+        key = m.get("commodity_key")
+        if not key:
+            continue
+        rec = need.setdefault(key, [m.get("commodity") or key, 0])
+        rec[1] += max(0, int(m.get("total") or m.get("count") or 0) - int(m.get("delivered", 0) or 0))
+    if not need:
+        return []
+    def count(hold, key):
+        c = hold.get(key, 0)
+        return int(c.get("count", 0) if isinstance(c, dict) else c or 0)
+    rows = [R.text(""), R.table("MINING ORE HELD", (("SHIP", 5), ("CARRIER", 7), ("HELD", 5)))]
+    for key, (name, still) in sorted(need.items(), key=lambda kv: kv[1][0]):
+        a, b = count(ship, key), count(carrier, key)
+        rows.append(R.cells(name, [str(a), str(b) if carrier else "—", str(a + b)],
+                            "val health-good" if a + b >= still > 0 else "val"))
+    return rows
 
 
 def _kind_table(category: str, ms: list, now) -> list:
@@ -193,15 +211,62 @@ def missions(core, now: datetime | None = None) -> Tab:
             rows.append(R.text(""))
         ms = sorted(by_kind[kind], key=lambda m: -int(m.get("reward", 0) or 0))
         rows.extend(_kind_table(kind, ms, now))
+        if kind == "Mining":
+            rows.extend(_ore_held(core, ms))
     if not rows:
         rows = [R.text("No active missions", "dim")]
     return Tab("missions", "Missions", rows)
 
 
+DEPOSIT_HEADINGS = ("BODY", "G", "SITE", "COMMODITY", "AMOUNT", "DENSITY", "RIGS", "DEPLETED")
+
+
+def deposit_cells(d: dict) -> list[str]:
+    """One deposit as the Deposits table's cells (after the body label)."""
+    g = d.get("gravity")
+    return [f"{float(g):.2f}" if g not in (None, "") else "",
+            "" if d.get("signal_no") in (None, "") else f"#{d['signal_no']}",
+            d.get("commodity_display") or d.get("commodity", ""),
+            d.get("amount", "") or "",
+            d.get("density_observed", "") or d.get("density_claimed", "") or "",
+            "" if d.get("rigs") in (None, "") else str(d["rigs"]),
+            (d.get("depleted_on") or "")[:10]]
+
+
+def deposits(core, query: str = "") -> Tab:
+    """Surface survey deposits, as the shared sheet's dashboard lists them. Row
+    action edit:<deposit id>.
+    """
+    plugin = (getattr(core, "_plugins", None) or {}).get("surface_mining")
+    records = plugin.deposit_records() if plugin is not None else []
+    q = (query or "").strip().lower()
+    rows: list = []
+    for d in records:
+        body = d.get("body_name") or d.get("system_name") or f"Body {d.get('body_id')}"
+        cells = deposit_cells(d)
+        notes = (d.get("notes") or "").strip()
+        if q and q not in " ".join([body, d.get("system_name") or "", notes] + cells).lower():
+            continue
+        label = body + ("  (test)" if d.get("is_test") else "")
+        rows.append(R.cells(label, cells, "val dim" if cells[-1] else "val",
+                            action=f"edit:{d['deposit_id']}"))
+        if notes:
+            rows.append(R.text(f"   {notes.splitlines()[0][:120]}", "dim"))
+    if not rows:
+        text = ("No deposits match" if q and records else
+                "No surface deposits recorded")
+        return Tab("deposits", "Deposits", [R.text(text, "dim")])
+    widths = [max(len(h), *(len(r[2][i]) for r in rows if r[0] == "cells"))
+              for i, h in enumerate(DEPOSIT_HEADINGS[1:])]
+    return Tab("deposits", "Deposits",
+               [R.table(DEPOSIT_HEADINGS[0], tuple(zip(DEPOSIT_HEADINGS[1:], widths)))] + rows)
+
+
 def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None = None) -> Tab:
     """Sites by system. ``expanded`` (market id → bool) and ``expanded_sys``
     (system → bool) are the interface's own collapse state; a group not in
-    them is open. Headings are ("toggle", text, "system" | "site", key)."""
+    them is open.
+    """
     expanded = {} if expanded is None else expanded
     expanded_sys = {} if expanded_sys is None else expanded_sys
     s = core.state
@@ -210,8 +275,8 @@ def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None =
     docked = getattr(s, "colonisation_docked", False)
     cur_mid = getattr(s, "_colonisation_current_market_id", None)
     if not sites:
-        return Tab("colonisation", "Colonisation",
-                   [R.text("No construction sites tracked.\nDock at a depot to begin.", "dim")])
+        return Tab("colonisation", "Colonization",
+                   [R.text("No recent colonization activity", "dim")])
     rows: list = []
     active = [x for x in sites if not x.get("complete") and not x.get("failed")]
     order: list[str] = []
@@ -240,12 +305,15 @@ def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None =
                 continue
             resources = site.get("resources", {}) or {}
             hold = cargo if current else {}
+            clear = R.kv("   Stop tracking", "Clear  ›", "val dim", action=f"clear:{mid}")
             if not resources:
                 rows.append(R.text("     (dock to load requirements)"))
+                rows.append(clear)
                 continue
             remaining = [(k, inf) for k, inf in resources.items() if inf["provided"] < inf["required"]]
             if not remaining:
                 rows.append(R.text("     [green]All resources delivered![/green]"))
+                rows.append(clear)
                 continue
             remaining.sort(key=lambda x: -(x[1]["required"] - x[1]["provided"]))
             total = 0
@@ -261,8 +329,9 @@ def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None =
                     text = f"[yellow]{text}[/yellow]"
                 rows.append(R.kv(f"   {inf.get('name') or key}", text))
             rows.append(R.kv("   Total remaining", f"{total:,} t"))
+            rows.append(clear)
     for site in (x for x in sites if x.get("complete")):
         rows.append(R.text(f"[green]✓ {site.get('station') or site.get('system', 'Unknown')} — complete[/green]"))
     for site in (x for x in sites if x.get("failed")):
         rows.append(R.text(f"[red]✗ {site.get('station') or site.get('system', 'Unknown')} — failed[/red]"))
-    return Tab("colonisation", "Colonisation", rows)
+    return Tab("colonisation", "Colonization", rows)

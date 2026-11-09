@@ -1,11 +1,4 @@
-"""
-core/server — EDLD's server mode, for the EDAM mobile client.
-
-A paired device connects, receives a snapshot of what EDLD knows, and then
-receives changes for as long as it stays connected.  Nothing is pushed to a
-device that is not connected, nothing leaves the machine except to a device the
-commander paired, and EDLD never looks for devices: it only answers the ones
-that come to it.
+"""core/server — EDLD's server mode, for the EDAM mobile client.
 
 Modules
 -------

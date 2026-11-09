@@ -53,7 +53,7 @@ These hold for every line of code and documentation produced under this plan.
 
 Remove residual references to external journal-tooling codebases from existing
 comments and docs, keeping all technical content. Affected files are
-comment/doc edits only; no behaviour changes. In-game terms and journal-spec
+comment/doc edits only; no behavior changes. In-game terms and journal-spec
 references are retained.
 
 - [ ] README setup-guide wording
@@ -81,20 +81,20 @@ blocks of its own class, which is what prevents layout breakage.
 | Class       | Members (current + planned)                                   | Std width | Std height |
 |-------------|---------------------------------------------------------------|-----------|------------|
 | `panel`     | Assets, Engineering, Career, Cargo, Exploration, Exobiology   | 11 / 10   | ~38 rows   |
-| `stack`     | Massacre Missions, Navigation, Colonisation                   | 11 / 10   | ~28 rows   |
+| `stack`     | Massacre Missions, Navigation, Colonization                   | 11 / 10   | ~28 rows   |
 | `compact`   | Alerts, Crew/SLF                                              | 10        | ~17 rows   |
 | `anchor`    | Commander                                                     | 10        | 32 rows    |
 
-Standardised heights are chosen close to today's values so the visible layout
+Standardized heights are chosen close to today's values so the visible layout
 barely shifts. Left and right columns are both 11 units wide, so `panel`/`stack`
-blocks swap freely across them; the centre column is 10 units, so its positions
+blocks swap freely across them; the center column is 10 units, so its positions
 are mutually compatible. Navigation's internal vertical padding is trimmed as
 part of fitting it to the `stack` height.
 
 ### Position model
 
 - Positions are addressed in spreadsheet notation: column letter (A = left,
-  B = centre, C = right) + row index within the column (A1, A2, B3, …).
+  B = center, C = right) + row index within the column (A1, A2, B3, …).
 - Each position carries a size class. Its Preferences > Display selector lists
   only the blocks of that class, plus "(empty)".
 - Selecting a block already shown elsewhere moves it; positions left empty close
@@ -115,7 +115,7 @@ part of fitting it to the `stack` height.
 
 ## Workstream B — Body data layer (build first, per sequencing)
 
-A shared, normalised store of system/body facts plus per-commander scan status,
+A shared, normalized store of system/body facts plus per-commander scan status,
 populated from the full journal archive and kept current during play.
 
 ### Storage
@@ -142,7 +142,7 @@ populated from the full journal archive and kept current during play.
 | `planet_status`   | per-commander discovered / mapped / footfall / efficient / scan-state |
 | `planet_gas`      | per-planet atmospheric composition                                  |
 | `planet_signals`  | per-planet detected biological / geological signal genera          |
-| `flora`           | per-planet genus / species / colour                                 |
+| `flora`           | per-planet genus / species / color                                 |
 | `flora_status`    | per-commander sample count / logged / waypoints                     |
 | `non_bodies`      | belts, clusters, barycentres                                        |
 
@@ -221,7 +221,7 @@ and to the final species as samples are taken.
   heading, and turn-to-heading indicator shown inside the box (the on-foot radar
   graphic is dropped; its useful data is presented numerically here).
 - Codex novelty markers: not-yet-logged-in-region and never-seen indicators.
-- System totals: analysed value and possible first-find value.
+- System totals: analyzed value and possible first-find value.
 
 ### Tasks
 
@@ -247,16 +247,16 @@ and to the final species as samples are taken.
 
 | Column        | Positions (top → bottom)              |
 |---------------|---------------------------------------|
-| A (left)      | Assets · Engineering · Colonisation   |
-| B (centre)    | Commander · Crew/SLF · Alerts · Cargo |
+| A (left)      | Assets · Engineering · Colonization   |
+| B (center)    | Commander · Crew/SLF · Alerts · Cargo |
 | C (right)     | Massacre Missions · Navigation · Career |
 
 **After (Exploration + Exobiology default-on, Assets + Engineering default-off):**
 
 | Column        | Positions (top → bottom)               |
 |---------------|----------------------------------------|
-| A (left)      | Exploration · Exobiology · Colonisation |
-| B (centre)    | Commander · Crew/SLF · Alerts · Cargo  |
+| A (left)      | Exploration · Exobiology · Colonization |
+| B (center)    | Commander · Crew/SLF · Alerts · Cargo  |
 | C (right)     | Massacre Missions · Navigation · Career |
 
 Assets and Engineering remain fully available and one selection away in
@@ -283,5 +283,5 @@ Workstream 0 (attribution scrub) is independent and runs as soon as approved.
 - No external attribution anywhere in the realm; in-game terms and the journal
   spec are retained.
 - Neither window renders an overlay; overlay-only data is relocated into boxes.
-- Existing TUI layout changes are held to the minimum needed to standardise box
+- Existing TUI layout changes are held to the minimum needed to standardize box
   sizes for interchangeability.

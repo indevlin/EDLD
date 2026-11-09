@@ -1,29 +1,8 @@
-"""
-core/certs.py — make HTTPS work in a packaged build.
-
-A PyInstaller binary carries its own copy of OpenSSL, and that copy was
-compiled on the build machine with the build machine's certificate paths baked
-in. Those paths rarely exist on the machine the binary ends up running on:
-Debian keeps its store in one place, Arch another, Fedora another again, and
-macOS does not use an OpenSSL-style store at all. OpenSSL then finds no trust
-anchors and every verification fails with
+"""core/certs.py — make HTTPS work in a packaged build.
 
     [SSL: CERTIFICATE_VERIFY_FAILED] unable to get local issuer certificate
 
-The symptom is easy to misread, because nothing crashes. EDLD keeps running
-and every network feature quietly stops: CAPI never returns a profile, so the
-Commander window loses its squadron line and its ranks; EDDN, EDSM, EDAstro
-and Inara silently stop uploading; Spansh searches return nothing. Each failure
-is logged on its own line as an unremarkable warning, and none of them says
-"none of this is going to work".
-
-The fix is to ship a certificate bundle and point OpenSSL at it. Both are done
-here: ``certifi``'s bundle is included in the binary by
-``packaging/build_common.py``, and ``install()`` sets the environment variables
-OpenSSL reads before anything opens a connection.
-
-Running from source needs none of this — the system store is already correct —
-so ``install()`` does nothing unless the process is frozen.
+The fix is to ship a certificate bundle and point OpenSSL at it.
 """
 
 from __future__ import annotations
@@ -62,10 +41,6 @@ def bundled_path() -> Path | None:
 
 def install() -> str | None:
     """Point OpenSSL at the bundled CA store. Returns the path used, or None.
-
-    A user who has deliberately set ``SSL_CERT_FILE`` — to trust a corporate
-    proxy's root, for instance — keeps their setting; theirs is more likely to
-    be right for their network than ours.
     """
     if not getattr(sys, "frozen", False):
         return None
@@ -92,9 +67,7 @@ def install() -> str | None:
 def diagnose() -> str:
     """One line describing where certificate verification will look.
 
-    Written to the diagnostic log at startup. When somebody reports that
-    uploads stopped working, this is the line that answers it immediately
-    instead of after a round of guessing.
+    Written to the diagnostic log at startup.
     """
     import ssl
 

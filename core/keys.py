@@ -1,9 +1,4 @@
-"""
-core/keys.py — pressing the game's keys.
-
-What EDLD's automation (auto honk, plotting the next route system) and the
-Helm panel (core/helm.py) press, through the operating system's own input
-path so the game sees an ordinary keyboard:
+"""core/keys.py — pressing the game's keys.
 
 * **Linux**: a virtual keyboard made with the kernel's uinput, which every
   program — the game under Proton included, X11 or Wayland — reads like a
@@ -11,24 +6,6 @@ path so the game sees an ordinary keyboard:
   group with a udev rule, as docs/AUTOMATION.md explains.
 * **Windows**: SendInput with hardware scan codes, which the game reads where
   it ignores virtual-key codes.
-
-Keys are named as the game's .binds files name them (``Key_J``,
-``Key_LeftShift``, ``Key_Numpad_4``), so a binding read by core/binds.py is
-pressed as written. Typing text — a system name into the galaxy map's search
-— assumes a US keyboard layout, which is what the game's own key names
-describe.
-
-Mouse buttons (``Mouse_1`` … ``Mouse_5``, as the .binds files name them)
-are pressed the same way: on Linux a second virtual device, a mouse, since a
-desktop takes a device for a keyboard or a mouse by what it reports; on
-Windows SendInput's mouse events. A click goes to the window under the
-pointer, not the one with the focus, so a mouse button is pressed only while
-the pointer is over the game (``pointer_in_game``) as well.
-
-Nothing is ever pressed unless the game's window has the focus
-(``game_focused``): a key meant for the game must not land in another
-program. A button clicked in EDLD's own window first brings the game to the
-front (``focus_game``), since the click has just taken the focus from it.
 """
 from __future__ import annotations
 
@@ -326,13 +303,10 @@ def _activate_x11() -> str:
 
 
 def focus_game(timeout: float = 1.5) -> tuple[bool, str]:
-    """Bring the game's window to the front, for a key pressed from EDLD's
-    own window — which has the focus the moment its button is clicked.
+    """Bring the game's window to the front, for a key pressed from EDLD's own
+    window — which has the focus the moment its button is clicked.
 
-    (True, "") once the game has the focus. Never takes a desktop's word for
-    it the way ``assume`` does elsewhere: where this desktop cannot say which
-    window has the focus, a key pressed now would land in EDLD's own window,
-    so nothing is pressed and EDAM is the way to press from elsewhere.
+    (True, "") once the game has the focus.
     """
     title = _active_title()
     if title is None:

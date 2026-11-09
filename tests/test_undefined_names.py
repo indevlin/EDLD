@@ -1,14 +1,4 @@
-"""
-tests/test_undefined_names.py — no module may use a name it never defines.
-
-Lifting methods between modules keeps leaving helpers behind: the code still
-compiles, and the missing name only raises when that branch runs.  Two were
-live at once — ``fmt_crew_active`` in the desktop Crew / Alerts window (any
-hired crew with a hire date), and ``settings`` in the massacre-mission handler
-(every live acceptance, which also skipped the dashboard refresh after it).
-
-pyflakes is the checker; it is not a runtime dependency, so the test skips
-where it is not installed rather than failing.
+"""tests/test_undefined_names.py — no module may use a name it never defines.
 """
 from __future__ import annotations
 

@@ -1,6 +1,5 @@
-"""
-components/discoveries.py — first discoveries not yet sold, what a death
-lost, and the commander's firsts.
+"""components/discoveries.py — first discoveries not yet sold, what a death lost,
+and the commander's firsts.
 
 Unsold firsts   Every body scanned that no one had discovered, from its Scan
                 until the system's data is sold. Selling first is what puts
@@ -12,11 +11,6 @@ Rescan list     A death loses every unsold scan. What was unsold then is kept
                 scanned again comes off it, and the system with its last body.
 My firsts       Bodies first discovered, first mapped and first walked on,
                 from the body database.
-
-Built once from every journal when there is nothing saved yet, then kept up
-to date from live events and saved; the journal replayed at startup is not
-counted twice. The Discoveries tab in the Navigation window shows all three,
-and EDAM's Exploration page a summary.
 """
 from __future__ import annotations
 

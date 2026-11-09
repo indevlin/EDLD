@@ -1,11 +1,8 @@
-"""
-tests/test_mining_callouts.py — prospector, motherlode, hold and ring
+"""tests/test_mining_callouts.py — prospector, motherlode, hold and ring
 callouts; hotspot hit rates; and yields by ring type.
 
-A rock prospected twice is one rock: neither the callouts nor the hit rates
-count it again. Yields by ring type are kept across sessions, from live
-prospecting only — replaying the journal at startup must not count a rock
-a second time.
+Yields by ring type are kept across sessions, from live prospecting only —
+replaying the journal at startup must not count a rock a second time.
 """
 from __future__ import annotations
 

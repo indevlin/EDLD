@@ -1,15 +1,10 @@
-"""
-tests/test_dependencies.py — requirements files say what the code imports.
+"""tests/test_dependencies.py — requirements files say what the code imports.
 
 Both had drifted.  requirements.txt declared cryptography, which nothing
 imports, and not Rich, which the terminal blocks import directly;
 requirements-dev.txt declared Pillow for an icon script that does not exist,
 and not pytest or pyflakes, which the tests need.  These derive what must be
 declared from the imports themselves, in both directions.
-
-It also checks the build still carries every bundled package's licence text:
-the binaries shipped the code of a dozen MIT, BSD and Apache packages and none
-of their licences, which is the one condition those licences set.
 """
 from __future__ import annotations
 
@@ -120,7 +115,7 @@ def test_nothing_in_requirements_is_dead(dist):
     assert dist in used, f"{dist} is declared in requirements.txt but never imported"
 
 
-# ── Licence texts travel with the binary ──────────────────────────────────────
+# ── License texts travel with the binary ──────────────────────────────────────
 
 def _build_common():
     sys.path.insert(0, str(ROOT / "packaging"))

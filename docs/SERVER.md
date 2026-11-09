@@ -7,7 +7,7 @@ EDAM is on [Google Play](https://play.google.com/store/apps/details?id=com.indev
 EDLD can serve what it knows to your phone or tablet, and the EDAM app draws
 it. In landscape and on a tablet, EDAM draws [EDCARS](EDCARS.md) as the desktop
 window does: the same header, the same sections on the same rail, and in each
-the same windows with the same tabs, tables and colours, sent from the one
+the same windows with the same tabs, tables and colors, sent from the one
 model the desktop window and the terminal dashboard draw. The Navigation
 window's forms — FSD, Neutron, Carrier, Survey, Nearby, Services and
 Discoveries — are drawn by the app and run by EDLD, and the buttons along a
@@ -314,7 +314,7 @@ AwIDRwAwRAIgRrtLDXxKo6c8nLR3AUS2pyomSqcnrKc7B5RQdP/NZyACIEwZJrds
 | SHA-256 of the whole DER certificate | `341bf80add5df967e25f72e4bf0c22ee560cfbae36142ff98f8bde7ec1422d8d` |
 
 The last row is **not** the pin; it is there so a reader who computes it by
-mistake — `sha256(cert)` instead of `sha256(spki)` — recognises the wrong
+mistake — `sha256(cert)` instead of `sha256(spki)` — recognizes the wrong
 answer instead of hunting for it. Any `openssl` build reproduces the pin:
 
 ```console
@@ -407,7 +407,7 @@ stop of the route EDLD plotted; their answer can take several seconds.
                    "red":"#e05c5c","rowAlt":"#2b342f"}}
 ```
 
-A custom theme arrives the same way, as the colours EDLD resolved from its CSS
+A custom theme arrives the same way, as the colors EDLD resolved from its CSS
 file, so a device never needs to know the theme to draw it. EDLD's built-in
 themes are also compiled into the app; `scripts/export_edam_themes.py`
 regenerates that list from `core/palette.py`.
@@ -532,10 +532,10 @@ the desktop's tab order.
 | `crew` | `crew.crew`: the NPC crew and fighter | Crew / SLF |
 | `exploration` | `exploration.system`: the current system, its bodies and their biology | Exploration |
 | `navigation` | `navigation.route`: the followed route and the next legs | Navigation |
-| `missions`, `colonisation` | `missions.missions`, `colonisation.colonisation` | Objectives |
-| `session`, `career` | `session.session`, `career.summary` … `career.powerplay` | Session / Career |
+| `missions`, `colonisation`, `survey` | `missions.missions`, `colonisation.colonisation`, `survey.deposits` | Objectives |
+| `session`, `career` | `session.session`, `career.summary` … `career.powerplay` | Career / Session |
 
-A client should show a group it does not recognise rather than drop it: EDAM
+A client should show a group it does not recognize rather than drop it: EDAM
 lists unknown groups as pages of their own, so a window added to EDLD reaches
 the phone without an app release. Panel ids are stable across title changes
 (the module count, the system being explored), so a client may key on them.
@@ -551,8 +551,8 @@ Row `kind`:
 | `head` | a table's column headings: `label` over the first column, `cells` over the rest, right-aligned |
 | `cells` | a table row: `label`, then `cells` under the headings; `value` joins them, for a client that draws no tables |
 
-A row's optional `tone` colours its value, line or cells: `crit`, `warn`,
-`good`, `accent` or `dim`, as the desktop colours them. `rate` is an optional
+A row's optional `tone` colors its value, line or cells: `crit`, `warn`,
+`good`, `accent` or `dim`, as the desktop colors them. `rate` is an optional
 right-hand figure such as `22.5 /hr`. An alert row carries `ts`, when it
 happened, for the client to show as "4m ago", and `"urgent": true` when it
 reports danger or loss — hull, shields down, fuel, a lost ship or fighter,
@@ -567,7 +567,16 @@ A panel may also carry:
 * `pages` — inner tabs, `[{"id","title","rows"}]`, with `rows` then empty;
   a client that draws no inner tabs shows each page's rows under its title;
 * `actions` and `footer` — the buttons along the foot of the desktop window,
-  and the line beside them. See `action` under Commands.
+  and the line beside them. See `action` under Commands. An action with
+  `"row": true` is not drawn as a button: a row naming it in its own
+  `action` runs it when tapped;
+* `filter` — `true` when the client should offer a text filter over the
+  rows (`survey.deposits`). A filter keeps the `cells` rows whose label or
+  cells contain the text, each with the `line` rows under it.
+
+A row may carry `action`, the id of one of its panel's actions, or an id the
+desktop handles itself (`edit:<deposit>` on `survey.deposits`, which a client
+that edits nothing ignores).
 
 ### Commands
 
@@ -621,7 +630,7 @@ the jump range — to fill in until the commander types over them. Run one:
    "route":true}
 ```
 
-A plot can take minutes, so the answer follows the acknowledgement; the
+A plot can take minutes, so the answer follows the acknowledgment; the
 session goes on meanwhile. `status` is the line under the form, with a
 `tone`; `rows` are as in panels; `route` is true when the result became the
 followed route, as a plot from the desktop does. An unknown tool is refused
@@ -631,8 +640,9 @@ at once.
 
 A panel's `actions` are the desktop's footer buttons — on `navigation.route`
 Follow, Copy Next and Clear Route; on `cargo` Set Target and Gal. Avg; on
-`commander.info` Set Home System — and each runs exactly what the desktop
-button does. Copy Next copies to the clipboard of the computer EDLD runs on,
+`commander.info` Set Home System, a row action on the Home System row; on
+`colonisation.colonisation` `clear:<market id>`, a row action on each site's
+Stop tracking row — and each runs exactly what the desktop does. Copy Next copies to the clipboard of the computer EDLD runs on,
 ready to paste into the galaxy map.
 
 ```json

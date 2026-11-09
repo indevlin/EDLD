@@ -1,8 +1,4 @@
-"""
-core/fsd.py — the frame shift drive: how far a jump reaches, and what it burns.
-
-The game's drive model, from a drive's four figures (data/fsd_drives.py, or an
-engineered drive's own Modifiers in the Loadout):
+"""core/fsd.py — the frame shift drive: how far a jump reaches, and what it burns.
 
     fuel for a jump of d ly at total mass M
         = fuel_multiplier × ((d − booster) × M / optimal_mass) ^ fuel_power
@@ -12,25 +8,10 @@ and its inverse, the longest jump that a given amount of fuel pays for:
     range = optimal_mass / M × (fuel / fuel_multiplier) ^ (1 / fuel_power)
             + booster
 
-where no jump may burn more than the drive's max fuel per jump, and M is the
-ship's UnladenMass plus the fuel in the main tank plus the cargo. The
-reservoir is not part of M.
-
-Checked against a commander's journals (May to October 2026), these reproduce
-every Loadout's MaxJumpRange — the range unladen with one jump's fuel aboard —
-to the thousandth of a light year, engineered drives, Guardian boosters and
-the Caspian Explorer's Mk II included, and each FSDJump's FuelUsed to within a
-hundredth of a percent at the median over 625 jumps.
-
-Two things follow that the plain "range falls as 1/mass" scaling missed:
-
 * MaxJumpRange is measured with one jump's fuel aboard, not unladen, so
   scaling it from UnladenMass came out a little short;
 * with less than one jump's worth in the tank, the fuel, not the mass, limits
   the jump — the last jumps on an empty tank are short ones.
-
-A drive the table does not know yet still works: its optimal mass is worked
-out from the Loadout's own MaxJumpRange, with the size's fuel constants.
 """
 from __future__ import annotations
 
@@ -68,8 +49,6 @@ class Drive:
     reserve: float           # reservoir
     max_jump_range: float    # the Loadout's own figure
     supercharge: int
-    #: "loadout" (engineered), "table", or "range" when worked out from the
-    #: Loadout's MaxJumpRange because the table's figures missed it.
     source: str
 
     def as_dict(self) -> dict[str, Any]:
@@ -153,7 +132,7 @@ def from_loadout(event: dict) -> Drive | None:
 
 
 def jump_range(drive: Drive, fuel: float, cargo: float = 0.0) -> float:
-    """The longest jump with ``fuel`` tonnes in the main tank and ``cargo``
+    """The longest jump with ``fuel`` tons in the main tank and ``cargo``
     aboard: limited by the mass, or by the fuel when there is less than one
     jump's worth."""
     fuel = max(float(fuel), 0.0)
@@ -166,7 +145,7 @@ def jump_range(drive: Drive, fuel: float, cargo: float = 0.0) -> float:
 
 
 def jump_fuel(drive: Drive, distance: float, fuel: float, cargo: float = 0.0) -> float | None:
-    """Fuel a ``distance`` ly jump burns from ``fuel`` tonnes in the tank, or
+    """Fuel a ``distance`` ly jump burns from ``fuel`` tons in the tank, or
     None when it is out of reach."""
     if distance > jump_range(drive, fuel, cargo) + 1e-9:
         return None
@@ -207,13 +186,7 @@ def plan_optimal_mass(drive: Drive, range_ly: float, cargo: float = 0.0) -> floa
 
 def spansh_params(drive: Drive, cargo: float = 0.0, range_ly: float | None = None,
                   neutrons: bool = False) -> dict[str, Any]:
-    """The ship's figures as Spansh's exact plotter takes them.
-
-    Spansh's base mass includes the reservoir and is not added to again —
-    fitting its own published fuel figures shows a mass of base + fuel — so
-    the reservoir goes in both base_mass and internal_tank_size, giving the
-    same mass the game uses.
-    """
+    """The ship's figures as Spansh's exact plotter takes them."""
     opt = plan_optimal_mass(drive, range_ly, cargo) if range_ly else drive.optimal_mass
     return {
         "is_supercharged": 0,

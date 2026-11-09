@@ -1,19 +1,4 @@
-"""
-core/tooltab.py — a Navigation tab described once, drawn everywhere.
-
-Every tab of the Navigation window but Route is described here: its fields,
-the button, what to fill in from the game, and what to run — the FSD, Neutron
-and Carrier plot forms (core/plot_tools.py), survey routes, nearby systems,
-the nearest service, discoveries. gui/blocks and tui/blocks draw any ToolTab
-the same way and run it off the UI thread, and a paired EDAM device is sent
-the same description (``describe``), draws it, and has EDLD run it (``cmd
-tool`` in core/server/service.py) — so all three show the same form and the
-same answer.
-
-A run returns a ToolResult: a status line, rows in the markup both front ends
-draw — ("hdr", title) / ("kv", key, value) / ("text", body) — and optionally
-a route to store and follow, as (Spansh-shaped result, kind).
-"""
+"""core/tooltab.py — a Navigation tab described once, drawn everywhere."""
 from __future__ import annotations
 
 import re as _re
@@ -128,13 +113,9 @@ def tabs(core) -> list[ToolTab]:
 # ── For EDAM ──────────────────────────────────────────────────────────────────
 #
 # A device draws a tab from its description and sends the values back; EDLD
-# runs it and sends the result. Text goes plain, with the colour it was
+# runs it and sends the result. Text goes plain, with the color it was
 # marked up in as a tone: good, warn, crit, accent or dim.
 
-# One Rich style word, and a tag of one or more of them: "[green]", and also
-# "[bold cyan]" and its "[/bold cyan]", which the one-word pattern this used
-# to be left in the text — EDAM showed "[bold cyan]HIP 73225[/bold cyan]" as
-# the heading of a colonisation site. "[/]" closes whatever is open.
 _STYLE = (r"(?:b|i|u|s|dim|bold|italic|underline|reverse|strike|green|yellow|red|cyan|"
           r"magenta|blue|white|black|orange|bright_[a-z]+)")
 _TAG = _re.compile(rf"\[/?{_STYLE}(?: +{_STYLE})*\]|\[/\]")
@@ -144,8 +125,8 @@ _TONES = (("red", "crit"), ("yellow", "warn"), ("orange", "warn"), ("green", "go
 
 
 def plain(text) -> tuple[str, str | None]:
-    """(text without markup, the tone of its most urgent colour, or None):
-    a row marked partly red reads as critical, whatever else is coloured."""
+    """(text without markup, the tone of its most urgent color, or None):
+    a row marked partly red reads as critical, whatever else is colored."""
     raw = "" if text is None else str(text)
     words = {w for m in _OPEN.finditer(raw) for w in m.group(1).split()}
     tone = next((t for tag, t in _TONES if tag in words), None)

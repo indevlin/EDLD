@@ -1,5 +1,4 @@
-"""
-core/surface_survey.py — Joining refine events to a surface position.
+"""core/surface_survey.py — Joining refine events to a surface position.
 
 Frontier added no journal events for surface mining.  The 4.4.1 feature rides
 entirely on events that already existed, and none of them carries a position:
@@ -8,30 +7,12 @@ across a full journal corpus the only events with a ``Latitude`` field are
 ``ApproachSettlement``.  ``MiningRefined`` fires in the Rhino exactly as it
 does in a ship, and says only what came out.
 
-So the position has to come from Status.json, and the two have to be joined on
-time.  That is what this module does.
-
-Why this needs no hotkey
-------------------------
-A deposit cannot be refined from anywhere except on top of it.  A
-``MiningRefined`` that arrives while the commander is in an SRV with a valid
-latitude and longitude is therefore proof of a deposit at that position, and
-the capture needs no keypress at all — which is the whole difference between
-this and pressing a key each time and hoping you remembered.
-
-The join is a small ring of recent Status.json samples rather than "whatever
-the position is right now", because the journal line is written, flushed, read
-and dispatched with a lag of up to a second or so, and journal timestamps are
-only accurate to the second in the first place.  A sample is matched to an
-event when it falls inside :data:`MATCH_WINDOW_S` of the event's timestamp;
-nearest in time wins.
-
 What this deliberately does not do
 ----------------------------------
 Replayed history gets no position.  At startup EDLD replays the journal to
 rebuild session state, and those ``MiningRefined`` events are hours or weeks
 old with no Status.json to go with them.  Inventing a position for them — the
-commander's current one, the last one seen, the body centre — would put
+commander's current one, the last one seen, the body center — would put
 fictional deposits in a database whose entire value is that its coordinates
 are real.  They are counted and reported instead, once per session, so the
 gap is visible rather than silent.
@@ -75,9 +56,7 @@ class Position(NamedTuple):
 def parse_journal_ts(raw: str) -> Optional[float]:
     """Parse a journal ``timestamp`` into unix epoch seconds.
 
-    Journals write ``2026-09-13T19:49:48Z``.  Returns None rather than raising
-    on anything that does not parse, because a torn line is a normal event in
-    a file the game is still appending to.
+    Journals write ``2026-09-13T19:49:48Z``.
     """
     if not raw:
         return None
@@ -137,11 +116,7 @@ POSITIONS = PositionRing()
 
 
 def position_from_status(data: dict, now: float) -> Optional[Position]:
-    """Build a :class:`Position` from a Status.json payload, or None.
-
-    None means the payload carries no usable surface position — docked, in
-    supercruise, in the void — which is the common case and not an error.
-    """
+    """Build a :class:`Position` from a Status.json payload, or None."""
     flags = data.get("Flags", 0) or 0
     if not flags & FLAG_HAS_LATLONG:
         return None
@@ -172,14 +147,9 @@ def is_surface_refine(position: Optional[Position]) -> bool:
     return bool(position and position.in_srv)
 
 
-#: Display names whose letters are not the game's symbol, keyed on the
-#: display name as :func:`_squash` leaves it. The game's own name for
-#: lowtemperaturediamond is "Low Temp. Diamonds", and a commander types what
-#: the game shows; squashed, that is "lowtempdiamonds", not the symbol, so a
-#: hand-recorded deposit and the refines at the same site became two rows and
-#: the refines never found it. Seeded with what is known and filled in as
-#: names are seen — every MiningRefined carries both, and so does every
-#: commodity in the market catalogue.
+#: Display names whose letters are not the game's symbol, keyed on the display
+#: name as :func:`_squash` leaves it. The game's own name for
+#: lowtemperaturediamond is "Low Temp.
 _COMMODITY_ALIASES: dict[str, str] = {
     "lowtempdiamonds":         "lowtemperaturediamond",
     "lowtemperaturediamonds":  "lowtemperaturediamond",
@@ -198,7 +168,7 @@ def _squash(raw: str) -> str:
         s = inner[:-5] if inner.endswith("_name") else inner
     # Everything that is not a letter or a digit goes. The journal writes
     # $helium3_name; and a commander typing the same commodity by hand writes
-    # "Helium-3"; without this they canonicalise differently and the same rock
+    # "Helium-3"; without this they canonicalize differently and the same rock
     # becomes two deposits — one recorded by hand, one by the first refine.
     return "".join(ch for ch in s if ch.isalnum())
 
@@ -206,8 +176,7 @@ def _squash(raw: str) -> str:
 def learn_commodity_name(symbol: str, display: str) -> bool:
     """Teach :func:`canonical_commodity` that ``display`` names ``symbol``.
 
-    Returns whether anything new was learned. A display name that already
-    squashes to the symbol teaches nothing.
+    Returns whether anything new was learned.
     """
     sym = _squash(symbol)
     alias = _squash(display)
@@ -224,9 +193,7 @@ def canonical_commodity(raw: str) -> str:
     """The game's symbol for a commodity, from any spelling of it.
 
     ``$thortveitite_name;`` → ``thortveitite``, ``Helium-3`` → ``helium3``, and
-    ``Low Temp. Diamonds`` → ``lowtemperaturediamond``, so a deposit recorded
-    by hand and the same deposit recorded from a refine resolve to one row
-    rather than two.
+    ``Low Temp.
     """
     s = _squash(raw)
     with _ALIAS_LOCK:

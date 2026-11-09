@@ -1,7 +1,4 @@
-"""
-core/ui_helpers.py — Pure-Python display helpers for the dashboard.
-
-No UI-framework imports — safe to import anywhere.
+"""core/ui_helpers.py — Pure-Python display helpers for the dashboard.
 """
 
 from __future__ import annotations
@@ -126,8 +123,7 @@ def carrier_route_summary(result: dict) -> dict:
     """Derive the headline figures for a Spansh fleet-carrier route.
 
     Returns {jumps, distance_ly, fuel_total, restocks, tritium_sources,
-    destination}.  Totals are derived from the legs because the carrier
-    result carries no top-level totals.
+    destination}.
     """
     jumps = result.get("jumps") or []
     if not jumps:
@@ -156,11 +152,7 @@ def carrier_route_summary(result: dict) -> dict:
 def carrier_route_rows(result: dict) -> list[tuple[str, str]]:
     """Return (label, value) pairs, one per waypoint, for the carrier route.
 
-    Value column carries the leg distance then the fuel picture, because on a
-    long haul the question at every stop is "can I make the next jump and
-    where do I top up".  Markers:
-
-        ⛽ n   restock here, n tonnes
+        ⛽ n   restock here, n tons
         ✦      pristine icy ring — tritium is mineable
         ·      icy ring present
         n t    tritium purchasable in the market
@@ -257,8 +249,6 @@ def fmt_credits(n) -> str:
 def normalise_carrier(carrier: dict | None) -> dict:
     """Reconcile the three carrier dict shapes into one.
 
-    Aliases the divergent keys and fills anything derivable, so a carrier
-    sourced from the journal renders the same as one sourced from CAPI.
     Returns {} for no carrier.
     """
     if not carrier:
@@ -322,9 +312,7 @@ def carrier_display_sections(carrier: dict | None,
                              squadron_name: str = "") -> list[tuple[str, list]]:
     """Describe the Assets Carrier tab as [(section title, [(label, value)])].
 
-    The single source of truth for that tab in both front ends.  Rows whose
-    underlying data is genuinely absent are omitted rather than rendered as
-    a column of dashes.
+    The single source of truth for that tab in both front ends.
     """
     c = normalise_carrier(carrier)
     sections: list[tuple[str, list]] = []
@@ -441,7 +429,7 @@ def carrier_display_sections(carrier: dict | None,
 # Every hold is priced and ordered here, so the ship's and the SRV's manifests
 # cannot answer the same question differently.  Per-unit value is a property of
 # the commodity and the chosen price source; it does not depend on which vessel
-# the tonne happens to be sitting in.
+# the ton happens to be sitting in.
 
 def is_limpet(name: str) -> bool:
     """True for the limpet/drone commodity, however it is spelled."""
@@ -449,11 +437,7 @@ def is_limpet(name: str) -> bool:
 
 
 def cargo_price_context(state) -> dict:
-    """Resolve the price tables once for a whole panel.
-
-    Built from state alone so that every hold rendered in one repaint is
-    priced against the same market and the same source label.
-    """
+    """Resolve the price tables once for a whole panel."""
     tgt_info  = getattr(state, "cargo_target_market",      {}) or {}
     tgt_name  = getattr(state, "cargo_target_market_name", "") or ""
     mkt_info  = getattr(state, "cargo_market_info",        {}) or {}
@@ -480,11 +464,7 @@ def cargo_price_context(state) -> dict:
 
 def _price_source_label(mode: str, tgt_info: dict, tgt_name: str,
                         mkt_info: dict) -> str:
-    """What the panel says it is quoting.
-
-    Built here rather than in the renderers so the label and the prices below
-    it can never describe different markets.
-    """
+    """What the panel says it is quoting."""
     if mode == "galactic":
         return "Gal. Avg"
     if mode == "target":
@@ -498,12 +478,6 @@ def _price_source_label(mode: str, tgt_info: dict, tgt_name: str,
 
 def _trace_price(key, mode, gal, tgt, gal_avg, tgt_sell, docked_sell, price) -> None:
     """Record where one manifest price came from.
-
-    Price provenance was not observable from outside: the manifest shows a
-    number and the header shows a market, and when those two disagree there is
-    nothing to say which of four inputs produced the number or whether the
-    commodity was in the market table at all. Running with --trace produced
-    nothing useful here because nothing in this path wrote a line.
 
     Cheap enough to leave in — one formatted string per held commodity per
     render, only when tracing is on.
@@ -530,10 +504,10 @@ def cargo_manifest(items: dict, ctx: dict) -> tuple[list[dict], list[dict]]:
 
     Returns (freight, limpets).  Freight is ordered cheapest per unit first:
     with a full hold the question is what to jettison, and that is answered by
-    whatever is worth least per tonne.  Limpets are consumables rather than
+    whatever is worth least per ton.  Limpets are consumables rather than
     freight — never sold, and their count is what says whether the run can
     continue — so they are separated out and left alphabetical, which also
-    keeps them from permanently heading the jettison list at ~100 cr a tonne.
+    keeps them from permanently heading the jettison list at ~100 cr a ton.
     """
     gal_comms   = ctx["gal_comms"]
     tgt_comms   = ctx["tgt_comms"]
@@ -591,12 +565,7 @@ _CARGO_VALUE_W = 10
 
 
 def fmt_cargo_cr(v) -> str:
-    """Compact credit formatting for the cargo manifest.
-
-    Distinct from fmt_credits(): the manifest rounds thousands to whole units
-    and groups the units column, which keeps the price column inside its nine
-    characters at every magnitude the game produces.
-    """
+    """Compact credit formatting for the cargo manifest."""
     if not v:
         return "—"
     v = int(v)
@@ -613,9 +582,7 @@ def cargo_cols(count: int, unit_price: int, line_value: int) -> str:
             f"{fmt_cargo_cr(line_value):>{_CARGO_VALUE_W}}")
 
 
-#: Column headings, in the same three widths as the rows beneath them.  The
-#: unit column is headed "Price" rather than "Per t" because the panel header
-#: already names the market being quoted, which is the part that needs saying.
+#: Column headings, in the same three widths as the rows beneath them.
 _CARGO_HEADINGS = ("Tonnes", "Price", "Value")
 
 
@@ -623,9 +590,7 @@ def cargo_header_cols() -> str:
     """The column headings for a cargo manifest.
 
     Built from the same widths as ``cargo_cols`` so the headings sit over the
-    columns they name.  Without them the manifest is three unlabelled numbers
-    and a reader has to infer that the middle one is per tonne and the last
-    is the line total.
+    columns they name.
     """
     qty, price, value = _CARGO_HEADINGS
     return (f"{qty:>{_CARGO_QTY_W}}   "
@@ -634,14 +599,7 @@ def cargo_header_cols() -> str:
 
 
 def cargo_totals_cols(tonnage: str, total_value: int) -> str:
-    """The totals line, in the same three columns as the manifest above it.
-
-    A totals row carries no price per unit, so that column is blank rather
-    than zero — but it still has to occupy its full width, or the separators
-    stop lining up with the rows it totals.  Tonnage is passed as text because
-    the ship reads "used/capacity" and a surface vehicle may have no known
-    capacity to divide by.
-    """
+    """The totals line, in the same three columns as the manifest above it."""
     return (f"{tonnage:>{_CARGO_QTY_W}} | "
             f"{'':>{_CARGO_PRICE_W}} | "
             f"{fmt_cargo_cr(total_value):>{_CARGO_VALUE_W}}")
@@ -661,18 +619,7 @@ def srv_tonnage(used: int, capacity: int) -> str:
 
 def report_block_fault(core, block_id: str, exc: BaseException,
                        seen: set) -> None:
-    """Record that a dashboard window threw while redrawing.
-
-    Both front ends guard each window's refresh_data() so one faulty window
-    cannot take the dashboard down.  The guard used to be ``except: pass``,
-    which made the fault invisible: the desktop Crew / Alerts window raised
-    on every redraw whenever crew was hired, which also stopped its alert
-    feed updating, and nothing anywhere said so.
-
-    Reported once per window and fault — to the debug log with the
-    traceback, and as a standing fault in the Alerts feed — because a redraw
-    runs many times a second and would otherwise flood both.
-    """
+    """Record that a dashboard window threw while redrawing."""
     key = (block_id, type(exc).__name__, str(exc))
     if key in seen:
         return

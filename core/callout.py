@@ -1,16 +1,9 @@
-"""
-core/callout.py — say something: terminal, Discord, the Alerts pane, a sound.
-
-Every callout added for routes, survey routes, mining, exobiology,
-discoveries and automation goes through ``say``, so each honours the
-commander's level for it under Options → Notifications (``LogLevels``):
+"""core/callout.py — say something: terminal, Discord, the Alerts pane, a sound.
 
     0  off      1  terminal      2  + Discord      3  + Discord ping
 
-``alert=True`` also puts it in the Alerts pane (and EDCARS's alert strip when
-``urgent``). ``sound`` names a cue from core/sounds.py, played when the
-Callouts component has sounds on. Nothing is said while the journal is being
-replayed at startup.
+``sound`` names a cue from core/sounds.py, played when the Callouts component
+has sounds on.
 """
 from __future__ import annotations
 

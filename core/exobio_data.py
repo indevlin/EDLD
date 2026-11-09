@@ -1,8 +1,4 @@
-"""
-core/exobio_data.py — Organic (exobiology) value data and helpers.
-
-The verified species value table and genus clonal distances, shared by the
-session exobiology tracker and the Exobiology window so both agree.
+"""core/exobio_data.py — Organic (exobiology) value data and helpers.
 
 Value model (Odyssey):
   base value per species (table below)
@@ -134,7 +130,7 @@ SPECIES_VALUES: dict[str, tuple[str, int]] = {
     '$Codex_Ent_TubeEFGH_03_Name;': ('Viride Sinuous Tubers', 1514500),
 }
 
-# ── Minimum clonal distances by genus (metres) ──
+# ── Minimum clonal distances by genus (meters) ──
 _GENUS_CLONAL_DISTANCE: dict[str, int] = {
     "aleoida":     150,
     "bacterium":   500,
@@ -182,13 +178,13 @@ def species_value(codex_key: str, was_logged: bool, footfall_bonus: bool) -> int
     return value
 
 
-# ── Lookups by display name (the DB stores localised names) ──────────────────
+# ── Lookups by display name (the DB stores localized names) ──────────────────
 
 VALUE_BY_NAME = {disp: base for (disp, base) in SPECIES_VALUES.values()}
 
 
 def species_base_by_name(display_name: str) -> int:
-    """Base value for a species given its localised display name, or 0."""
+    """Base value for a species given its localized display name, or 0."""
     return VALUE_BY_NAME.get(display_name or "", 0)
 
 
@@ -210,9 +206,7 @@ GENUS_RANGES = _build_genus_ranges()
 def genus_value_range(genus_display: str):
     """(min, max) base value across a genus's species, or None if unknown.
 
-    Matches the leading-word genus the game reports (e.g. 'Bacterium'); special
-    multi-word names that don't match return None so the UI shows no figure
-    rather than a wrong one.
+    Matches the leading-word genus the game reports (e.g.
     """
     r = GENUS_RANGES.get((genus_display or "").split()[0] if genus_display else "")
     return (r[0], r[1]) if r else None

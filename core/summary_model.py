@@ -1,24 +1,13 @@
-"""
-core/summary_model.py — Shared summary model for the Session window and the
+"""core/summary_model.py — Shared summary model for the Session window and the
 Career block's Summary tab.
 
 Purpose
 -------
-Two windows present the same picture of the commander's activity at two
-different scopes:
-
     Session window            → the current session (reset with Ctrl+R)
     Career block, Summary tab → the whole career (lifetime)
 
 They are meant to show *the same things*, so the only honest way to build
-them is from one model.  This module owns that model: it emits an ordered
-list of sections with identical titles and identical meaning for both
-scopes, and the two Textual blocks are thin renderers over the result.
-Adding a row to a section therefore lands in both windows at once, and the
-two views cannot drift apart as either side is maintained.
-
-This module is deliberately UI-agnostic — it imports nothing from ``tui``
-and returns plain dicts.  Any front end can render it.
+them is from one model.
 
 Data shape
 ----------
@@ -31,34 +20,13 @@ Data shape
       ...
     ]
 
-``kind`` is ``"kv"`` for an ordinary key/value row or ``"sub"`` for a
-sub-heading inside a section (activity providers emit these as
-``"─── Notable bodies ───"`` divider rows; they are normalised here so the
-renderer never has to know about the dash convention).
+``kind`` is ``"kv"`` for an ordinary key/value row or ``"sub"`` for a sub-
+heading inside a section (activity providers emit these as ``"─── Notable
+bodies ───"`` divider rows; they are normalised here so the renderer never
+has to know about the dash convention).
 
 Sections with no data are omitted entirely, so an empty section never
-occupies a row.  A section that only one scope can populate — Fleet
-carrier has no session-scoped counterpart, for instance — simply does not
-appear on the other side.
-
-Sources
--------
-Session scope reads the registered ActivityProviderMixin components via
-``core.session_providers`` and calls ``get_tab_rows()``, which is
-materially richer than ``get_summary_rows()``: notable bodies and
-habitable zones from Exploration, the in-progress scan and clonal distance
-from Exobiology, per-commodity profit from Trade, limpet efficiency and
-per-commodity yield from Mining, per-system merits from PowerPlay.
-
-Career scope reads the ``journal_history`` component's lifetime scan
-results plus the most recent in-game ``Statistics`` event, and live wealth
-figures from state (maintained by the Assets component from CAPI, LoadGame
-and CarrierFinance — fresher than a one-shot journal scan).
-
-Journal-derived figures are preferred over Statistics wherever the two
-disagree: Statistics fields such as ``Trading.Goods_Sold`` and
-``Exploration.Planets_Scanned_To_Level_2`` sit at zero or stale for many
-commanders, while journal events are authoritative.
+occupies a row.
 """
 
 from __future__ import annotations
@@ -83,9 +51,7 @@ SECTION_ORDER = (
     "Income",
 )
 
-# Activity provider tab title → section title.  The providers were named
-# before this model existed; this table maps their vocabulary onto ours so
-# the session scope lands in the same sections as the career scope.
+# Activity provider tab title → section title.
 PROVIDER_SECTION = {
     "Combat":      "Combat",
     "Exploration": "Exploration",
@@ -167,11 +133,7 @@ def _duration(seconds) -> str:
 # ── Row helpers ───────────────────────────────────────────────────────────────
 
 def _since(iso_ts) -> str | None:
-    """Render how long ago an ISO timestamp was, e.g. "32d ago".
-
-    Used for the PowerPlay pledge date, where the useful question is "how
-    long have I been with this power", not the calendar date.
-    """
+    """Render how long ago an ISO timestamp was, e.g. "32d ago"."""
     if not iso_ts:
         return None
     try:
@@ -200,8 +162,7 @@ def _sub(label: str) -> dict:
 def _clean_sub(label: str) -> str:
     """Turn a provider divider label into a plain sub-heading.
 
-    Providers emit dividers as ``"─── Notable bodies ───"``.  Strip the box
-    drawing so the renderer can style sub-headings however it likes.
+    Providers emit dividers as ``"─── Notable bodies ───"``.
     """
     return label.strip().strip("─").strip() or "—"
 
@@ -232,9 +193,6 @@ def session_sections(core) -> list[dict]:
     place you are in and every commodity in it belongs in the activity's own
     window, not in a summary of the session.  That is how ring hotspots and a
     line per refined commodity ended up here.
-
-    Providers may define ``get_session_rows()`` to say exactly what belongs in
-    this view; those that do not fall back to their condensed summary rows.
     """
     sections: dict[str, list] = {t: [] for t in SECTION_ORDER}
 
@@ -252,8 +210,7 @@ def session_sections(core) -> list[dict]:
         overview.append(_row("Duration", _duration(dur_s)))
 
     # Income is accounted for once, in its own section — see the Income
-    # provider.  Repeating the total here and again per activity was the same
-    # figure three times over.
+    # provider.
 
     # The ship in use is not a session statistic — it is named in the Ship
     # window's header and in the Commander window.
@@ -431,7 +388,7 @@ def career_sections(core) -> list[dict]:
     rows = []
     samples = exo_s.get("Organic_Data") or exobio.get("sample_count")
     if samples:
-        rows.append(_row("Samples analysed", _num(samples)))
+        rows.append(_row("Samples analyzed", _num(samples)))
     if exo_s.get("Organic_Species_Encountered"):
         rows.append(_row("Species encountered",
                          _num(exo_s.get("Organic_Species_Encountered"))))
@@ -463,7 +420,7 @@ def career_sections(core) -> list[dict]:
     mats   = mine_s.get("Materials_Collected", 0)
     profit = mine_s.get("Mining_Profits", 0)
     if qty:
-        rows.append(_row("Tonnes refined", f"{qty:,} t"))
+        rows.append(_row("Tons refined", f"{qty:,} t"))
     if mats:
         rows.append(_row("Materials collected", _num(mats)))
     if profit:
@@ -473,7 +430,7 @@ def career_sections(core) -> list[dict]:
 
     # ── Trade ─────────────────────────────────────────────────────────────
     # Journal-derived figures win — Statistics.Trading.Goods_Sold sits at 0
-    # for many commanders despite thousands of tonnes sold.
+    # for many commanders despite thousands of tons sold.
     ms        = finance.get("market_sell", {}) or {}
     j_count   = ms.get("count",   0)
     j_revenue = ms.get("revenue", 0)
@@ -485,7 +442,7 @@ def career_sections(core) -> list[dict]:
     if trd_s.get("Markets_Traded_With"):
         rows.append(_row("Markets visited", _num(trd_s.get("Markets_Traded_With"))))
     if resources:
-        rows.append(_row("Tonnes sold", f"{resources:,} t"))
+        rows.append(_row("Tons sold", f"{resources:,} t"))
     if j_revenue:
         rows.append(_row("Gross revenue", _credits(j_revenue)))
     if market_profit:
@@ -550,15 +507,13 @@ def career_sections(core) -> list[dict]:
     sections["On foot"] = rows
 
     # ── PowerPlay ─────────────────────────────────────────────────────────
-    # ── PowerPlay ─────────────────────────────────────────────────────────
-    # Everything here is scoped to the current pledge.  Merits earned under a
-    # former allegiance are not carried over — they bought standing with a
-    # power the commander has left.  Two distinct measures remain, and are
-    # labelled for what they each count: the server's TotalMerits resets every
-    # cycle, while the journal tally runs from the pledge date.
+    # Pledge total: server TotalMerits. Cycle: core.weekly.CycleMerits.
+    from core import weekly
     rows = []
-    live_merits = getattr(state, "pp_merits_total", None) if state else None
-    cycle_total = live_merits or pp.get("total_merits", 0)
+    pledge_total = ((getattr(state, "pp_merits_total", None) if state else None)
+                    or pp.get("total_merits", 0) or 0)
+    cm = getattr(state, "pp_cycle", None) if state else None
+    cycle_total = cm.cycle() if cm is not None else 0
     pp_power    = ((getattr(state, "pp_power", None) if state else None)
                    or pp.get("power") or "")
     pp_rank     = getattr(state, "pp_rank", None) if state else None
@@ -566,18 +521,19 @@ def career_sections(core) -> list[dict]:
         rows.append(_row("Pledged to", pp_power, _since(pp.get("pledged_since"))))
     if pp_rank is not None:
         rows.append(_row("Rank", str(pp_rank)))
-    if cycle_total:
-        rows.append(_row("Merits this cycle", _num(cycle_total)))
+    if pp_power:
+        rows.append(_row("Merits this cycle", _num(cycle_total),
+                         f"resets in {weekly.until_reset()}"))
+    if pledge_total:
+        rows.append(_row("Merits this pledge", _num(pledge_total)))
 
     by_act   = pp.get("by_activity", {}) or {}
     earned   = [(a, m) for a, m in by_act.items() if m]
-    pledge   = pp.get("pledge_merits", 0) or sum(m for _, m in earned)
-    if pledge:
-        rows.append(_row("Merits this pledge", _num(pledge)))
+    tally    = sum(m for _, m in earned)     # journal tally: percentages only
     if earned:
         rows.append(_sub("Merits by activity"))
         for act, m in earned[:5]:
-            pct = f"{m / pledge * 100:.0f}%" if pledge else None
+            pct = f"{m / tally * 100:.0f}%" if tally else None
             rows.append(_row(f"  {act}", _num(m), pct))
     sections["PowerPlay"] = rows
 
@@ -620,8 +576,7 @@ def career_sections(core) -> list[dict]:
     if f_in:
         rows.append(_sub("Top earnings"))
         # Unknown Credits get a row of their own whatever their size: they are
-        # the one figure here that is inferred rather than logged, and a
-        # commander should always see how much of the total that is.
+        # the one figure here that is inferred.
         unknown = f_in.get("Unknown Credits", 0)
         for k, v in [(k, v) for k, v in f_in.items()
                      if v and k != "Unknown Credits"][:5]:
@@ -650,15 +605,7 @@ def career_sections(core) -> list[dict]:
 # ── Wealth ────────────────────────────────────────────────────────────────────
 
 def _wealth(state, finance, carrier_scan, bank) -> tuple[int, int, int]:
-    """Return ``(net_worth, liquid, carrier_bank)``.
-
-    Liquid credits, ship and module values, and the carrier bank balance are
-    all maintained on live state by the Assets component (CAPI + LoadGame +
-    Commander + CarrierFinance), so they are fresher than the one-shot
-    journal scan.  ``Statistics.Current_Wealth`` acts as the floor: if the
-    computed sum is larger — credits earned since the last Statistics event
-    fired — the computed sum wins.
-    """
+    """Return ``(net_worth, liquid, carrier_bank)``."""
     if state is None:
         return (bank.get("Current_Wealth", 0) or 0,
                 finance.get("liquid_credits", 0) or 0,

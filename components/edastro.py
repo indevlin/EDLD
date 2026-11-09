@@ -30,12 +30,12 @@ import threading
 import time
 import urllib.error
 import urllib.request
-from pathlib import Path
 
 from core.plugin_loader import BasePlugin
 from core import debug as _dbg
+from core import push_triggers as _push
 from core import integration_log as _ilog
-from core.state import EDLD_DATA_DIR, VERSION
+from core.state import VERSION
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -122,11 +122,15 @@ class _Sender(threading.Thread):
         self._q.put(None)
 
     def run(self) -> None:
+        _ilog.sender_started("EDAstro", self._queue_file)
         time.sleep(STARTUP_DELAY_S)
         self._last_drain = time.monotonic()
         self._drain_disk()
 
         batch: list[dict] = []
+        pushed = 0
+        self._counts = [0, 0]                 # sent, failed (by _send_batch)
+        last_heartbeat = time.monotonic()
 
         while not self._stop_evt.is_set():
             try:
@@ -141,6 +145,11 @@ class _Sender(threading.Thread):
                         and self._queue_file.exists()):
                     self._last_drain = time.monotonic()
                     self._drain_disk()
+                if time.monotonic() - last_heartbeat >= 60:
+                    sent, failed = self._counts
+                    _ilog.heartbeat("EDAstro", pushed=pushed, batch=len(batch),
+                                    sent=sent, failures=failed)
+                    last_heartbeat = time.monotonic()
                 continue
 
             if item is None:
@@ -154,6 +163,7 @@ class _Sender(threading.Thread):
                     batch = []
                 continue
 
+            pushed += 1
             batch.append(item)
             if len(batch) >= BATCH_MAX:
                 self._send_batch(batch)
@@ -182,10 +192,16 @@ class _Sender(threading.Thread):
                 },
                 method="POST",
             )
+            _ilog.request_posted("EDAstro", len(events))
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT_S) as resp:
                 self._last_send = time.monotonic()
                 if resp.status != 200:
+                    _ilog.response_failed("EDAstro", resp.status, "queued to disk")
+                    self._bump(1)
                     self._persist(events)
+                else:
+                    _ilog.response_ok("EDAstro", resp.status, len(events))
+                    self._bump(0)
 
         except urllib.error.HTTPError as e:
             if 400 <= e.code < 500 and e.code not in (408, 429):
@@ -197,11 +213,17 @@ class _Sender(threading.Thread):
             _dbg.info(f"  [EDAstro] HTTP {e.code} — queuing {len(events)} event(s) to disk")
             self._persist(events)
         except TimeoutError:
-            # Transient network timeout — queue for retry, don't flood the log
+            _ilog.transient("EDAstro", f"timeout — {len(events)} event(s) queued to disk")
+            self._bump(1)
             self._persist(events)
         except Exception as exc:
             _dbg.info(f"  [EDAstro] Send error ({type(exc).__name__}: {exc}) — queuing to disk")
             self._persist(events)
+
+    def _bump(self, i: int) -> None:
+        counts = getattr(self, "_counts", None)
+        if counts is not None:
+            counts[i] += 1
 
     # ── Disk persistence ──────────────────────────────────────────────────────
 
@@ -238,8 +260,6 @@ class EDAstroPlugin(BasePlugin):
         self.core                  = core
         self._enabled              = False
         self._carrier_opt_in       = False
-        # Start with the fallback set so we send something useful until
-        # /api/journal/interested arrives.  See _FALLBACK_INTEREST.
         self._interest_set:        frozenset[str] = _FALLBACK_INTEREST
         self._sender: _Sender | None = None
         self._gameversion          = ""
@@ -280,12 +300,17 @@ class EDAstroPlugin(BasePlugin):
         # again (core/upload_mark.py).
         mark = self._upload_mark()
         self._replaying = mark.replayed(event, state)
+        replayed = self._replaying
         try:
             self._on_event(event, state)
         finally:
             self._replaying = False
             if getattr(self, "_enabled", False):
                 mark.advance(event, state)
+                # core/push_triggers: send the batch now.
+                if (not replayed and getattr(self, "_sender", None) is not None
+                        and _push.is_push(event)):
+                    self._sender.flush()
 
     def _upload_mark(self):
         mark = self.__dict__.get("_mark")
@@ -320,8 +345,6 @@ class EDAstroPlugin(BasePlugin):
         ev_clean = {k: v for k, v in event.items() if k != "_logtime"}
         self._sender.push(ev_clean)
 
-        if event_name in ("FSDJump", "CarrierJump", "Docked", "Location"):
-            self._sender.flush()
 
     # ── Interest list ──────────────────────────────────────────────────────────
 
@@ -336,9 +359,6 @@ class EDAstroPlugin(BasePlugin):
                     data = json.loads(resp.read().decode("utf-8"))
                     if isinstance(data, list) and data:
                         new_set = frozenset(data)
-                        # Report what changed vs the fallback so the user
-                        # can see we're picking up new event types that the
-                        # hardcoded fallback didn't know about.
                         new_events  = sorted(new_set - _FALLBACK_INTEREST)
                         lost_events = sorted(_FALLBACK_INTEREST - new_set)
                         self._interest_set = new_set
@@ -353,6 +373,11 @@ class EDAstroPlugin(BasePlugin):
                                       f"{', '.join(new_events[:8])}"
                                       f"{' …' if len(new_events) > 8 else ''}")
                         return
+                    _dbg.info(f"  [EDAstro] Interest list not a non-empty list — "
+                              f"using {len(_FALLBACK_INTEREST)}-event fallback")
+                    return
+                _dbg.info(f"  [EDAstro] Interest list HTTP {resp.status} — "
+                          f"using {len(_FALLBACK_INTEREST)}-event fallback")
         except Exception as exc:
             _dbg.info(
                 f"  [EDAstro] Could not fetch interest list "

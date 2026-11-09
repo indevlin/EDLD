@@ -1,20 +1,17 @@
-"""
-components/powerplay.py — PowerPlay session tracking.
+"""components/powerplay.py — PowerPlay session tracking.
 
 Tracks merits earned across all PowerPlay activities with per-system
-attribution. Merit count and rate at the session level; per-system
-breakdown shows which systems drove the most merit income this session.
+attribution.
 
-PowerplayMerits does not carry a system field. We attribute merits to
-state.pilot_system at the moment the event fires, which is the system
-the player was in when the merit was earned (kill, delivery, etc.).
+PowerplayMerits does not carry a system field.
 
 Tab title: PowerPlay
 """
 
 from core.plugin_loader import BasePlugin
 from core.activity import ActivityProviderMixin
-from core.emit import Terminal, rate_per_hour
+from core.emit import rate_per_hour
+from core import weekly
 
 
 class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
@@ -37,6 +34,28 @@ class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
         super().on_load(core)
         core.register_session_provider(self)
         self._reset_counters()
+        core.state.pp_cycle = weekly.CycleMerits()
+
+    def _rebuild_cycle(self, until: str) -> None:
+        """state.pp_cycle from the journal index up to `until`."""
+        state = self.core.state
+        jdir = getattr(self.core, "journal_dir", None)
+        if not jdir:
+            return
+        try:
+            from core.journal_index import index_for
+            events = (ev for _f, ev in index_for(jdir).events(weekly.PP_EVENTS))
+            state.pp_cycle = weekly.CycleMerits.rebuild(events, until)
+        except Exception as exc:
+            from core import debug as _dbg
+            _dbg.exception("[PowerPlay] cycle merits not rebuilt from the journals", exc)
+            state.pp_cycle = weekly.CycleMerits()
+
+    def _cycle(self, state) -> "weekly.CycleMerits":
+        cm = getattr(state, "pp_cycle", None)
+        if cm is None:
+            cm = state.pp_cycle = weekly.CycleMerits()
+        return cm
 
     def _reset_counters(self) -> None:
         self.merits_earned:    int  = 0
@@ -61,6 +80,9 @@ class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
         match ev:
 
             case "Powerplay":
+                # Login snapshot: rebuild the cycle tracker, then feed it.
+                self._rebuild_cycle(str(event.get("timestamp", "")))
+                self._cycle(state).feed(event)
                 self.power        = event.get("Power")
                 self.rank_current = event.get("Rank")
                 if self.rank_start is None:
@@ -71,11 +93,16 @@ class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
 
             case "PowerplayMerits":
                 gained = event.get("MeritsGained", 0)
+                total = event.get("TotalMerits")
+                cm = self._cycle(state)
+                # Repeat event: TotalMerits unchanged, nothing credited.
+                if total is not None and cm.total is not None and int(total) == cm.total:
+                    gained = 0
+                cm.feed(event)
                 if gained > 0:
                     if self.session_start_time is None:
                         self.session_start_time = logtime
                     self.merits_earned += gained
-                    total = event.get("TotalMerits")
                     if total is not None:
                         state.pp_merits_total = total
                     # Attribute to current system
@@ -98,6 +125,7 @@ class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
                 if gq: gq.put(("stats_update", None))
 
             case "PowerplayJoin":
+                self._cycle(state).feed(event)
                 self.power        = event.get("Power")
                 self.rank_current = 1
                 self.rank_start   = 1
@@ -105,7 +133,9 @@ class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
                 state.pp_rank     = 1
 
             case "PowerplayLeave" | "PowerplayDefect":
-                self.power    = event.get("Power") if ev == "PowerplayDefect" else None
+                self._cycle(state).feed(event)
+                self.power    = (event.get("ToPower") or event.get("Power")
+                                 if ev == "PowerplayDefect" else None)
                 state.pp_power = self.power
                 state.pp_rank  = None
 
@@ -119,16 +149,10 @@ class ActivityPowerplayPlugin(BasePlugin, ActivityProviderMixin):
     OVERLAY_PANELS = ("powerplay",)
 
     def overlay_panel(self, panel_id: str, ctx):
-        """Who you are pledged to, and how far up you are. Nothing else.
+        """Who you are pledged to, and how far up you are.
 
         Unpledged commanders get no panel at all — not an empty one, not one
-        reading "None". PowerPlay is opt-in, and an overlay line that exists
-        only to say a feature is switched off is worse than the space it takes.
-
-        Deliberately not the mixin's default, which would report session merits
-        and only while some had been earned. Allegiance and rank are true the
-        moment you undock, and they are what a pledged commander would put on
-        screen.
+        reading "None".
         """
         if panel_id != "powerplay":
             return None

@@ -1,16 +1,7 @@
-"""
-components/server.py — the Server tab in Preferences, for the EDAM client.
-
-The same page in the terminal dashboard and the desktop window: the server's
-settings, what it is doing right now, the paired devices, and a button that
-shows a pairing QR code.  Pairing here and ``edld --pair`` share one
-implementation (core.server.cli.new_pairing), so all three show the same code
-the same way.
+"""components/server.py — the Server tab in Preferences, for the EDAM client.
 
 The server itself is started by edld.py once the journal bootstrap is done,
-and handed to CoreAPI as ``core.server``.  This component only looks at it; it
-works with the server off too, since pairing tickets and the device list are
-files — a code shown while the server is off is still good once it starts.
+and handed to CoreAPI as ``core.server``.
 """
 
 from __future__ import annotations

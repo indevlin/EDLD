@@ -1,15 +1,4 @@
-"""
-tests/test_radio.py — the radio: stations from config, and the player end to end.
-
-The station list is only as good as its round trip through config_to_toml,
-which is what Preferences writes the file with: a layout that did not survive
-that would lose every user-added station the first time anyone pressed Apply.
-
-The player is exercised against a local Icecast-style server and miniaudio's
-null audio backend, which consumes samples in real time without a sound card.
-That covers the real decoder, the real device callback and the real network
-reader — everything except the speaker.  Each failure a station can present
-is checked to arrive as a readable message rather than as silence.
+"""tests/test_radio.py — the radio: stations from config, and the player end to end.
 """
 from __future__ import annotations
 
@@ -144,7 +133,7 @@ def test_supported_types(ctype, kind):
 @pytest.mark.parametrize("ctype,fragment", [
     ("audio/aacp", "AAC+"), ("audio/aac", "AAC"), ("audio/opus", "Opus"),
     ("text/html; charset=utf-8", "web page"), ("", "none given"),
-    ("application/octet-stream", "unrecognised"),
+    ("application/octet-stream", "unrecognized"),
 ])
 def test_unsupported_types_say_what_they_are(ctype, fragment):
     with pytest.raises(R.RadioError, match=fragment):
@@ -529,7 +518,7 @@ def test_alert_watcher():
     assert not w.new_since_last([a])
     b = {"emoji": "!", "text": "Hull 25%", "mono_time": 2.0}
     assert w.new_since_last([b, a])
-    assert not w.new_since_last([a])          # one ageing out is not news
+    assert not w.new_since_last([a])          # one aging out is not news
 
 
 # ── The terminal tab ──────────────────────────────────────────────────────────
@@ -961,7 +950,7 @@ def test_gui_add_to_profile_then_delete_while_playing(qt_app, cfg_file, monkeypa
 
     panel._ctl.toggle_play()
     asked = []
-    panel._ask = lambda t, m: asked.append((t, m)) or False     # cancelled
+    panel._ask = lambda t, m: asked.append((t, m)) or False     # canceled
     panel._open_delete()
     assert player.playing is not None and "LaveRadio" in cfg_file.read_text("utf-8")
     panel._ask = lambda t, m: asked.append((t, m)) or True

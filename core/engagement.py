@@ -1,8 +1,5 @@
-"""
-core/engagement.py — whether the commander is in a fight, and whether they
-are jumping out of one.
-
-Two questions several components need answered the same way:
+"""core/engagement.py — whether the commander is in a fight, and whether they are
+jumping out of one.
 
 * Was a fighter lost to the enemy, or left behind? The game writes
   FighterDestroyed for both: for a fighter shot down, and for one the ship
@@ -11,14 +8,7 @@ Two questions several components need answered the same way:
 * Was cargo taken, or thrown out? EjectCargo is written for a hatch breaker
   and for the commander's own jettison alike, with the same fields.
 
-Neither event says which. The context does: combat in the last minute — being
-attacked, taking hull or shield damage, an interdiction, shooting for bounties
-or bonds, or Status.json's IsInDanger — and a StartJump just before.
-
-Cargo is judged more narrowly (judge_jettison). IsInDanger is on whenever a
-pirate is scanning or threatening, which in a ring is most of the time, and
-hull and shield damage come from bumping rocks; a limpet dump to make room
-counted as theft by either. What tells them apart:
+Cargo is judged more narrowly (judge_jettison).
 
 * the cargo panel (Status.json GuiFocus 1, the right-hand panel) open at the
   jettison: the commander did it — live only, as Status.json is not kept;
@@ -27,20 +17,15 @@ counted as theft by either. What tells them apart:
 * otherwise, being shot at or interdicted in the last COMBAT_WINDOW_S, by
   the journal's own UnderAttack and interdiction events: taken.
 
-Anything else is a jettison. The "Jettison all cargo" key works without the
-panel, so a dump by that key in the middle of a fight still reads as taken.
-
 Times are journal times (UTC), so the same answer comes out whether an event
-is read live or replayed from a file. Status.json's danger flag is live only,
-recorded against the clock when it is seen.
+is read live or replayed from a file.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
 #: How long after the last sign of a fight the commander still counts as in
-#: one. Long enough to span a fighter dying to the attacker that just broke
-#: off; short enough that a fight an hour ago does not colour a quiet loss.
+#: one.
 COMBAT_WINDOW_S = 60
 
 #: How long after StartJump a FighterDestroyed is the ship leaving it behind.

@@ -1,11 +1,4 @@
-"""
-gui/blocks/objectives.py — Objectives window (Qt).
-
-What the commander has taken on and has yet to finish: the mission board, and
-colonisation construction sites awaiting deliveries.  Both are work with an
-end state, which is what separates them from the running totals in the Session
-window and from the ship's own contents.
-"""
+"""gui/blocks/objectives.py — Objectives window (Qt)."""
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
@@ -30,13 +23,30 @@ class ObjectivesBlock(GuiBlock):
         self._missions = RowScroll()
         self._tabs.addTab(self._missions, "Missions")
 
-        # Collapse state carried over from the Colonisation window.
+        # Collapse state carried over from the Colonization window.
         self._expanded: dict[int, bool] = {}
         self._expanded_sys: dict[str, bool] = {}
         self._colon_scroll = RowScroll()
-        self._tabs.addTab(self._colon_scroll, "Colonisation")
+        self._tabs.addTab(self._colon_scroll, "Colonization")
+
+        from gui.deposits_table import DepositsTable
+        self._deposits = DepositsTable(self.core)
+        self._tabs.addTab(self._deposits, "Deposits")
+        self._tabs.currentChanged.connect(lambda _i: self._refresh_deposits())
 
         layout.addWidget(self._tabs, 1)
+
+    def _refresh_deposits(self) -> None:
+        """Only while the Deposits tab is showing: it reads the survey store."""
+        if self._tabs.currentWidget() is self._deposits:
+            self._deposits.refresh()
+
+    def row_action(self, action: str) -> None:
+        """clear:<market id> → colonisation.clear_site."""
+        plugin = (getattr(self.core, "_plugins", None) or {}).get("colonisation")
+        if plugin is not None and action.startswith("clear:"):
+            plugin.clear_site(int(action.split(":", 1)[1]))
+            self.refresh_data()
 
     def refresh_data(self) -> None:
         # What the window shows is core/windows/objectives.py, drawn the same
@@ -44,14 +54,10 @@ class ObjectivesBlock(GuiBlock):
         from core.windows import objectives as W
         self._missions.set_rows(self.render_rows(W.missions(self.core).rows))
         self._refresh_colonisation()
+        self._refresh_deposits()
 
     def _on_hdr_click(self, *, system_name=None, market_id=None) -> None:
-        """Collapse or expand the group whose header was clicked.
-
-        Qt does not bubble clicks from plain labels the way the terminal side
-        walks up from the clicked widget, so ClickableHdr hands the identity
-        of the group straight back here.
-        """
+        """Collapse or expand the group whose header was clicked."""
         if market_id is not None:
             self._expanded[market_id] = not self._expanded.get(market_id, True)
         elif system_name is not None:

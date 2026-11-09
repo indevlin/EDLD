@@ -1,12 +1,6 @@
-"""
-tests/test_gui_column_alignment.py — the GUI must lay columns out like the TUI.
+"""tests/test_gui_column_alignment.py — the GUI must lay columns out like the TUI.
 
 The shared helpers in core.ui_helpers align columns by padding with spaces.
-Every label in the Qt window is ``Qt.RichText``, and Qt collapses runs of
-spaces exactly as a browser does, so that padding was being squeezed to a
-single space on its way to the screen: the cargo manifest's separators did
-not line up with each other, and the totals row rendered its empty price
-column as ``| |``.
 
 The fault was invisible from either side on its own.  The strings are built
 by shared code and are identical in both front ends, so comparing them proves
@@ -75,8 +69,7 @@ def test_the_gui_renders_the_columns_it_was_given(qapp):
 
 
 def test_the_separators_line_up_down_the_manifest(qapp):
-    """The point of the padding.  Ragged separators are what this looked like
-    on screen, and the strings themselves were never wrong."""
+    """The point of the padding."""
     positions = {name: [i for i, ch in enumerate(rendered) if ch == "|"]
                  for name, _built, rendered in _rows(qapp)}
     distinct = {tuple(p) for p in positions.values()}
@@ -114,7 +107,7 @@ def test_single_spaces_stay_breakable(qapp):
 
 
 def test_padding_survives_alongside_markup(qapp):
-    """Padded values are often coloured too, and the tag walker must not skip
+    """Padded values are often colored too, and the tag walker must not skip
     the protection on the text between the tags."""
     from core.palette import rgb
     from gui.markup import to_html
@@ -191,10 +184,10 @@ def test_the_real_cargo_panel_lines_its_columns_up(qapp):
         f"separators land in different columns: {seps}"
 
 
-# ── The font a coloured value wears ───────────────────────────────────────────
+# ── The font a colored value wears ───────────────────────────────────────────
 #
 # classes_to_props turns "val dim" and "val highlight" into role="dim" and
-# role="highlight", each of which carries a colour and nothing else.  Only
+# role="highlight", each of which carries a color and nothing else.  Only
 # role="val" named the monospace family, so a value marked either way silently
 # fell back to the proportional face and stopped lining up with the values
 # above and below it.  The cargo manifest's column headings were the visible
@@ -252,8 +245,8 @@ def test_all_value_colours_share_one_character_width(qapp):
 
 def test_the_headings_land_over_their_columns_in_pixels(qapp):
     """The end of the whole chain: same string widths, same face, same right
-    edge.  Asserted in laid-out pixels because that is the only place the
-    fault ever showed."""
+    edge.
+    """
     import queue
 
     from PySide6.QtGui import QFontMetricsF, QTextDocument
@@ -310,11 +303,8 @@ def test_the_headings_land_over_their_columns_in_pixels(qapp):
     assert len(rows) >= 3, "expected a heading, a commodity and a totals row"
 
     heading, commodity = rows[0], rows[1]
-    # A heading wears a colour role (it was "dim"; it is now the accent, as
-    # EDAM draws it), which is exactly the case that used to cost the value
-    # column its monospace face.
     assert heading._val.property("role") == "highlight", \
-        "the heading is no longer the coloured case this guards"
+        "the heading is no longer the colored case this guards"
     assert right_edges(heading) == right_edges(commodity), (
         f"headings {right_edges(heading)} do not sit over the row "
         f"{right_edges(commodity)}")

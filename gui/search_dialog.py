@@ -1,19 +1,8 @@
-"""
-gui/search_dialog.py — Modal search dialog (Qt).
+"""gui/search_dialog.py — Modal search dialog (Qt).
 
-The Qt counterpart of ``tui/search_modal.py``.  Used by the Cargo block to
-pick a target market and by the Commander block to set a home location; both
-pass a ``search_fn`` that hits Spansh and a ``result_label`` that renders one
-row of whatever that call returns.
+The Qt counterpart of ``tui/search_modal.py``.
 
 Searching happens on a worker thread and results arrive back through a signal.
-A search that ran on the GUI thread would freeze the whole dashboard for the
-length of an HTTP round trip, and the dashboard is meant to keep updating
-while the commander is typing into this box.
-
-Typing is debounced: the query fires a short interval after the last
-keystroke, so a commander typing a full station name issues one request rather
-than one per character.
 """
 
 from __future__ import annotations

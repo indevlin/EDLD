@@ -54,7 +54,7 @@ a strip holds, left to right:
 | Vessel | The ship's name, ID and type — or the SRV, the fighter, or the suit on foot |
 | Cargo | Used and total tonnage of whatever you are in |
 | Location | The system, and the body or station within it |
-| Fuel | The ship's main tank, coloured at the fuel warn and critical thresholds |
+| Fuel | The ship's main tank, colored at the fuel warn and critical thresholds |
 | Hull | The ship's hull, or the SRV's while you are driving one |
 | Mode | Solo, Open or the private group |
 
@@ -79,8 +79,8 @@ strip until you open the Alerts section.
 | Helm | `Ctrl+2` | The Helm panel: the game's controls and EDLD's automation, as buttons |
 | Fleet | `Ctrl+3` | Ships, stored modules, the fleet carrier and the squadron carrier |
 | Exploration | `Ctrl+4` | Exploration / Exobiology beside Navigation |
-| Objectives | `Ctrl+5` | Missions and colonisation |
-| Career | `Ctrl+6` | Session / Career |
+| Objectives | `Ctrl+5` | Missions, colonization and surface deposits |
+| Career | `Ctrl+6` | Career / Session |
 | Alerts | `Ctrl+7` | The alert feed, with its Clear button |
 
 Under the sections, the last pill on the rail is **Settings**, as on EDAM. It
@@ -101,7 +101,7 @@ closes.
 The Helm section is the Helm panel at its largest: the groups side by side as
 many as fit, evened out over the rows, and the buttons growing to fill the
 section. A button that cannot be pressed — automation off, or the control
-bound to nothing EDLD can press — is greyed, and its tooltip says why. See
+bound to nothing EDLD can press — is grayed, and its tooltip says why. See
 [AUTOMATION.md](AUTOMATION.md#the-helm-panel).
 
 <details>
@@ -171,7 +171,7 @@ drawn, and the faces the chrome is set in. **Options → Appearance →
 | Console | | Chrome |
 |---------|---|--------|
 | **EDCARS** | The band and the elbow, pills down the rail | Euro Caps |
-| **ORDER** | An Imperial fleet console: grey steel pills each with an indicator light, a black band over a rule of the accent, readouts behind chamfered black glass, a bank of panel lights over the rail | Rajdhani |
+| **ORDER** | An Imperial fleet console: gray steel pills each with an indicator light, a black band over a rule of the accent, readouts behind chamfered black glass, a bank of panel lights over the rail | Rajdhani |
 | **REBEL** | A Rebel ops board: a cream band between an orange elbow and an amber cap, cream console pills with round lamps, each window's screen set in a cream bezel under a label plate | Saira Condensed |
 | **ROGUE** | An independent freighter's cockpit: worn plate and rivets, the title glowing on an amber CRT, each section a strip of masking tape with a lamp and a toggle switch, windows in rounded CRT bezels, a rust patch where the rail runs out | VT323, labels in Permanent Marker |
 
@@ -199,7 +199,7 @@ plain look.
 The three names are homages, not borrowings: no insignia, no alien
 lettering, no names from anywhere but Elite. The faces are free: Rajdhani,
 Saira Condensed and VT323 under the SIL Open Font License, Permanent Marker
-under the Apache License 2.0, each shipped in `fonts/` with its licence (see
+under the Apache License 2.0, each shipped in `fonts/` with its license (see
 [THIRD-PARTY-NOTICES.md](../THIRD-PARTY-NOTICES.md)).
 
 EDAM draws all four. Its **Settings → Console** follows EDLD by default —
@@ -213,7 +213,7 @@ EDCARS's portrait one, in the console's paint and faces.
 ## Themes
 
 EDCARS draws from the theme like everything else: the band, rail and frames are
-the theme's accent, and the pills mix it towards the background. Custom themes
+the theme's accent, and the pills mix it toward the background. Custom themes
 work with nothing extra to set. See [THEMING.md](THEMING.md).
 
 <div align="center">
@@ -226,7 +226,7 @@ work with nothing extra to set. See [THEMING.md](THEMING.md).
 The section titles, pills and header are set in Euro Caps, which EDLD ships in
 `fonts/`; it is free for any use. The band's title and clock, the strip's
 labels and the pills are bold: Euro Caps is a thin face, and at the strip's
-size, or on a pill's mid-tone colour, the regular weight was hard to read.
+size, or on a pill's mid-tone color, the regular weight was hard to read.
 
 ---
 
@@ -246,7 +246,7 @@ the same elbow, band, cap, strip and rail, to the same measurements, and
 each section's windows framed in the same columns at the same widths, tabbed
 where the desktop's are, with the same tabs in the same order — the
 Navigation forms after Route, the Engineering locker's own tabs, tables in
-columns, values in the desktop's colours, and the buttons along a window's
+columns, values in the desktop's colors, and the buttons along a window's
 foot — with two differences: the radio strip along the
 desktop window's foot is not there (the ad banner is), and the band carries
 EDAM's connection status beside the clock, and the Settings pill at the end

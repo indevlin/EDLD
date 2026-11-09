@@ -1,11 +1,4 @@
-"""
-tui/widget_values.py — what a form widget holds, as the text a setting stores.
-
-A Select with nothing chosen does not hold None. It holds Textual's blank
-sentinel — Select.NULL in current releases, Select.BLANK in others, and in at
-least one a plain False — and ``str()`` of that is the string "Select.NULL".
-Read naively, an Amount left blank on purpose arrived as "Select.NULL" and was
-rejected as not one of Low, Medium or High.
+"""tui/widget_values.py — what a form widget holds, as the text a setting stores.
 """
 
 from __future__ import annotations

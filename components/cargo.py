@@ -1,16 +1,8 @@
-"""
-components/cargo.py — Ship cargo inventory tracking.
-
-Tracks the current cargo hold: capacity, used slots, and per-item breakdown
-enriched with market data (sell price, galactic average, category) from
-Market.json and CAPI /market.
+"""components/cargo.py — Ship cargo inventory tracking.
 
 Cargo.json strategy
 -------------------
-The game writes Cargo.json on every hold change. It is always the ship's cargo
-(never SRV or Fighter), so we read it on every "Cargo" journal event rather than
-parsing the event Inventory array directly — which suffers from per-vessel events
-firing in sequence and overwriting the ship's snapshot.
+The game writes Cargo.json on every hold change.
 
 State written to MonitorState:
     cargo_capacity      int   — maximum hold tonnage (from Loadout)
@@ -43,14 +35,7 @@ _CANON_RE = __import__('re').compile(r'^\$(.+)_name;$')
 
 
 def _canonicalise_key(raw: str) -> str:
-    """Normalise a commodity key to plain lowercase.
-
-    Both Market.json and some journal events use the $commodity_name;
-    localisation wrapper. Strip it so keys always match.
-
-    Delegates to core.commodity_ledger so the plugin and the commodity
-    catalogue cannot disagree about what counts as the same commodity.
-    """
+    """Normalize a commodity key to plain lowercase."""
     return canonical_name(raw)
 
 
@@ -94,28 +79,19 @@ class CargoPlugin(BasePlugin):
         if not hasattr(s, "cargo_mean_prices"):s.cargo_mean_prices = {}
         if not hasattr(s, "cargo_market_info"):s.cargo_market_info = {}
 
-        # Restore persisted galactic-average prices accumulated from all previous
-        # market visits. These survive restarts and FC visits (which wipe the local
-        # Market.json). New prices are MERGED in, never replaced wholesale.
+        # Restore persisted galactic-average prices accumulated from all
+        # previous market visits. These survive restarts and FC visits (which
+        # wipe the local Market.json).
         saved_prices = self.storage.read_json("data.json") or {}
         if isinstance(saved_prices, dict):
             s.cargo_mean_prices = saved_prices
 
-        # The ship's hold and capacity are only reported by Loadout and by
-        # Ship cargo events, and Elite opens a new journal on every launch.
-        # Resume a save while already in an SRV and the new journal contains
-        # neither — only SRV events — so both have to be recovered.
-        #
-        # The hold comes from what was last seen, because its true contents
-        # are often the result of transfers rather than any single Cargo
-        # event: the last Ship cargo event in the previous journal can say
-        # empty while sixty tonnes were moved aboard afterwards.
         self._saved_cargo: dict = {}
-        #: The journal time the hold in state.cargo_items is correct as of.
-        #: The preload replays the current journal through on_event, and every
+        #: The journal time the hold in state.cargo_items is correct as of. The
+        #: preload replays the current journal through on_event, and every
         #: hold-changing event up to this moment is already in the hold — by
         #: the journal replay below, or in the persisted copy — so applying
-        #: them again counts them twice. See _ALREADY_COUNTED.
+        #: them again counts them twice.
         self._as_of: str = ""
         saved = self.storage.read_json("cargo.json") or {}
         if isinstance(saved, dict):
@@ -128,8 +104,6 @@ class CargoPlugin(BasePlugin):
                     s.cargo_items = items
                     self._as_of = str(saved.get("as_of", "") or "")
 
-        # Capacity still falls back to the journals, which is the one place it
-        # is reported outright.
         self._bootstrap_from_journals()
 
         # Bootstrap current-market data — CAPI first, then Market.json.
@@ -158,7 +132,7 @@ class CargoPlugin(BasePlugin):
         if s.cargo_mean_prices:
             self._save_mean_prices(s.cargo_mean_prices)
 
-        # Running catalogue of every commodity ever seen in Market.json, with
+        # Running catalog of every commodity ever seen in Market.json, with
         # its galactic average re-recorded whenever that price drifts.  Unlike
         # cargo_mean_prices (a name→price map the manifest prices against) this
         # is a durable record carrying each commodity's identity as well, and
@@ -173,9 +147,7 @@ class CargoPlugin(BasePlugin):
         self._ledger_lock = __import__("threading").Lock()
         try:
             # The ledger is a galactic average, not a commander's opinion of
-            # one, so it lives in the shared data directory rather than under
-            # commanders/<fid>/.  Any per-commander copies are consolidated on
-            # the first start after the move; see core/data_migrate.py.
+            # one, so it lives in the shared data directory.
             from core.data_migrate import migrate_to_shared, shared_ledger_path
             from core.state import EDLD_DATA_DIR, shared_data_dir
             migrate_to_shared(EDLD_DATA_DIR, shared_data_dir(),
@@ -207,12 +179,7 @@ class CargoPlugin(BasePlugin):
             s.cargo_items = items
 
     def _watch_market_json(self) -> None:
-        """Poll Market.json for mtime changes.
-
-        The game writes Market.json silently (no journal event) when the
-        player selects a comparison market from the galaxy or system map.
-        Poll every 2 seconds; on change, re-read and refresh cargo block.
-        """
+        """Poll Market.json for mtime changes."""
         import time as _time
         from pathlib import Path as _Path
         market_path = _Path(self.core.journal_dir) / "Market.json"
@@ -228,7 +195,7 @@ class CargoPlugin(BasePlugin):
                 if (key is not None and key != last_key
                         and _json_is_complete(market_path)):
                     last_key = key
-                    # Catalogue first: it takes every market, including
+                    # Catalog first: it takes every market, including
                     # the Fleet Carrier ones _read_market_json discards.
                     self._update_commodity_ledger()
                     info = _read_market_json(self.core.journal_dir)
@@ -266,10 +233,6 @@ class CargoPlugin(BasePlugin):
         transfers made afterwards.  Picking one event found an older, emptied
         snapshot and reported nothing aboard.
 
-        So the recent journals are replayed forward instead: the last cargo
-        event that carried an inventory is the baseline, and everything that
-        moved cargo after it is applied.
-
         Sales and jettisons were once assumed to need no special handling, on
         the grounds that they emit their own cargo event which resets the
         baseline.  They do emit one, but in a real capture it carries no
@@ -279,11 +242,6 @@ class CargoPlugin(BasePlugin):
         stayed in the hold across every restart, and a later transfer of
         Thortveitite was added on top of goods that had been sold hours
         earlier.  The panel read 326 t of a 1024 t hold when 79 t were aboard.
-
-        Hence the market and jettison events are replayed too, and a Ship
-        cargo event reading ``Count: 0`` empties the hold whether or not it
-        names a manifest — that is the one count-only form whose contents are
-        not in doubt.
         """
         state = self.core.state
         try:
@@ -395,10 +353,8 @@ class CargoPlugin(BasePlugin):
             state.srv_cargo_count = snap["count"]
 
         # The journals win over the persisted copy: they are the record the
-        # game itself wrote, and a stale save — or one written during a
-        # session when the hold was not yet known — would otherwise stick.
-        # Persistence remains the fallback for whatever the journals on disk
-        # no longer reach.
+        # game itself wrote, and a stale save — or one written during a session
+        # when the hold was not yet known — would otherwise stick.
         if capacity:
             state.cargo_capacity = capacity
         if items is not None:
@@ -411,12 +367,7 @@ class CargoPlugin(BasePlugin):
             self._as_of = last_ts
 
     def on_event(self, event, state, *args, **kwargs):
-        """Dispatch, then persist the ship's hold if it changed.
-
-        Wrapped rather than saved inside each branch because several return
-        early, and a hold that is only sometimes persisted is worse than one
-        that never is.
-        """
+        """Dispatch, then persist the ship's hold if it changed."""
         if self._already_counted(event, state):
             # Still note which vessel the game is reporting on: refines are
             # routed by it, and that must follow the replay.
@@ -451,8 +402,7 @@ class CargoPlugin(BasePlugin):
     def _already_counted(self, event: dict, state) -> bool:
         """True for a replayed hold event the restored hold already includes.
 
-        Only during the preload: a live event is always new. SRV cargo events
-        are absolute counts, so replaying one is harmless and they pass.
+        Only during the preload: a live event is always new.
         """
         if not getattr(state, "in_preload", False) or not self._as_of:
             return False
@@ -495,8 +445,7 @@ class CargoPlugin(BasePlugin):
                     state.srv_cargo_count = max(int(event.get("Count", 0) or 0), 0)
                     # These events usually carry only a count, but the first
                     # after a load carries the manifest — keep it when it is
-                    # there so the SRV's hold can be listed rather than just
-                    # totalled.
+                    # there so the SRV's hold can be listed.
                     inv = event.get("Inventory")
                     if isinstance(inv, list):
                         state.srv_cargo_items = {
@@ -692,12 +641,7 @@ class CargoPlugin(BasePlugin):
 
 
     def _in_srv(self, state) -> bool:
-        """True when refined ore is going into the SRV rather than the ship.
-
-        Two independent signals, because either can be stale on its own: the
-        vessel the game last reported cargo for, and the commander's tracked
-        vessel mode.
-        """
+        """True when refined ore is going into the SRV."""
         if getattr(self, "_cargo_vessel", "Ship") == "SRV":
             return True
         return str(getattr(state, "vessel_mode", "")).lower() == "srv"
@@ -709,16 +653,11 @@ class CargoPlugin(BasePlugin):
         except Exception:
             pass
 
-    # ── Commodity catalogue ───────────────────────────────────────────────────
+    # ── Commodity catalog ───────────────────────────────────────────────────
 
     @staticmethod
     def _ledger_log(msg: str) -> None:
-        """Route ledger diagnostics to the debug log rather than dropping them.
-
-        The catalogue is a side record — a failure here must not disturb the
-        dashboard — but it must not vanish either, which is how the costly
-        bugs in this codebase have always hidden.
-        """
+        """Route ledger diagnostics to the debug log."""
         try:
             from core import debug as _dbg
             _dbg.info(f"  [cargo] {msg}")
@@ -726,12 +665,7 @@ class CargoPlugin(BasePlugin):
             pass
 
     def _update_commodity_ledger(self) -> None:
-        """Fold the current Market.json into the commodity catalogue.
-
-        Guarded on Market.json's mtime, so the several callers that fire on
-        one market write — the file watcher and the Market/Docked/Location
-        events, which all describe the same write — do the work once.
-        """
+        """Fold the current Market.json into the commodity catalog."""
         ledger = getattr(self, "_ledger", None)
         if ledger is None:
             return
@@ -769,9 +703,7 @@ class CargoPlugin(BasePlugin):
         """Follow Cargo.json the way the market watcher follows Market.json.
 
         Cargo.json is a live file: the game rewrites it whenever the hold
-        changes, for whichever vessel changed.  EDLD read it once at startup
-        and thereafter only when a journal event said to — so the manifest was
-        only ever as fresh as the journal.
+        changes, for whichever vessel changed.
 
         Journals lag.  They are buffered, they rotate, and a directory that is
         synced, rotated, or rewritten underneath the game leaves the file on
@@ -780,10 +712,6 @@ class CargoPlugin(BasePlugin):
         return to the main menu — while Cargo.json tracked 620 t of ore
         through the hold.  EDLD showed an empty ship the whole time, because
         nothing ever told it to look.
-
-        Applied strictly by vessel, as everywhere else that touches this file:
-        reading it without checking which hold it describes is what once put
-        SRV ore in the ship's.
         """
         try:
             path = Path(self.core.journal_dir) / "Cargo.json"
@@ -794,12 +722,6 @@ class CargoPlugin(BasePlugin):
                 return
 
             # The version is marked seen only once it has been read whole.
-            # Marking it first, as this used to, meant a poll that landed while
-            # the game was rewriting the file read nothing, recorded the new
-            # version as handled, and dropped that change for good — the hold
-            # stayed wrong until the next time the cargo changed.  This poll
-            # runs every two seconds beside a game that rewrites the file on
-            # every refined chunk, so the window was hit in real play.
             snap = _read_cargo_snapshot(self.core.journal_dir)
             if not snap:
                 return
@@ -826,18 +748,13 @@ class CargoPlugin(BasePlugin):
             self._ledger_log(f"Cargo.json poll failed: {exc}")
 
     def sell_table(self) -> dict:
-        """The current sell table, for the TUI and GUI popups.
-
-        Built on demand rather than cached, so the popup reflects the market
-        underfoot at the moment it is opened even if no Market.json has been
-        written since the last one.
-        """
+        """The current sell table, for the TUI and GUI popups."""
         ledger = getattr(self, "_ledger", None)
         rows = ledger.rows() if ledger is not None else {}
         return sell_table(self.core.state, rows)
 
     def _write_sell_files(self) -> None:
-        """Write the sell table beside the catalogue, as Markdown and HTML."""
+        """Write the sell table beside the catalog, as Markdown and HTML."""
         ledger = getattr(self, "_ledger", None)
         if ledger is None:
             return
@@ -869,11 +786,6 @@ class CargoPlugin(BasePlugin):
 
     def overlay_panel(self, panel_id: str, ctx):
         """How full am I — the one cargo number worth covering the game for.
-
-        In an SRV both holds are reported. The SRV's own hold is what fills
-        while mining and the mothership's is what the run is actually limited
-        by, and a commander who can see only one of them is the one who drives
-        back to a full ship.
         """
         if panel_id != "cargo":
             return None
@@ -891,10 +803,6 @@ class CargoPlugin(BasePlugin):
 
         if bool(getattr(ctx, "in_srv", False)):
             srv_used = int(getattr(s, "srv_cargo_count", 0) or 0)
-            # The journal never reports a surface vehicle's capacity, so it
-            # comes from the same table the dashboard uses rather than from a
-            # state field that does not exist — which is why this read "SRV 4"
-            # while the dashboard three feet away read "4/72".
             from data.ships import srv_cargo_capacity
             srv_cap = int(srv_cargo_capacity(getattr(s, "srv_type", "")) or 0)
             rows.append(("SRV", f"{srv_used}/{srv_cap}" if srv_cap else str(srv_used)))
@@ -910,16 +818,10 @@ class CargoPlugin(BasePlugin):
         return Panel(id="cargo", title="CARGO", rows=rows)
 
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
 def _market_is_carrier(journal_dir) -> bool:
-    """True when the market currently on disk belongs to a carrier.
-
-    Read from the file rather than from cargo_market_info, which never
-    records a carrier at all and so cannot tell "docked at a carrier" apart
-    from "docked at the station this still describes".
-    """
+    """True when the market currently on disk belongs to a carrier."""
     if journal_dir is None:
         return False
     path = Path(journal_dir) / "Market.json"
@@ -932,11 +834,7 @@ def _market_is_carrier(journal_dir) -> bool:
 
 
 def _file_key(path) -> tuple[int, int] | None:
-    """What identifies one version of a file: its mtime and its size.
-
-    mtime alone is too coarse on some filesystems — network shares and FAT
-    keep whole seconds — so two writes in the same second looked like one.
-    """
+    """What identifies one version of a file: its mtime and its size."""
     try:
         st = Path(path).stat()
     except OSError:
@@ -946,11 +844,6 @@ def _file_key(path) -> tuple[int, int] | None:
 
 def _json_is_complete(path) -> bool:
     """Whether a file the game may be halfway through writing parses whole.
-
-    The game truncates and rewrites these files in place, so a poll can land
-    between the two and read nothing, or half of something.  Callers must not
-    mark a version as seen until it has been read whole; that is the entire
-    bug this guards against.
     """
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -961,13 +854,7 @@ def _json_is_complete(path) -> bool:
 
 
 def _read_market_items(journal_dir) -> list | None:
-    """Read Market.json and return its raw ``Items`` list, or None.
-
-    Deliberately unlike _read_market_json, which drops Fleet Carrier markets
-    because their MeanPrice of 0 is useless for pricing the manifest.  The
-    commodity catalogue wants the commodities regardless of what the market
-    says they are worth, and handles the zeros itself.
-    """
+    """Read Market.json and return its raw ``Items`` list, or None."""
     if journal_dir is None:
         return None
     path = Path(journal_dir) / "Market.json"
@@ -1062,9 +949,6 @@ def _cargo_entry(item: dict) -> tuple:
 
 def _read_cargo_snapshot(journal_dir) -> dict | None:
     """Cargo.json as it stands: which vessel it describes, and what is in it.
-
-    Unlike _read_cargo_json this does not filter — the caller needs to know
-    *which* hold the file is describing in order to apply it to the right one.
     """
     if journal_dir is None:
         return None

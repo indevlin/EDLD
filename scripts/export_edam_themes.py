@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-scripts/export_edam_themes.py — EDLD's built-in themes, as Kotlin for EDAM.
+"""scripts/export_edam_themes.py — EDLD's built-in themes, as Kotlin for EDAM.
 
 EDAM follows whatever theme EDLD is drawing with, sent in every snapshot.  It
 also carries EDLD's built-in themes, so a commander can pick one on the device
@@ -10,7 +9,7 @@ script rather than copied by hand, so the two cannot drift:
     python3 scripts/export_edam_themes.py \\
         ~/projects/EDAM/app/src/main/java/com/indevlin/edam/ui/EdldThemes.kt
 
-Run it again whenever a palette changes.  With no argument it prints the file.
+Run it again whenever a palette changes.
 """
 from __future__ import annotations
 
@@ -31,7 +30,7 @@ def _argb(hex_colour: str) -> str:
     if len(h) == 3:
         h = "".join(c * 2 for c in h)
     if len(h) != 6:
-        raise ValueError(f"not a #rrggbb colour: {hex_colour!r}")
+        raise ValueError(f"not a #rrggbb color: {hex_colour!r}")
     return f"0xFF{h.upper()}"
 
 

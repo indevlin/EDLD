@@ -1,10 +1,7 @@
-"""
-tests/test_sheets_code_gs.py — The sheet's own half of the merge rules, run.
+"""tests/test_sheets_code_gs.py — The sheet's own half of the merge rules, run.
 
 Code.gs decides what a write does to a row that is already there, and nothing
-on the Python side can see that happen. These tests run the real file under
-Node against a small in-memory stand-in for SpreadsheetApp, so the rules are
-checked where they are enforced:
+on the Python side can see that happen.
 
 - a note is replaced by a newer-stamped note, a blank one included, and never
   by an older copy coming back round;
@@ -16,7 +13,7 @@ checked where they are enforced:
 - a sheet from before these columns gains them on its next write.
 
 The stand-in stores a value with a leading apostrophe as the text after it,
-which is what Sheets does. Skipped where Node is not installed.
+which is what Sheets does.
 """
 from __future__ import annotations
 

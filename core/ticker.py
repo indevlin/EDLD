@@ -1,11 +1,4 @@
-"""
-core/ticker.py — the once-a-second clock for components that watch time pass.
-
-A component may define ``tick(self, state)``: things that happen because time
-went by rather than because the journal said something — no kills for an hour,
-a kill rate fallen below the floor, a lost fighter whose jump never finished.
-Nothing called it. The inactivity and kill-rate alerts were configurable in
-Options and documented, and never fired.
+"""core/ticker.py — the once-a-second clock for components that watch time pass.
 
 Started beside the Status.json poller, which every interface runs.
 """
@@ -19,10 +12,6 @@ INTERVAL_S = 1.0
 
 def tick_all(core, state, faults: set) -> None:
     """One pass: each component's tick, a failure in one not stopping the rest.
-
-    A component that raises is reported once, to the diagnostic log and as a
-    dashboard alert, and keeps being ticked: a fault on one tick may not
-    recur, and silence is how this went unnoticed in the first place.
     """
     for name, plugin in list(getattr(core, "_plugins", {}).items()):
         fn = getattr(plugin, "tick", None)

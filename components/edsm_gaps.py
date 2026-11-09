@@ -1,16 +1,4 @@
-"""
-components/edsm_gaps.py — fill the gaps in the commander's EDSM flight log.
-
-Jumps go missing from EDSM whenever the game ran without an uploader: another
-PC, a session before EDSM was set up, an outage. The journals still hold them.
-"Find and fill gaps" reads the jumps in the journals for the chosen number of
-days, asks EDSM for the flight log over the same days (a week per request,
-EDSM's limit), and sends EDSM each jump it does not have, through the EDSM
-component's own queue — with the system, coordinates, ship and game version
-the journal gave at the time, as a live upload would.
-
-A jump counts as logged when EDSM has the same system within two minutes of
-it. Nothing is sent unless EDSM uploads are enabled with an API key.
+"""components/edsm_gaps.py — fill the gaps in the commander's EDSM flight log.
 """
 from __future__ import annotations
 

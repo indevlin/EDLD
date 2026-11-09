@@ -1,10 +1,4 @@
-"""
-tests/test_version_key.py — how EDLD orders its own versions.
-
-The update check only understood ``YYYYMMDD[a-z]``, so every ``-dev`` build
-scored as version zero and announced any release at all as an update — one
-older than the build included.
-"""
+"""tests/test_version_key.py — how EDLD orders its own versions."""
 from __future__ import annotations
 
 import sys
@@ -22,7 +16,7 @@ from core.state import version_key  # noqa: E402
 @pytest.mark.parametrize("older, newer", [
     ("20260924-dev", "20260926"),     # a dev build, then the release after it
     ("20260926-dev", "20260926"),     # the work leading up to a release
-    ("20260926", "20260930-dev"),     # a release, then work towards the next
+    ("20260926", "20260930-dev"),     # a release, then work toward the next
     ("20260325a", "20260325b"),
     ("20260325b", "20260326"),
     ("20260926", "v20260927"),        # tags may carry a v

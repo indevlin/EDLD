@@ -1,12 +1,5 @@
-"""
-tests/test_codex_footfall.py — the codex by region, and first footfall from
+"""tests/test_codex_footfall.py — the codex by region, and first footfall from
 the scan itself.
-
-Schema v2 keeps each scan's WasFootfalled (unknown for scans from before the
-game reported it) and the commander's codex entries by region. A database
-from v1 gains both and imports its journals again, which only fills them in.
-The Exobiology view marks a genus not yet in the codex for the region; an
-empty codex is one not read yet, and marks nothing.
 """
 from __future__ import annotations
 

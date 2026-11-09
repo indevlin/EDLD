@@ -1,16 +1,4 @@
-"""
-core/exobio_rules.py — Species spawn-condition catalog (our schema).
-
-Per Codex species: display name, genus, credit value (from the verified value
-table), and one or more condition rules describing where it can occur.  A body
-satisfies a rule when its atmosphere, body type, gravity, temperature and
-pressure all fall within the rule, and the volcanism requirement is met.
-
-Rule keys: atm (allowed gases) | no_atm (requires none) | body (planet classes) |
-g_min/g_max (G) | t_min/t_max (K) | p_min/p_max (atm) | volc (none|any|required) |
-gated (extra location constraints — region/nebula/star/etc. — that this engine
-does not fully evaluate; such rules are reported as location-gated).
-"""
+"""core/exobio_rules.py — Species spawn-condition catalog (our schema)."""
 
 from __future__ import annotations
 

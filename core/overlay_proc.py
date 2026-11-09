@@ -1,8 +1,6 @@
-"""
-core/overlay_proc.py — The overlay renderer, run as a child process.
+"""core/overlay_proc.py — The overlay renderer, run as a child process.
 
-Started by :class:`core.overlay.OverlayClient`, never imported by the rest of
-EDLD. Reads newline-delimited JSON frames on stdin, draws them in a frameless
+Reads newline-delimited JSON frames on stdin, draws them in a frameless
 translucent always-on-top click-through window, and reports on stdout.
 
 Run directly for a look at what this machine can do::
@@ -11,12 +9,8 @@ Run directly for a look at what this machine can do::
 
 which prints the capability line and exits without opening anything.
 
-What the probe actually measures
---------------------------------
-Four things, and each is checked rather than inferred from the platform name:
-
 ``translucent``    a per-pixel alpha window, so the overlay is text on the game
-                   rather than text on a grey slab.
+                   rather than text on a gray slab.
 ``click_through``  input passes to the game underneath. Not optional: an
                    overlay that eats mouse clicks over the cockpit presents as
                    the game having locked up, and the user has no reason to
@@ -30,7 +24,7 @@ Four things, and each is checked rather than inferred from the platform name:
                    overlay.
 
 Exclusive fullscreen defeats all of this on every platform and cannot be probed
-from outside the game. It is called out in the setup notes instead.
+from outside the game.
 """
 
 from __future__ import annotations
@@ -46,11 +40,6 @@ os.environ.setdefault("QT_LOGGING_RULES", "*.debug=false;qt.qpa.*=false")
 
 
 # The protocol owns stdout, so anything else that writes there corrupts it.
-# EDLD's own import graph prints to stdout in at least one place (an optional
-# dependency announcing itself), Qt platform plugins do it on some systems, and
-# a stray print added later would be a protocol bug rather than a stray print.
-# So the real stdout is duplicated away and kept private, and sys.stdout is
-# pointed at stderr where the parent logs it as text.
 _PROTOCOL_FD = os.dup(1)
 os.dup2(2, 1)
 _PROTOCOL = os.fdopen(_PROTOCOL_FD, "w", buffering=1)
@@ -68,15 +57,7 @@ def _fail(reason: str) -> None:
 
 
 def _load_fonts() -> list[str]:
-    """Register every font in EDLD's fonts directory with Qt.
-
-    Elite's own faces are not system-installed and should not have to be: a
-    commander drops the .ttf files in and they become selectable, without
-    touching fontconfig or needing root. Registering by file also means the
-    family names come from the fonts themselves rather than from a list
-    hardcoded here — which matters, because the set of faces on offer is not
-    something this code should claim to know.
-    """
+    """Register every font in EDLD's fonts directory with Qt."""
     from PySide6.QtGui import QFontDatabase
 
     families: list[str] = []
@@ -86,9 +67,7 @@ def _load_fonts() -> list[str]:
         dirs.append(EDLD_DATA_DIR / "fonts")
     except Exception:
         pass
-    # Shipped fonts, then the user's. Both, because they answer different
-    # questions: the repo directory is what everyone gets, the data directory
-    # is where a commander drops a face we cannot redistribute.
+    # Shipped fonts, then the user's.
     dirs.insert(0, _repo_fonts_dir())
 
     for font_dir in dirs:
@@ -147,7 +126,7 @@ def anchor_position(anchor: str, screen_w: int, screen_h: int,
 
 # ── the window ────────────────────────────────────────────────────────────────
 
-# Kept importable from here: the shadow colour used to live in this module.
+# Kept importable from here: the shadow color used to live in this module.
 from core.overlay_ink import shadow_colour  # noqa: E402,F401
 
 
@@ -165,13 +144,7 @@ LINE_HEIGHT_HINT = 22
 
 
 def _make_windows(app, cfg):
-    """One widget per window id, built up front on the GUI thread.
-
-    Built eagerly rather than on first use because a widget must be created on
-    the thread that will paint it, and frames arrive on the reader. Each stays
-    hidden until it is sent something, so a commander with nothing docked has
-    two windows that never map and cost nothing.
-    """
+    """One widget per window id, built up front on the GUI thread."""
     from core.overlay_panels import WINDOWS
 
     return {name: _build(app, cfg, name) for name in WINDOWS}
@@ -180,21 +153,7 @@ def _make_windows(app, cfg):
 def _make_bridge(widget):
     """A GUI-thread object that frames can be delivered to from any thread.
 
-    ``QTimer.singleShot`` creates its timer in the *calling* thread. Called
-    from the stdin reader — a plain worker thread with no Qt event loop — that
-    timer has nothing to fire it, so every frame was accepted, marshalled, and
-    then silently never delivered. The parent logged ``sent=True`` twice a
-    second and was telling the truth: the frames reached the process and
-    stopped at the thread boundary.
-
-    That is also precisely why --overlay-selftest worked. It calls singleShot
-    from the main thread, before app.exec(), where there *is* a loop to fire
-    it — so the one path that proved the renderer was the one path that did
-    not use the mechanism the renderer actually depends on.
-
-    A Qt signal is the supported mechanism. Emitting from any thread queues the
-    call onto the receiver's thread, and the receiver is created here, on the
-    GUI thread, which is what makes that true.
+    ``QTimer.singleShot`` creates its timer in the *calling* thread.
     """
     from PySide6.QtCore import QObject, Signal
 
@@ -229,10 +188,8 @@ def _build(app, cfg: dict, window: str = "top"):
                 | Qt.WindowTransparentForInput
                 | Qt.X11BypassWindowManagerHint
             )
-            # Without a compositor there is no alpha channel to composite
-            # into, so a translucent window simply does not render. Falling
-            # back to a painted panel keeps the overlay readable instead of
-            # invisible; it is less pretty and it is actually there.
+            # Without a compositor there is no alpha channel to composite into,
+            # so a translucent window simply does not render.
             self._composited = bool(cfg.get("_compositing", True))
             self.setAttribute(Qt.WA_TranslucentBackground, self._composited)
             self.setAttribute(Qt.WA_TransparentForMouseEvents, True)
@@ -300,10 +257,7 @@ def _build(app, cfg: dict, window: str = "top"):
                 self.hide()
             self.update()
             # First frame only: say where the window went and whether the
-            # server actually mapped it. "The renderer is running" and "there
-            # is something on screen" are different claims, and only the
-            # second one matters — without this there was no way to tell them
-            # apart from outside.
+            # server actually mapped it.
             if self._frames == 1:
                 g = self.geometry()
                 _emit({"event": "shown",
@@ -316,15 +270,7 @@ def _build(app, cfg: dict, window: str = "top"):
         def _fit_to(self, elements: list[dict]) -> None:
             """Grow or shrink the window to the content it was just handed.
 
-            The height used to be a setting, which meant a stack taller than it
-            was silently clipped — and the commander had no way to know whether
-            a panel was missing or merely cut off. With career figures in play
-            the stacks got taller and the number that had been generous became
-            the wrong one.
-
-            Only the height moves. The width is a real choice: it sets where a
-            centred zone centres and where a right zone right-aligns, and
-            resizing it under the commander would move text they had placed.
+            Only the height moves.
             """
             if not elements:
                 return
@@ -370,11 +316,7 @@ def _build(app, cfg: dict, window: str = "top"):
             p.end()
 
         def _ink(self, colour: str):
-            """The text colour at the alpha it is drawn with.
-
-            Solid text: Opacity applies to what the text sits on — shadow,
-            outline, panel — and the text itself is drawn at full strength.
-            """
+            """The text color at the alpha it is drawn with."""
             c = QColor(colour)
             c.setAlphaF(1.0 if self._solid_text
                         else max(0.0, min(1.0, self._alpha)))
@@ -382,14 +324,7 @@ def _build(app, cfg: dict, window: str = "top"):
 
         def _shadowed(self, p, x: float, y: float, s: str, colour: str,
                       font=None, backing: str = "", scale: float = 1.0) -> None:
-            """Draw text over an offset copy of itself in a derived shadow.
-
-            The overlay sits on whatever the game is showing, which over one
-            session includes a black starfield, a white station interior and a
-            ring full of ice. No single ink colour is readable against all
-            three; a shadow behind it is, and an outline all the way round is
-            more so.
-            """
+            """Draw text over an offset copy of itself in a derived shadow."""
             off = self._shadow_offset
             if off:
                 shadow = QColor(shadow_colour(colour))
@@ -398,15 +333,10 @@ def _build(app, cfg: dict, window: str = "top"):
                 p.setPen(QPen(shadow))
                 p.drawText(QPointF(x + off, y + off), s)
             if self._outline and font is not None:
-                # A stroke round every glyph, in the backing colour. A drop
+                # A stroke round every glyph, in the backing color. A drop
                 # shadow only separates text from what is behind one side of
                 # it; an outline separates it from a white station interior as
                 # well as from a starfield.
-                #
-                # Only the part outside the letters is filled. A plain stroke
-                # is centred on the glyph edge, so half of it lies under the
-                # text — and text drawn at less than full opacity lets that
-                # half show through, which muddied every letter.
                 from PySide6.QtGui import QPainterPathStroker
 
                 glyphs = QPainterPath()
@@ -433,11 +363,7 @@ def _build(app, cfg: dict, window: str = "top"):
             return f
 
         def _runs(self, el: dict, scale: float) -> list[tuple]:
-            """``(text, colour, font)`` for each run of an element.
-
-            A row whose value is emphasised arrives as two runs, label and
-            value, each with its own colour and weight; anything else is one.
-            """
+            """``(text, color, font)`` for each run of an element."""
             size = el.get("size", 13)
             runs = el.get("runs") or [{"text": str(el.get("text", "")),
                                        "colour": el.get("colour", "#cfd6e4"),
@@ -449,12 +375,6 @@ def _build(app, cfg: dict, window: str = "top"):
 
         def _measure(self, p, el: dict, scale: float):
             """Where a text element lands: (left, baseline, top, width, height, runs).
-
-            The layout works in anchor points, not boxes, because it has no
-            font metrics — a right-hand zone is "this x is the right edge",
-            and only here is there a QFontMetrics to turn that into a draw
-            position. Without this every zone would render left-aligned and
-            the right-hand stack would run off the screen.
             """
             from PySide6.QtGui import QFontMetricsF
 
@@ -471,10 +391,7 @@ def _build(app, cfg: dict, window: str = "top"):
                 x -= width
             elif align == "centre":
                 x -= width / 2
-            # drawText takes a *baseline*, the layout works in tops. Passing a
-            # top as a baseline puts the whole ascent above the requested y —
-            # which is why the first row was clipped no matter how much the
-            # window was padded away from the screen edge.
+            # drawText takes a *baseline*, the layout works in tops.
             top = float(el["y"]) * scale
             return x, top + ascent, top, width, height, list(zip(runs, widths))
 
@@ -488,13 +405,7 @@ def _build(app, cfg: dict, window: str = "top"):
                 x += width
 
         def _panels(self, p, scale: float) -> None:
-            """A rounded panel behind each overlay panel's text.
-
-            Drawn first, under everything, one per panel: the union of the
-            boxes its lines occupy, padded, in the backing colour at Opacity
-            softened so the game still shows through. Text on its own panel is
-            readable over anything the game draws.
-            """
+            """A rounded panel behind each overlay panel's text."""
             boxes: dict[str, list] = {}
             colours: dict[str, str] = {}
             for el in self._elements:
@@ -529,7 +440,7 @@ def _build(app, cfg: dict, window: str = "top"):
             p.setPen(QPen(QColor(207, 214, 228, 90), 1))
             p.drawLine(QPointF(x0, y0), QPointF(x0 + w, y0))
 
-            # Centre notch: where the nose is pointing.
+            # Center notch: where the nose is pointing.
             p.setPen(QPen(QColor(230, 236, 246, 220), 2))
             p.drawLine(QPointF(x0 + w / 2, y0 - 7), QPointF(x0 + w / 2, y0 + 7))
 
@@ -558,21 +469,7 @@ def _build(app, cfg: dict, window: str = "top"):
 # ── capability probe ──────────────────────────────────────────────────────────
 
 def _x11_compositing() -> bool:
-    """Is an X11 compositor actually running?
-
-    The previous check called ``app.isEffectivelyCompositing()``, which does
-    not exist on QApplication — so ``getattr(..., lambda: True)`` returned True
-    every time and the answer was never measured. That mattered: without a
-    compositor there is no alpha channel to composite into, a
-    WA_TranslucentBackground window has no meaningful backing store, and the
-    overlay draws nothing visible at all. A bare i3 session with no picom is
-    exactly that case, and it is common.
-
-    The real test is whether anything owns the _NET_WM_CM_S0 selection, which
-    is how a compositor announces itself. libX11 is already loaded in any X
-    session, so this asks it directly through ctypes rather than adding a
-    dependency or shelling out.
-    """
+    """Is an X11 compositor actually running?"""
     # Definitive: does anyone own the compositing manager selection?
     try:
         from PySide6.QtGui import QGuiApplication  # noqa: F401
@@ -598,9 +495,7 @@ def _x11_compositing() -> bool:
     except Exception:
         pass
 
-    # Could not determine. Assume none, because assuming one and being wrong
-    # renders an invisible overlay, while assuming none and being wrong renders
-    # a readable one with a backing panel.
+    # Could not determine.
     return False
 
 
@@ -621,8 +516,7 @@ def probe(app, widget=None) -> dict:
         # Not a degradation to work around. A Wayland client cannot place
         # itself at an absolute position or request always-on-top, and the
         # protocol that would allow it is a compositor extension Qt does not
-        # surface. Reporting this honestly is better than a window that appears
-        # somewhere arbitrary and sinks behind the game.
+        # surface.
         return {**caps, "available": False, "translucent": False,
                 "click_through": False, "always_on_top": False,
                 "compositing": True,
@@ -654,26 +548,12 @@ def probe(app, widget=None) -> dict:
 # ── main ──────────────────────────────────────────────────────────────────────
 
 def _reader(widget, app, bridge) -> None:
-    """Pump stdin into the Qt thread.
-
-    Frames arrive on this thread and must not touch the widget from it; Qt
-    requires painting on the GUI thread and the failure when you ignore that is
-    an intermittent crash rather than an error.
-    """
+    """Pump stdin into the Qt thread."""
     from PySide6.QtCore import QTimer
 
-    # readline(), not `for line in sys.stdin`.
-    #
-    # Iterating a file object uses an internal read-ahead buffer: on a pipe it
-    # will not yield a line until several kilobytes have accumulated or the
-    # writer closes. Frames are a couple of hundred bytes each at two a second,
-    # so the first one would have surfaced somewhere north of a minute later,
-    # if at all — the renderer started, reported itself ready, was sent a
-    # perfectly good frame, and sat there holding it in a buffer.
-    #
-    # This is also exactly why --overlay-selftest worked while the real path
-    # did not: the selftest hands the frame straight to the widget and never
-    # touches stdin.
+    # readline(), not `for line in sys.stdin`. Iterating a file object uses an
+    # internal read-ahead buffer: on a pipe it will not yield a line until
+    # several kilobytes have accumulated or the writer closes.
     while True:
         line = sys.stdin.readline()
         if not line:
@@ -700,16 +580,7 @@ def _reader(widget, app, bridge) -> None:
 
 
 def _watch_parent(app, original_ppid: int) -> None:
-    """Quit when the parent process disappears.
-
-    Closing stdin is the normal shutdown and is handled by the reader thread,
-    but a parent that is killed, crashes, or is stopped without running its
-    unload path leaves this process alive and drawing over the game with
-    nothing feeding it — an overlay that outlives the dashboard, which is
-    exactly what happened.  getppid() changing means we have been reparented,
-    which is the portable way to notice on Linux and macOS; on Windows the
-    stdin EOF path covers it.
-    """
+    """Quit when the parent process disappears."""
     from PySide6.QtCore import QTimer
     import time as _time
 
@@ -782,13 +653,7 @@ def main(argv: list[str] | None = None) -> int:
     if not caps.get("available"):
         return 0
 
-    # Deliberately not shown here.  The window appears with its first
-    # non-empty frame and hides again when a frame is empty; starting visible
-    # put an empty overlay on screen for everyone who had not placed a panel.
     if selftest:
-        # Draws a fixed frame with no parent and no panel pipeline, so "the
-        # renderer cannot draw" and "nothing is being sent to it" stop looking
-        # identical from outside.
         from PySide6.QtCore import QTimer
         QTimer.singleShot(0, lambda: widget.set_elements(list(_SELFTEST_FRAME)))
         QTimer.singleShot(20000, app.quit)

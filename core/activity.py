@@ -80,10 +80,7 @@ class ActivityProviderMixin:
         return (name,) if name else ()
 
     #: Career section in ``core.summary_model.career_sections`` that
-    #: corresponds to this activity, when there is one. A component whose
-    #: figures are session-only leaves it None and its scope setting is never
-    #: offered, because a choice between career and session is meaningless
-    #: where only one of the two exists.
+    #: corresponds to this activity, when there is one.
     CAREER_SECTION: str | None = None
 
     #: How much of each row to show. Overridden per panel from config; see
@@ -109,12 +106,7 @@ class ActivityProviderMixin:
         return []
 
     def overlay_has_career(self, core) -> bool:
-        """Whether a career/session choice means anything for this activity.
-
-        Asked by the preferences page so the scope picker is only offered where
-        both halves exist — a dropdown choosing between career and session on
-        an activity that has only one of them is a control that does nothing.
-        """
+        """Whether a career/session choice means anything for this activity."""
         return bool(self.overlay_career_rows(core))
 
     def overlay_panel(self, panel_id: str, ctx):
@@ -168,15 +160,7 @@ class ActivityProviderMixin:
         """Seconds the session has run — the one clock every rate divides by.
 
         Taken from the session_stats component, whose clock is the Duration
-        row in the same summary.  Each activity used to divide by time since
-        its *own* first event, so figures in one summary were per different
-        hours: merits and income arrive in lumps when goods are sold, and a
-        session that sold once, an hour and forty minutes in, showed 18,429
-        merits as 10,666/hr over a session of five hours.
-
-        Falls back to this activity's own start only when there is no
-        session clock at all (no LoadGame seen and no reset), which is also
-        what keeps an activity usable on its own in tests.
+        row in the same summary.
         """
         core = getattr(self, "core", None)
         plugins = getattr(core, "_plugins", None) or {}
@@ -199,10 +183,5 @@ class ActivityProviderMixin:
         pass
 
     def on_summary(self) -> None:
-        """Called each time a quarter-hour summary fires.
-
-        Activity components that use a monotonic summary timestamp as a fallback
-        reference for idle-alert timing should override this to refresh that
-        timestamp.  The default is a no-op — only activity_combat needs it.
-        """
+        """Called each time a quarter-hour summary fires."""
         pass

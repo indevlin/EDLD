@@ -1,16 +1,6 @@
-"""
-tests/test_server_fingerprint_vector.py — the pairing fingerprint, pinned.
+"""tests/test_server_fingerprint_vector.py — the pairing fingerprint, pinned.
 
-The `fp` in a pairing link is the one value every implementation has to derive
-identically: EDLD here, EDAM in Kotlin from ``X509Certificate.publicKey.encoded``,
-``scripts/edld_client.py`` in Python again.  A client that computes it even
-slightly differently simply cannot pair, and the handshake gives no hint why —
-so the computation is pinned to a fixed certificate rather than left as prose in
-docs/SERVER.md for each side to interpret.
-
-The certificate below is the vector published in docs/SERVER.md.  If this test
-fails, either the computation changed or the doc is now wrong; fix the one that
-moved, and keep both in step.
+The certificate below is the vector published in docs/SERVER.md.
 """
 from __future__ import annotations
 
@@ -94,9 +84,6 @@ def test_vector_still_resembles_what_edld_generates(cert_der: bytes) -> None:
 
 def test_reissue_over_the_same_key_keeps_the_pin(cert_der: bytes) -> None:
     """Why the pin is on the key: a fresh certificate must not break pairing.
-
-    Re-signs the vector's public key into a different certificate — new serial,
-    new validity, new subject — and expects the same fingerprint.
     """
     import datetime as dt
 

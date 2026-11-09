@@ -102,7 +102,7 @@ carries the same list and checks it for you.
 `indevlin-vcs@indevlin.com` is a label, not an address anything is sent to or
 checked against. An SSH signature records a key and a namespace and nothing
 about a person, which is also why relabelling a key — as happened when EDLD
-moved to the `indevlin` organisation — leaves every signature it made
+moved to the `indevlin` organization — leaves every signature it made
 valid.
 
 ---

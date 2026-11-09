@@ -1,10 +1,6 @@
-"""
-tui/blocks/ship_info.py — Ship window (Textual).
+"""tui/blocks/ship_info.py — Ship window (Textual).
 
-The vessel's name, then Cargo, Modules and Engineering. What each shows is
-core/windows/ship.py, drawn the same way in the desktop window and on a
-paired EDAM device; this file draws it and owns the cargo footer's market
-controls.
+The vessel's name, then Cargo, Modules and Engineering.
 """
 from __future__ import annotations
 

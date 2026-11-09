@@ -1,21 +1,10 @@
-"""
-gui/block_base.py — Base class and row widgets for the Qt dashboard blocks.
-
-Deliberately mirrors ``tui/block_base.py``.  The two front ends present the
-same windows, and the blocks were ported by translating widget construction
-rather than rewriting the logic that decides what to show, so this module
-offers the same vocabulary the Textual blocks are written against:
+"""gui/block_base.py — Base class and row widgets for the Qt dashboard blocks.
 
     KVRow    key / value row
     SecHdr   section header
     HdrRow   section header fused with its primary value
     HRule    horizontal rule
     TextRow  free-standing line of (possibly marked-up) text
-
-The formatters ``_fmt``, ``_fmt_credits`` and ``_health_cls`` are imported
-from the TUI module when Textual is available and reimplemented identically
-when it is not, so a GUI-only build on Windows or macOS needs no Textual
-install while still formatting every figure the same way.
 """
 
 from __future__ import annotations
@@ -52,11 +41,7 @@ from core.windows import cr as _fmt_credits, health_cls as _health_cls, num as _
 
 
 def _restyle(widget: QWidget) -> None:
-    """Re-run the stylesheet against a widget after its properties change.
-
-    Qt only re-evaluates property selectors when explicitly told to, so every
-    dynamic property change has to be followed by this.
-    """
+    """Re-run the stylesheet against a widget after its properties change."""
     style = widget.style()
     style.unpolish(widget)
     style.polish(widget)
@@ -111,7 +96,7 @@ class KVRow(QWidget):
         self._val = QLabel()
         # Marks this label as a value column for the stylesheet.  Set here and
         # never touched by _apply_classes, so a value keeps its monospace face
-        # through every colour change.
+        # through every color change.
         self._val.setProperty("col", "value")
         self._val.setTextFormat(Qt.RichText)
         self._val.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
@@ -165,7 +150,7 @@ class SecHdr(QLabel):
     def set_title(self, title: str) -> None:
         # The TUI upper-cases section headers; matching that here keeps the
         # two dashboards reading identically.  Markup is left in place so a
-        # header carrying colour (Colonisation's site rows) still renders.
+        # header carrying color (Colonization's site rows) still renders.
         self.setText(to_html((title or "").upper(), self._palette))
 
 
@@ -213,9 +198,9 @@ class HRule(QFrame):
 class ClickableHdr(SecHdr):
     """A section header that toggles a collapsible group when clicked.
 
-    Colonisation renders a header per system and per construction site, each
+    Colonization renders a header per system and per construction site, each
     of which collapses.  The Qt side referenced this class but never defined
-    it, so every GUI colonisation render raised NameError — the window simply
+    it, so every GUI colonization render raised NameError — the window simply
     stayed empty.  The terminal side does the same job by walking up from the
     clicked widget in ``on_click``; Qt has no equivalent bubbling for plain
     labels, so the callback is carried on the header itself.
@@ -262,14 +247,7 @@ class TextRow(RowLabel):
 # ── Scrolling body helper ─────────────────────────────────────────────────────
 
 class RowScroll(QScrollArea):
-    """A vertical scroll area that holds a stack of rows.
-
-    ``set_rows()`` replaces the whole contents, which is how the ported blocks
-    behave: they rebuild their row list on every refresh rather than diffing.
-    That is cheap here — the row counts are small and refreshes are throttled
-    to four a second — and it keeps the ported logic a faithful copy of the
-    Textual original.
-    """
+    """A vertical scroll area that holds a stack of rows."""
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -358,6 +336,15 @@ class GuiBlock(QFrame):
     def kv(self, key: str, value: str = "—", classes: str = "val") -> KVRow:
         return KVRow(key, value, classes, palette=self.palette_map)
 
+    def _make_pressable(self, w: QWidget, action: str) -> None:
+        """Click on `w` calls row_action(action)."""
+        w.setCursor(Qt.PointingHandCursor)
+        w.mousePressEvent = (lambda ev, a=action:
+                             self.row_action(a) if ev.button() == Qt.LeftButton else None)
+
+    def row_action(self, action: str) -> None:
+        """A row's action (R.kv(..., action=…)). Blocks override."""
+
     def hdr(self, title: str) -> SecHdr:
         return SecHdr(title, palette=self.palette_map)
 
@@ -380,7 +367,10 @@ class GuiBlock(QFrame):
             if kind == "hdr":
                 out.append(self.hdr(row[1]))
             elif kind == "kv":
-                out.append(self.kv(row[1], row[2], row[3] if len(row) > 3 else "val"))
+                w = self.kv(row[1], row[2], row[3] if len(row) > 3 else "val")
+                if len(row) > 4 and row[4]:
+                    self._make_pressable(w, row[4])
+                out.append(w)
             elif kind == "text":
                 out.append(self.text(row[1], row[2] if len(row) > 2 else ""))
             elif kind == "rule":
@@ -392,8 +382,11 @@ class GuiBlock(QFrame):
                 # A heading, not a dim line: in the accent, as EDAM draws it.
                 out.append(TableHdr(row[1], table_text(row[2]), palette=self.palette_map))
             elif kind == "cells":
-                out.append(self.kv(row[1], cells_text(widths, row[2]),
-                                   row[3] if len(row) > 3 else "val"))
+                w = self.kv(row[1], cells_text(widths, row[2]),
+                            row[3] if len(row) > 3 else "val")
+                if len(row) > 4 and row[4]:
+                    self._make_pressable(w, row[4])
+                out.append(w)
         return out
 
     # ── Convenience formatters (mirrors TuiBlock) ─────────────────────────────

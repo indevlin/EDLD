@@ -1,12 +1,4 @@
-"""
-tests/test_proximity.py — Arriving at a deposit, once.
-
-The failure this guards is quiet and expensive: without hysteresis a parked SRV
-re-confirms the same deposit twice a second, `last_confirmed` becomes a record
-of how long somebody idled, and — because every confirmation clears
-`published_at` — that one deposit is pushed to the shared sheet on every flush
-forever.
-"""
+"""tests/test_proximity.py — Arriving at a deposit, once."""
 
 from __future__ import annotations
 

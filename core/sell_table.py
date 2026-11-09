@@ -1,26 +1,13 @@
-"""
-core/sell_table.py — "what is worth selling here", as one table.
-
-The commodity catalogue (core.commodity_ledger) knows what every commodity is
-worth on average across the galaxy; Market.json knows what the station
-underfoot will actually pay for it.  This module resolves which of those two
-is the right answer right now and renders the result as a single two-column
-table: the commodity's display name, and its price, highest first.
+"""core/sell_table.py — "what is worth selling here", as one table.
 
 One model, three surfaces.  ``sell_table()`` builds the table from state, and
 ``render_markdown()`` / ``render_html()`` turn it into the files written
-beside the catalogue.  The TUI and GUI popups render the same dict, so the
+beside the catalog.  The TUI and GUI popups render the same dict, so the
 files and the popups cannot disagree about what a commodity is worth.
-
-Which market is quoted
-----------------------
-The mode comes from ``cargo_price_context()``, the same resolver the Cargo
-panel prices its manifest against, so the popup and the panel always name the
-same market:
 
   * a Spansh target market, when one is set and loaded;
   * otherwise the station underfoot, from Market.json;
-  * otherwise the galactic average, from the catalogue.
+  * otherwise the galactic average, from the catalog.
 
 NPC prices only
 ---------------
@@ -28,8 +15,8 @@ A commodity with no galactic average is not one NPCs trade.  Stations list
 such commodities anyway and quote a sell price for them, but no NPC will pay
 it — the price is whatever players set on carriers.  Those rows are dropped,
 so the table only ever offers prices that can actually be collected.  Which
-commodities those are is read from the catalogue, not from the market in
-hand, so the judgement improves as more markets are seen.
+commodities those are is read from the catalog, not from the market in
+hand, so the judgment improves as more markets are seen.
 
 Carriers
 --------
@@ -54,13 +41,7 @@ GALACTIC_LABEL = "Galactic Average"
 
 
 def is_carrier(station_type: str) -> bool:
-    """True for any flavour of carrier, however the source spells it.
-
-    Frontier writes ``FleetCarrier`` in Market.json; Spansh writes
-    ``Drake-Class Carrier``; a squadron carrier will be something else again.
-    Nothing else in the game has "carrier" in its station type, so the
-    substring is both sufficient and forward-compatible.
-    """
+    """True for any flavor of carrier, however the source spells it."""
     return "carrier" in (station_type or "").lower()
 
 
@@ -68,10 +49,6 @@ def is_carrier(station_type: str) -> bool:
 
 def sell_table(state, ledger_rows: dict | None = None) -> dict:
     """Resolve the sell table for the current moment.
-
-    ``ledger_rows`` is the commodity catalogue keyed on canonical name, used
-    for the galactic-average fallback because it is the only source that
-    carries a display name alongside the price.
 
     Returns ``{"mode", "source_label", "rows"}`` where each row is
     ``{"name", "price"}`` and rows are ordered by price, highest first.
@@ -102,37 +79,17 @@ def sell_table(state, ledger_rows: dict | None = None) -> dict:
     else:
         rows = _rows_from_market(comms, _non_npc_names(ledger_rows or {}))
 
-    # Highest price first; ties broken by name so the order is stable between
-    # writes and the file does not churn.
     rows.sort(key=lambda r: (-r["price"], r["name"].lower()))
     return {"mode": mode, "source_label": label, "rows": rows}
 
 
 def _squash(name: str) -> str:
-    """Reduce a display name to something two sources can agree on.
-
-    Market.json says "Titan Maw Deep Tissue Sample" and so does Spansh, but
-    spacing and punctuation are not dependable across sources, and the
-    internal symbol is no help at all — Frontier's is
-    ``thargoidtissuesampletype10a``.
-    """
+    """Reduce a display name to something two sources can agree on."""
     return "".join(ch for ch in str(name or "").lower() if ch.isalnum())
 
 
 def _non_npc_names(ledger_rows: dict) -> set[str]:
-    """Squashed names of commodities no NPC market has ever priced.
-
-    A commodity with no galactic average is not one NPCs trade: its only
-    price is whatever a player set on a carrier, and a station listing it
-    reports that price without being willing to pay it.  The Titan Maw
-    tissue samples are the standing example — they list at 476,000 cr and
-    there is no NPC anywhere who will buy one.
-
-    Derived from the catalogue rather than from the market in hand so the
-    judgement improves with every market seen: a commodity that shows a
-    real average anywhere drops out of this set everywhere.  An empty
-    catalogue yields an empty set, so nothing is excluded on a guess.
-    """
+    """Squashed names of commodities no NPC market has ever priced."""
     return {
         _squash(row.get("name_localised") or key)
         for key, row in (ledger_rows or {}).items()
@@ -141,7 +98,7 @@ def _non_npc_names(ledger_rows: dict) -> set[str]:
 
 
 def _rows_from_market(comms: dict, non_npc: set[str] | None = None) -> list[dict]:
-    """Rows from a station's own market — what it will pay, per tonne."""
+    """Rows from a station's own market — what it will pay, per ton."""
     non_npc = non_npc or set()
     rows = []
     for key, c in (comms or {}).items():
@@ -161,12 +118,7 @@ def _rows_from_market(comms: dict, non_npc: set[str] | None = None) -> list[dict
 
 
 def _rows_from_ledger(ledger_rows: dict) -> list[dict]:
-    """Rows from the commodity catalogue — the galactic average.
-
-    A zero here is the absence of a galactic average rather than a commodity
-    worth nothing (Thargoid tissue samples carry one), and a row with no
-    price answers no question this table is asked, so it is left out.
-    """
+    """Rows from the commodity catalog — the galactic average."""
     rows = []
     for key, r in (ledger_rows or {}).items():
         price = _int(r.get("mean_price", 0))
@@ -261,10 +213,6 @@ def mineable_rows(table: dict) -> list[dict]:
 
 def render_columns(table: dict, mineable_only: bool = False) -> list[tuple[str, str]]:
     """The table as (name, price) string pairs, for the TUI and GUI popups.
-
-    Returned rather than formatted into one string so each front end can lay
-    the two columns out in its own widgets, which is what keeps the price
-    column aligned in both.
     """
     rows = mineable_rows(table) if mineable_only else table.get("rows", [])
     return [(str(r["name"]), _credits(r["price"])) for r in rows]

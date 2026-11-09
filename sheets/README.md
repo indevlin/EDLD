@@ -54,7 +54,7 @@ upgraded from the sheet's menu. Why it works that way is in [Upgrading a
 sheet](#upgrading-a-sheet).
 
 **3. Install.** Reload the spreadsheet. An **ED Dashboard** menu appears; run
-**Install / Upgrade…**. Google asks you to authorise the script the first time
+**Install / Upgrade…**. Google asks you to authorize the script the first time
 — it needs to fetch the release from GitHub and to change this spreadsheet.
 It will also warn that the app is unverified: that is the normal notice for a
 script you added yourself and have not submitted to Google for review.
@@ -82,7 +82,7 @@ Every request still has to carry the token, and the sheet itself is not shared
 by this — its own sharing settings are unchanged and still decide who can read
 it.
 
-Google will ask you to authorise the script the first time. It will also warn
+Google will ask you to authorize the script the first time. It will also warn
 that the app is unverified: that is the normal notice for a script you wrote
 yourself and have not submitted to Google for review. Advanced → Go to
 *(project name)*.
@@ -125,7 +125,7 @@ request — no redeploy — and everyone keeps the same URL.
 
 The script matches on `deposit_id`, the first column. EDLD works out which
 sightings are the same deposit before sending — same system, same body, same
-commodity, within 200 metres — and gives each one a stable twelve-character id
+commodity, within 200 meters — and gives each one a stable twelve-character id
 that never changes once assigned. The script compares those strings.
 
 This is why the check is on the sheet's side rather than in EDLD. Several
@@ -314,7 +314,7 @@ table is one `FILTER` expression, and Sheets cannot reorder a formula's output
 in place; a manual sort over it either fails or is undone on the next
 recalculation.
 
-**Readability.** Rows alternate between the theme's Panel and Panel Alt colours.
+**Readability.** Rows alternate between the theme's Panel and Panel Alt colors.
 High amounts and densities are highlighted, Low ones dimmed, and a deposit with
 a depletion date is struck through. Notes sit in the last column, wrapped, and
 the rest of the row aligns with their first line.
@@ -322,7 +322,7 @@ the rest of the row aligns with their first line.
 **Theme.** Settings B5 picks one of five presets — Classic HUD, Federation,
 Empire, Alliance, Thargoid — or Custom, which uses the hex codes in B10:B21.
 B6:B7 pick the title and body fonts. The template arrives in Classic HUD;
-changing any of this needs EDLD installed in the sheet, because Sheets cannot colour a cell
+changing any of this needs EDLD installed in the sheet, because Sheets cannot color a cell
 from a formula and something has to apply the codes. It re-applies on every
 edit to Settings, or from the **ED Dashboard** menu. More presets go on the
 hidden `Themes` tab: add a column before Custom and it joins the list.

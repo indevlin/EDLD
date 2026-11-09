@@ -1,16 +1,6 @@
-"""
-core/explo_db.py — Exploration accessors for the body database.
+"""core/explo_db.py — Exploration accessors for the body database.
 
-Stars, planets, rings and non-bodies: the things a Scan and a surface mapping
-write, and the things the Exploration window reads.  This is a mixin, not a
-standalone store — :class:`core.bodies_db.BodyDB` composes it with the
-exobiology accessors over one connection, and the generic helpers it calls
-(``_upsert``, ``_set_status``, ``_filter``) come from
-:class:`core.bodies_db.BodiesCore`.
-
-Sibling: :mod:`core.exobio_db` holds the flora side.  ``planet_signals`` is in
-:mod:`core.bodies_db` rather than here because one ``FSSBodySignals`` event
-carries geological and biological signals together.
+Sibling: :mod:`core.exobio_db` holds the flora side.
 """
 
 from __future__ import annotations
@@ -18,8 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 # Whitelists for partial-update setters — guard against arbitrary column names
-# reaching the SQL string.  Add new columns here as well as to the migration,
-# or upsert_* will silently drop them.
+# reaching the SQL string.
 _STAR_STATUS_FLAGS   = {"discovered", "was_discovered", "scan_state", "scanned_at"}
 _PLANET_STATUS_FLAGS = {
     "discovered", "was_discovered", "mapped", "was_mapped",

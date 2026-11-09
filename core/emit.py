@@ -17,7 +17,7 @@ except ImportError:
 from core.state import MAX_DUPLICATES, PATTERN_WEBHOOK
 
 
-# ── Terminal colour codes ─────────────────────────────────────────────────────
+# ── Terminal color codes ─────────────────────────────────────────────────────
 
 class Terminal:
     CYAN  = "\033[96m"
@@ -279,14 +279,7 @@ class Emitter:
 # ── Session summary ───────────────────────────────────────────────────────────
 
 def emit_summary(emitter: "Emitter", state, providers: list, session_plugin) -> None:
-    """Emit a session summary at quarter-hour marks.
-
-    Values and | delimiters are column-aligned across every row so the
-    output is easy to read at a glance in both terminal and Discord.
-
-    providers      — core.session_providers list (ActivityProviderMixin instances)
-    session_plugin — the session_stats plugin (for session_duration_seconds())
-    """
+    """Emit a session summary at quarter-hour marks."""
     active = [p for p in providers if p.has_activity()]
     dur_s  = session_plugin.session_duration_seconds() if session_plugin else 0.0
 
@@ -406,8 +399,6 @@ def emit_summary(emitter: "Emitter", state, providers: list, session_plugin) -> 
     for title, rows in sections:
         # If a section has exactly one row whose label matches the title,
         # collapse to a single line at section-header indent.
-        # The label field is widened by 2 to keep the value column aligned
-        # with normal data rows (which use 4-space indent vs our 2-space).
         if len(rows) == 1 and rows[0][0].strip().lower() == title.strip().lower():
             label, value, rate = rows[0]
             lc   = f"{label}:"

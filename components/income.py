@@ -1,9 +1,7 @@
-"""
-components/income.py — Session income tracking.
+"""components/income.py — Session income tracking.
 
-Aggregates all realised credit income across activity types into a single
-session total with a credits-per-hour rate. Complements activity-specific
-plugins by providing a unified view of total session earnings.
+Aggregates all realized credit income across activity types into a single
+session total with a credits-per-hour rate.
 
 Income sources:
   RedeemVoucher            — bounties, combat bonds, trade vouchers (face value)
@@ -15,12 +13,6 @@ Income sources:
   Unknown Credits          — balance rises no journal event explains
 
 CarrierBankTransfer is excluded — moving money between accounts is not income.
-
-Unknown Credits are found by reconciling the live balance in Status.json
-against every credit-moving journal event (core/credit_flows.py). The game
-logs nothing when a PowerPlay care package is claimed, and nothing for some
-other payments; whatever the journal cannot explain is reported under this
-name rather than guessed at.
 
 Tab title: Income
 """
@@ -42,12 +34,7 @@ _RECONCILE_EVERY_S = 2.0
 
 
 def _overlay_credits(value) -> str:
-    """Short credit formatting for the overlay.
-
-    Not fmt_credits(): the overlay has a fraction of the width of a dashboard
-    panel, and a full-precision balance is the single widest thing that would
-    ever appear on it.
-    """
+    """Short credit formatting for the overlay."""
     try:
         v = float(value)
     except (TypeError, ValueError):
@@ -114,7 +101,7 @@ class ActivityIncomePlugin(BasePlugin, ActivityProviderMixin):
                     pass
 
     def reconcile_now(self, now: float) -> int:
-        """Feed the live balance in and compare. Returns credits reported."""
+        """Feed the live balance in and compare."""
         state = getattr(self.core, "state", None)
         balance = getattr(state, "status_balance", None) if state else None
         if balance is not None:
@@ -174,8 +161,6 @@ class ActivityIncomePlugin(BasePlugin, ActivityProviderMixin):
         logtime = event.get("_logtime")
 
         if ev in ("LoadGame", "Commander"):
-            # A new game session, perhaps another commander: the balance the
-            # reconciler was following no longer applies.
             if self._reconciler:
                 self._reconciler.reset()
             return
@@ -245,13 +230,7 @@ class ActivityIncomePlugin(BasePlugin, ActivityProviderMixin):
     OVERLAY_PANELS = ("income",)
 
     def overlay_panel(self, panel_id: str, ctx):
-        """Credits, and what this session has added to them.
-
-        The balance lives here rather than on the commander panel: it is a
-        number about money, and it belongs next to the rate that is changing
-        it. A commander who wants to see what they are earning wants to see
-        what they have.
-        """
+        """Credits, and what this session has added to them."""
         if panel_id != "income":
             return None
         from core.overlay_panels import Panel
@@ -274,14 +253,7 @@ class ActivityIncomePlugin(BasePlugin, ActivityProviderMixin):
     def get_session_rows(self) -> list[dict]:
         """Every earning stream, then the total and the rate.
 
-        Income was previously reported three times over — twice in the
-        Overview and again here — while the individual streams that make it
-        up were scattered across the sections of the activity that produced
-        them.  This is the one place income is accounted for.
-
-        Only *redeemed* vouchers count.  A bounty that has been earned but
-        not cashed in can still be lost by dying, so counting it as income
-        would be counting money that is not yours yet.
+        Only *redeemed* vouchers count.
         """
         if not self.total_income:
             return []

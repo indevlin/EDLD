@@ -334,9 +334,7 @@ _MK_ROMAN_RE = _re.compile(r'\bMk\s+([IVXivx][IVXivx]*)\b')
 
 #: Names the game itself has given ship types this run, learned from the
 #: journal's ``*_Localised`` fields (Shipyard, StoredShips, ShipyardSwap,
-#: Loadout, LoadGame).  Consulted after the static map, before guessing, so a
-#: ship Frontier releases after this table was written still shows its real
-#: name instead of its internal id title-cased ("Mediumtransport01").
+#: Loadout, LoadGame).
 _LEARNED_NAMES: dict[str, str] = {}
 
 
@@ -349,7 +347,7 @@ def learn_ship_name(raw: str | None, localised: str | None) -> None:
         return
     key = raw.strip().lower()
     if localised.lower() == key:
-        # CAPI and some events echo the internal id as the "localised" name.
+        # CAPI and some events echo the internal id as the "localized" name.
         return
     _LEARNED_NAMES[key] = localised
 
@@ -377,11 +375,10 @@ def learn_ship_names_from_event(event: dict) -> None:
 def normalise_ship_name(raw: str | None) -> str | None:
     """Return the correctly-capitalised display name for a ship type string.
 
-    Accepts both internal journal identifiers (e.g. ``"type8"``, ``"krait_mkii"``)
-    and pre-localised strings the game sometimes sends (e.g. ``"Cobra Mk IV"``).
+    Accepts both internal journal identifiers (e.g.
 
-    Falls back to a title-cased string for completely unknown ships, with
-    Roman numerals after "Mk" kept properly uppercase.
+    Falls back to a title-cased string for completely unknown ships, with Roman
+    numerals after "Mk" kept properly uppercase.
 
     Returns ``None`` if *raw* is ``None`` or empty.
     """
@@ -408,7 +405,7 @@ SRV_TYPE_NAMES = {
 }
 
 
-#: Cargo capacity in tonnes, by surface-vehicle type id.
+#: Cargo capacity in tons, by surface-vehicle type id.
 #:
 #: The game never reports this.  ``LaunchSRV`` carries only a loadout name
 #: ("starter", "default", "advanced"), ``Cargo`` events for a surface vehicle
@@ -442,13 +439,7 @@ _SRV_NAME_TO_ID = {v.lower(): k for k, v in SRV_TYPE_NAMES.items()}
 
 
 def srv_cargo_capacity(vehicle: str) -> int:
-    """Cargo capacity in tonnes for a surface vehicle, or 0 when unknown.
-
-    Accepts either the journal type id ("mev_rhino") or the display name
-    ("SRV Rhino"), because state records the display name and older persisted
-    state has no id at all.  Zero means "do not show a denominator" — it is
-    never a real capacity.
-    """
+    """Cargo capacity in tons for a surface vehicle, or 0 when unknown."""
     key = (vehicle or "").lower().strip()
     if not key:
         return 0
@@ -472,8 +463,7 @@ def resolve_vehicle_name(raw: str) -> str:
 def resolve_fighter_name(fighter_type: str, loadout: str) -> str:
     """Return display name for a fighter given type + loadout key.
 
-    Handles engineered grade variants (e.g. "df_g1") gracefully.
-    Falls back to stripping grade suffix, then type name, then raw string.
+    Handles engineered grade variants (e.g.
     """
     ft = (fighter_type or "").lower().strip()
     lo = (loadout or "").lower().strip()
@@ -526,12 +516,6 @@ def is_suit(raw: str | None) -> bool:
 
 def suit_display(raw: str | None, localised: str | None = "") -> str:
     """A suit's name as the game shows it, with its grade — "Artemis Suit G3".
-
-    From the internal name, not the ``_Localised`` one: the game leaves some
-    suits' untranslated, and a grade 3 Artemis arrives as
-    "$ExplorationSuit_Class1_Name;" — which is what was shown. The localised
-    name is used only for a suit this table does not know, and only when it
-    really is a name.
     """
     parts = suit_parts(raw)
     loc = str(localised or "").strip()

@@ -1,9 +1,6 @@
-"""
-core/server/portmap.py — ask the router to forward EDLD's port.
+"""core/server/portmap.py — ask the router to forward EDLD's port.
 
-Off unless ``[Server] PortMapping = true``.  When on, EDLD asks the router for
-one TCP port — its own, forwarded to this computer — using the two standard
-ways home routers offer:
+Off unless ``[Server] PortMapping = true``.
 
 NAT-PMP (RFC 6886)
     One UDP request to the default gateway on port 5351.  Apple routers and
@@ -13,14 +10,8 @@ UPnP IGD
     two SOAP requests to the router's control URL.  Most consumer routers,
     including Netgear's.
 
-That is the whole of the network traffic, and it is the same thing games and
-consoles do to open their ports.  Nothing else on the network is contacted,
-and only a router that answers from a private address is trusted — an SSDP
-reply pointing anywhere else is ignored.
-
 The mapping is leased, renewed at half its lifetime, and removed when EDLD
-stops.  A router that only offers permanent mappings gets one, and it is still
-removed on a clean exit.
+stops.
 
 What the router reports as its external address is checked too.  A private or
 shared address there (``100.64.0.0/10`` in particular) means another NAT sits
@@ -89,11 +80,7 @@ def behind_second_nat(external_ip: str | None) -> bool:
 
 
 def local_ip_towards(host: str) -> str:
-    """This machine's address on the interface that reaches ``host``.
-
-    A UDP socket "connected" to the router only chooses a route; no packet is
-    sent.
-    """
+    """This machine's address on the interface that reaches ``host``."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
         s.connect((host, 9))
         return s.getsockname()[0]
@@ -308,12 +295,7 @@ class Upnp:
 # ── The part EDLD runs ────────────────────────────────────────────────────────
 
 class PortMapper:
-    """Map the port, keep it mapped, and unmap it on stop.
-
-    ``status`` is a sentence for the preferences page and the log: what was
-    mapped, how, and what the router said its external address is — or why
-    nothing was.
-    """
+    """Map the port, keep it mapped, and unmap it on stop."""
 
     def __init__(self, port: int, *, log: Callable[[str], None] | None = None,
                  alert: Callable[[str], None] | None = None,

@@ -1,5 +1,4 @@
-"""
-core/server/pairing.py — pairing tickets, the device registry, pairing links.
+"""core/server/pairing.py — pairing tickets, the device registry, pairing links.
 
 Everything here is file-based on purpose.  ``edld --pair`` is usually run as a
 second command while EDLD is already running as a service or a dashboard, and
@@ -8,13 +7,6 @@ writes a ticket; the running server reads it when a device presents a code.
 Revoking a device is an edit to ``devices.json``, which the server notices on
 its next connection.  No socket, pipe or signal is needed between them, and
 pairing works whether or not the server happens to be running yet.
-
-The ticket
-----------
-A pairing code is ten characters of Crockford base32 (about fifty bits),
-shown as ``XXXXX-XXXXX``.  Only its SHA-256 is stored.  A ticket lasts five
-minutes, is consumed by the first successful pairing, and is destroyed after
-five wrong guesses, so the code cannot be brute-forced across the window.
 
 The link
 --------
@@ -112,8 +104,7 @@ def cancel_ticket(directory: Path) -> None:
 def check_ticket(directory: Path, code: str) -> tuple[bool, str]:
     """Test a presented code against the open ticket.
 
-    Returns ``(ok, reason)``.  A correct code consumes the ticket.  A wrong one
-    counts against it, and the ticket is destroyed at :data:`MAX_ATTEMPTS`.
+    Returns ``(ok, reason)``.
     """
     path = directory / TICKET_FILE
     try:
@@ -144,11 +135,7 @@ def check_ticket(directory: Path, code: str) -> tuple[bool, str]:
 # ── Device registry ───────────────────────────────────────────────────────────
 
 class DeviceRegistry:
-    """The paired devices, persisted to ``devices.json``.
-
-    Re-read whenever the file changes on disk, so a revocation made by another
-    EDLD process (``edld --unpair``) takes effect without a restart.
-    """
+    """The paired devices, persisted to ``devices.json``."""
 
     def __init__(self, directory: Path):
         self.path = directory / DEVICES_FILE
@@ -234,13 +221,7 @@ class DeviceRegistry:
 # ── Addresses and links ───────────────────────────────────────────────────────
 
 def local_addresses() -> list[str]:
-    """This machine's primary LAN addresses, IPv4 first.
-
-    Found by asking the OS which interface it would route through: a UDP
-    socket is "connected" to a documentation-range address, which only sets
-    the socket's default destination.  No packet is sent and nothing on the
-    network is probed or scanned.
-    """
+    """This machine's primary LAN addresses, IPv4 first."""
     out: list[str] = []
     for family, probe in ((socket.AF_INET, "192.0.2.1"),
                           (socket.AF_INET6, "2001:db8::1")):

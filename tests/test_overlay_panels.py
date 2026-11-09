@@ -1,11 +1,7 @@
-"""
-tests/test_overlay_panels.py — Zones, stacking, and the two hide modes.
+"""tests/test_overlay_panels.py — Zones, stacking, and the two hide modes.
 
-The behaviour worth protecting is that the two hide modes genuinely differ and
-each does what its name promises. ``collapse`` must close the gap; ``reserve``
-must hold every panel below a hidden one exactly where it was. Getting that
-backwards would be invisible in a screenshot and obvious in motion, which is
-the worst combination to debug.
+``collapse`` must close the gap; ``reserve`` must hold every panel below a
+hidden one exactly where it was.
 """
 
 from __future__ import annotations
@@ -354,11 +350,7 @@ def _provider(**kw):
 
 
 def test_an_activity_component_gets_a_panel_without_declaring_one():
-    """The mixin already knows the relevance test and the condensed rows.
-
-    Asking components to write those again for the overlay would be a second
-    answer to a question they have already answered, and the two would drift.
-    """
+    """The mixin already knows the relevance test and the condensed rows."""
     p = _provider()
     assert p.OVERLAY_PANELS == ("exobiology",)
     panel = p.overlay_panel("exobiology", PanelContext())
@@ -422,12 +414,7 @@ def test_position_decides_the_stack_order():
 
 
 def test_a_shared_position_falls_back_to_panel_id_not_dict_order():
-    """Stable across restarts.
-
-    A tie broken by whatever order the config happened to parse in would
-    reshuffle the overlay between launches, which is worse than a boring
-    alphabetical rule.
-    """
+    """Stable across restarts."""
     cfg = {"Panels": {
         "zulu":  {"Zone": "left", "Mode": "auto", "Order": 1},
         "alpha": {"Zone": "left", "Mode": "auto", "Order": 1},
@@ -480,12 +467,7 @@ def test_the_renderer_watches_for_a_dead_parent():
 # ── config keys the writer can actually store ─────────────────────────────────
 
 def test_placement_uses_flat_keys_not_a_dotted_path():
-    """The preferences writer assigns target[key] = value.
-
-    A dotted key is therefore written literally — a flat string key containing
-    dots, not a nested table — and nothing reads it back. Panel placement could
-    be changed in either front end, saved without error, and do nothing at all.
-    """
+    """The preferences writer assigns target[key] = value."""
     from core.overlay_panels import placement_keys
     keys = placement_keys("cargo")
     assert set(keys) == {"zone", "mode", "order", "scope"}
@@ -619,10 +601,6 @@ def test_compositing_is_measured_not_assumed():
     import ast
 
     src = (ROOT / "core" / "overlay_proc.py").read_text(encoding="utf-8")
-    # An AST check, not a grep: the docstring explaining this bug names the
-    # method, and a grep test would fail on its own explanation. That is the
-    # second time a string-matching test has tripped over a comment about the
-    # thing it was written to catch.
     for node in ast.walk(ast.parse(src)):
         if isinstance(node, ast.Attribute) \
                 and node.attr == "isEffectivelyCompositing":
@@ -685,15 +663,7 @@ def test_the_component_reports_its_first_frame_and_its_empty_frames():
 # ── cross-thread delivery ─────────────────────────────────────────────────────
 
 def test_frames_cross_threads_by_signal_not_by_timer():
-    """QTimer.singleShot creates its timer in the *calling* thread.
-
-    From the stdin reader — a plain worker thread with no Qt event loop —
-    nothing ever fires it, so every frame was accepted, marshalled and
-    silently never delivered. The parent logged sent=True twice a second and
-    was telling the truth: the frames reached the process and stopped at the
-    thread boundary. --overlay-selftest worked because it calls singleShot
-    from the main thread, where there is a loop to run it.
-    """
+    """QTimer.singleShot creates its timer in the *calling* thread."""
     import ast
 
     src = (ROOT / "core" / "overlay_proc.py").read_text(encoding="utf-8")
@@ -798,9 +768,7 @@ def test_padding_moves_the_first_row_off_the_edge():
 
 
 def test_the_renderer_treats_y_as_a_top_not_a_baseline():
-    """drawText takes a baseline. Passing a top as a baseline puts the whole
-    ascent above the requested y, which clipped the first row no matter how
-    far the window was padded from the screen edge."""
+    """drawText takes a baseline."""
     src = (ROOT / "core" / "overlay_proc.py").read_text(encoding="utf-8")
     assert ".ascent()" in src and "top + ascent" in src
 
@@ -828,7 +796,7 @@ def test_every_edld_theme_yields_overlay_colours():
 
     for _name, value in THEME_CHOICES:
         c = overlay_colours(value)
-        assert c, f"{value} produced no overlay colours"
+        assert c, f"{value} produced no overlay colors"
         assert set(c) == {"TitleColour", "LabelColour", "ValueColour"}
 
 
@@ -890,11 +858,10 @@ def test_shipped_fonts_reach_the_binary():
 
 
 def test_the_overlay_tab_scrolls_as_one_page():
-    """An inner scroll area inside a fixed-height tab takes stretch from the
-    form rows above it, so they are squeezed below their own minimum and the
-    sections draw on top of each other. With twenty-odd settings the page is
-    simply taller than the tab; the fix is to let the tab scroll rather than to
-    compress its contents."""
+    """An inner scroll area inside a fixed-height tab takes stretch from the form
+    rows above it, so they are squeezed below their own minimum and the
+    sections draw on top of each other.
+    """
     import ast
 
     src = (ROOT / "components" / "overlay.py").read_text(encoding="utf-8")
@@ -1236,7 +1203,8 @@ def test_a_pledged_commander_gets_power_and_rank_only():
 
 def test_the_powerplay_panel_overrides_the_activity_default():
     """The mixin's default would report session merits, and only once some had
-    been earned. Allegiance and rank are true the moment you undock."""
+    been earned.
+    """
     import ast
 
     src = (ROOT / "components" / "powerplay.py").read_text(encoding="utf-8")
@@ -1250,10 +1218,10 @@ def test_the_powerplay_panel_overrides_the_activity_default():
 # ── margin versus padding ─────────────────────────────────────────────────────
 
 def test_margin_and_padding_are_separate_and_both_reachable():
-    """OffsetY set the distance from the monitor edge and was exposed in
-    neither front end, while the exposed "Padding Y" only moved text inside a
-    fixed-size window. There was no reachable answer to "what moves the
-    overlay down the screen"."""
+    """OffsetY set the distance from the monitor edge and was exposed in neither
+    front end, while the exposed "Padding Y" only moved text inside a fixed-
+    size window.
+    """
     from core.overlay import CFG_DEFAULTS
 
     assert "MarginX" in CFG_DEFAULTS and "MarginY" in CFG_DEFAULTS
@@ -1349,7 +1317,7 @@ def test_scope_is_a_flat_config_key_like_the_others():
     assert set(SCOPES) == {"session", "career", "both"}
 
 
-# ── shadow colour ─────────────────────────────────────────────────────────────
+# ── shadow color ─────────────────────────────────────────────────────────────
 
 def _lightness(hexcolour):
     raw = hexcolour.lstrip("#")
@@ -1382,7 +1350,7 @@ def test_a_muted_colour_is_still_treated_as_light_ink():
 
 
 def test_the_shadow_keeps_the_inks_hue():
-    """Flat black reads as a separate colour against a tinted palette — a black
+    """Flat black reads as a separate color against a tinted palette — a black
     fringe on Elite orange looks like a printing error."""
     import colorsys
 
@@ -1391,7 +1359,7 @@ def test_the_shadow_keeps_the_inks_hue():
     out = shadow_colour("#ff7100").lstrip("#")
     r, g, b = (int(out[i:i + 2], 16) / 255.0 for i in (0, 2, 4))
     h, _l, s = colorsys.rgb_to_hls(r, g, b)
-    assert s > 0, "a pure grey shadow has lost the palette"
+    assert s > 0, "a pure gray shadow has lost the palette"
     assert abs(h - colorsys.rgb_to_hls(1.0, 0x71 / 255, 0.0)[0]) < 0.02
 
 
@@ -1418,9 +1386,8 @@ def test_the_shadow_offset_is_capped_at_two_pixels():
 
 def test_srv_cargo_shows_a_denominator():
     """The journal never reports a surface vehicle's capacity, so it comes from
-    the same table the dashboard uses. Reading it from a state field that does
-    not exist is why the overlay said "SRV 4" while the dashboard three feet
-    away said "4/72"."""
+    the same table the dashboard uses.
+    """
     p = _with_state(_State(items={"silver": {"count": 0}}, cap=1024, srv=4))
     p._state.srv_type = "SRV Rhino"
     panel = p.overlay_panel("cargo", PanelContext(in_srv=True))

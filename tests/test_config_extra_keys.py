@@ -1,14 +1,6 @@
-"""
-tests/test_config_extra_keys.py — Sections whose keys are not known in advance.
+"""tests/test_config_extra_keys.py — Sections whose keys are not known in advance.
 
-``load_setting`` resolves by iterating ``defaults``. Anything not declared
-there is invisible however plainly it is written in config.toml: read back as
-absent, reported as missing, and discarded on the next write of that section.
-
-That is right for a fixed schema and wrong for the overlay, which names one key
-per panel and gets its panels from whichever components are loaded. This is the
-fault that made overlay placement appear to save and then do nothing — the
-values reached the file every time and were never read back.
+``load_setting`` resolves by iterating ``defaults``.
 """
 
 from __future__ import annotations
@@ -36,7 +28,7 @@ def test_undeclared_keys_are_dropped_by_default():
                        None, "OverlayPanels", DEFAULTS, False)
     assert got["HideMode"] == "collapse"
     assert "PanelZone_cargo" not in got, \
-        "the fixed-schema behaviour must not change"
+        "the fixed-schema behavior must not change"
 
 
 def test_include_extra_returns_them():
@@ -71,7 +63,8 @@ def test_declared_keys_still_get_their_declared_default():
 
 def test_extra_keys_are_not_type_checked():
     """There is no declared type to check them against, so they come back as
-    found rather than being coerced or rejected."""
+    found.
+    """
     got = load_setting(_cfg({"PanelOrder_cargo": 3}), None, "OverlayPanels",
                        DEFAULTS, False, include_extra=True)
     assert got["PanelOrder_cargo"] == 3

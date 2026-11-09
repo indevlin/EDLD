@@ -9,7 +9,7 @@
 # shipped inside an artefact.  See docs/LICENSING.md.
 pyinstaller>=6.3.0
 
-# Requirement and marker parsing for the licence collector in
+# Requirement and marker parsing for the license collector in
 # packaging/build_common.py.  PyInstaller depends on it too; declared because
 # the build calls it directly.
 packaging>=22.0

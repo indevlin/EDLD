@@ -1,22 +1,8 @@
-"""
-core/overlay_content.py — What the overlay says, and when it says nothing.
-
-Kept apart from both the transport and the plugin so the decision of what
-belongs on screen is a pure function of the commander's situation, and can be
-tested without a display, a game, or a database.
+"""core/overlay_content.py — What the overlay says, and when it says nothing.
 
 The rule this file exists to enforce
 ------------------------------------
-The overlay is not a second dashboard. It sits on top of a HUD that is already
-competing for the same attention, so it earns its place only when it is telling
-the commander something they need *while driving* and cannot get from the game.
-Everywhere else it draws nothing at all — not a header, not a logo, not an
-"EDLD ready". A component's overlay_panel() returns None far more often than
-it returns a panel, and that is the intended behaviour rather than a gap.
-
-Concretely: bearings to deposits you have already found, while you are in an
-SRV on a body that has some. Docked, in supercruise, in the ship, or on a body
-with nothing recorded, the overlay is blank.
+The overlay is not a second dashboard.
 """
 
 from __future__ import annotations
@@ -25,8 +11,8 @@ from typing import Iterable, Optional
 
 from core.geo import bearing as geo_bearing, surface_distance
 
-#: Deposit marks, coloured by how much the site holds when full. Depletion is
-#: a date on the deposit, not an amount, so it is not a colour here.
+#: Deposit marks, colored by how much the site holds when full. Depletion is
+#: a date on the deposit, not an amount, so it is not a color here.
 _AMOUNT_COLOURS = {
     "High":     "#7ee787",
     "Medium":   "#8fd1ff",

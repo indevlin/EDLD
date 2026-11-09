@@ -1,5 +1,4 @@
-"""
-gui/preferences.py — Preferences dialog (Qt).
+"""gui/preferences.py — Preferences dialog (Qt).
 
 The Qt counterpart of ``tui/preferences.py``, carrying the same six pages:
 
@@ -10,24 +9,6 @@ The Qt counterpart of ``tui/preferences.py``, carrying the same six pages:
                   the Helm panel
   Data          — CAPI, EDDN, EDSM, EDAstro, Inara, Raven Colonial
   Display       — window layout (position → window assignment)
-
-The pages are picked from a column down the left, one selector per page, the
-components' pages after EDLD's own in alphabetical order. A row of tabs had
-grown past the window's width with sixteen of them, and scrolled sideways.
-Opened from EDCARS, the column is EDCARS's rail — its pills, in Euro Caps, with
-the rail's foot below them — and the window takes its headings, buttons and
-scrollbars; opened from the Dashboard, it wears the theme as before.
-
-Changes are collected in a pending dict and written to config.toml on Apply,
-using the same ``config_to_toml`` writer and the same ``_RESTART_KEYS`` table
-as the TUI, so the two screens produce byte-identical config files for the
-same edits.  Settings marked ⚠ require a restart; the dialog restarts the
-process via ``core.restart_process()`` when Apply is confirmed.
-
-Components may inject their own page by implementing ``gui_preferences_tab()``,
-mirroring the TUI's ``tui_preferences_tab()`` hook.  A component that
-implements only the TUI hook simply doesn't appear here, which is the correct
-behaviour for one that builds Textual widgets.
 """
 
 from __future__ import annotations
@@ -127,7 +108,7 @@ EDCARS_SKIN = "edcarsOptions"
 
 
 def _nav_qss(theme: str) -> str:
-    """The Dashboard's selectors: a strip in the title colour, the current page
+    """The Dashboard's selectors: a strip in the title color, the current page
     in the accent on the page's own background with an accent edge, as the
     tabs were."""
     c = rgb(theme)
@@ -187,7 +168,7 @@ class _Pill(RailPill):
     """A page selector. Up and Down open the page above or below and take the
     focus with them, wrapping at either end, as the arrow keys moved between
     tabs; left to Qt, they only move the focus, and only in an active window.
-    Opened from EDCARS it is one of the console's pills, lamps and all."""
+    """
 
     def __init__(self, text: str, step, ink=None) -> None:
         super().__init__(text, ink)
@@ -229,9 +210,7 @@ class PreferencesDialog(QDialog):
     """Modal preferences dialog — Ctrl+O to open, Escape to cancel.
 
     ``edcars`` is whether it was opened from EDCARS, which it then dresses as
-    (see the module docstring). Ctrl+PgDown and Ctrl+PgUp, or Ctrl+Tab and
-    Ctrl+Shift+Tab, move between pages, as they did between the tabs; the
-    arrow keys do the same while a selector has the focus.
+    (see the module docstring).
     """
 
     def __init__(self, core: "CoreAPI", theme: str = "default",
@@ -286,10 +265,6 @@ class PreferencesDialog(QDialog):
             try:
                 # Builders are handed this dialog so their controls can record
                 # changes through the same _record() path as every other page.
-                # Without it an injected page could draw its settings but never
-                # save them, which is why nothing used this hook before.  The
-                # bare call is kept for any builder written against the old
-                # signature.
                 try:
                     widget = builder(self)
                 except TypeError:
@@ -413,13 +388,7 @@ class PreferencesDialog(QDialog):
 
     def _choice_combo(self, current: str, section: str, key: str,
                       choices: "list[str] | tuple[str, ...]") -> QComboBox:
-        """A picker over a fixed vocabulary.
-
-        Anything with a closed set of valid values should use this rather than
-        a text field: a typed setting can be wrong and has to be validated,
-        reported and ignored, and the commander finds out by noticing that
-        nothing happened.
-        """
+        """A picker over a fixed vocabulary."""
         box = QComboBox()
         for choice in choices:
             box.addItem(str(choice).title(), str(choice))
@@ -583,8 +552,7 @@ class PreferencesDialog(QDialog):
 
         # Guard: if the stored theme value does not exist in the options list
         # (a custom theme file that has been removed, or a typo in
-        # config.toml), fall back to "default" rather than leaving the combo
-        # on an arbitrary entry.
+        # config.toml), fall back to "default".
         current = ui.get("Theme", "default")
         valid = {v for _l, v in options}
         sel = current if current in valid else "default"
@@ -695,7 +663,7 @@ class PreferencesDialog(QDialog):
 
         lay.addWidget(_section("RAVEN COLONIAL"))
         lay.addWidget(_note(
-            "Sync colonisation project supply needs and deliveries to "
+            "Sync colonization project supply needs and deliveries to "
             "ravencolonial.com. Leave blank to disable (local tracking still "
             "works)."))
         f5 = QFormLayout()
@@ -744,13 +712,7 @@ class PreferencesDialog(QDialog):
     # ── Component-injected preference tabs ────────────────────────────────────
 
     def _extra_tabs(self) -> list[tuple[str, str, object]]:
-        """Ask loaded components if they want to inject a preferences tab.
-
-        A component may expose ``gui_preferences_tab()`` returning
-        ``(tab_id, tab_label, builder)`` where ``builder()`` returns a QWidget.
-        Only called for components that implement the method — invisible to
-        all other code.
-        """
+        """Ask loaded components if they want to inject a preferences tab."""
         result = []
         for plugin in self._core._plugins.values():
             fn = getattr(plugin, "gui_preferences_tab", None)

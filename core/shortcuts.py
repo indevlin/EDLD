@@ -1,12 +1,4 @@
-"""
-core/shortcuts.py — launcher shortcuts, one per interface.
-
-EDLD has four interfaces a person starts by hand (core/modes.py): EDCARS,
-the Dashboard window, the terminal dashboard and the terminal event log.
-Each gets one launcher entry, passing the interface's first flag. Server mode
-is not an interface but a setting (Options → Server, ``[Server] Enabled``)
-that runs beside whichever one opens, so it adds no shortcuts of its own; nor
-does ``-p PROFILE``, since EDLD picks the profile named after the commander.
+"""core/shortcuts.py — launcher shortcuts, one per interface.
 
 * **Windows** — Start-menu shortcuts in ``Programs\\EDLD``. The binary is a
   single file with no installer, so it makes them itself: on its first run,
@@ -64,12 +56,7 @@ def entry_name(mode: modes.Mode, server_build: bool = False) -> str:
 
 
 def command(mode: modes.Mode) -> tuple[str, list[str]]:
-    """(program, arguments) a shortcut for ``mode`` runs.
-
-    A binary runs itself. A source checkout runs the interpreter on edld.py;
-    on Windows a desktop-window interface uses pythonw.exe beside it, so no
-    console window opens behind the window.
-    """
+    """(program, arguments) a shortcut for ``mode`` runs."""
     flag = mode.flags[0]
     if _frozen():
         return sys.executable, [flag]
@@ -305,8 +292,8 @@ def remove(server_build: bool = False) -> list[str]:
 
 def ensure_for_binary(server_build: bool = False) -> bool:
     """On the Windows binary, make the shortcuts if they are missing or out of
-    date. Returns True when it made them. Quick when nothing has changed: one
-    small file is read and the shortcuts' names are checked for."""
+    date. Returns True when it made them.
+    """
     if sys.platform != "win32" or not _frozen():
         return False
     current = _read_marker(server_build)

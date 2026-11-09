@@ -1,15 +1,5 @@
-"""
-core/helm.py — the Helm panel: the game's controls and EDLD's automation, in
+"""core/helm.py — the Helm panel: the game's controls and EDLD's automation, in
 one place.
-
-What used to be EDAM's control rail, beside EDCARS in landscape and a page of
-its own in portrait, is a panel every interface draws: a section of EDCARS's
-rail, a strip along the foot of the Dashboard on the desktop and in the
-terminal, and on EDAM a section or a page. It presses the game's keys through
-the commander's own bindings (core/automation.py, core/binds.py, core/keys.py)
-and only while the game has the focus.
-
-Everything the front ends must agree on is here, so they cannot drift:
 
 * the panel's name — ``HELM_NAME``, the only place it is spelled;
 * the controls, each in the group it belongs to, in the order they are drawn:
@@ -17,11 +7,6 @@ Everything the front ends must agree on is here, so they cannot drift:
   what they are for — flight, the ship, combat, power and panels;
 * what a front end is told to draw (``view``), and what a device is sent
   (``wire_groups``).
-
-A control is either one of the game's bindings, pressed once, or a sequence
-EDLD runs: ``honk`` holds the discovery scanner in its fire group, as Auto
-honk does on arrival, and ``nextstop`` plots the galaxy map to the next stop
-of a route EDLD plotted, as it does after a supercharge.
 """
 from __future__ import annotations
 
@@ -72,7 +57,7 @@ CONTROLS: tuple[Control, ...] = (
             tip="Hold the discovery scanner in its fire group (in flight)"),
     Control(NEXT_STOP, "Next stop", "automation",
             tip="Plot the galaxy map to the next stop of the route EDLD plotted"),
-    # Flight: leaving, travelling, and the route.
+    # Flight: leaving, traveling, and the route.
     Control("supercruise", "Supercruise", "flight", "Supercruise"),
     Control("jump", "Jump", "flight", "HyperSuperCombination"),
     Control("nextroute", "Next system", "flight", "TargetNextRouteSystem",
@@ -147,10 +132,9 @@ class Group:
 class View:
     """The panel, for a front end to draw as it likes.
 
-    ``note`` is a line above the buttons when nothing can be pressed — why,
-    and what to change. ``status`` is the outcome of the last press, or what
-    the automation is set to do on its own. ``groups`` are in drawing order,
-    each with its buttons in order; a group with no buttons is left out.
+    ``status`` is the outcome of the last press, or what the automation is
+    set to do on its own. ``groups`` are in drawing order, each with its
+    buttons in order; a group with no buttons is left out.
     """
     enabled: bool
     note: str = ""

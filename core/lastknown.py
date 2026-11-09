@@ -1,19 +1,4 @@
-"""
-core/lastknown.py — the windows as they last stood, while the journals load.
-
-A window opens before the journals have been read: the commander, the ship,
-the career and the rest are not known until the history bootstraps have run
-and the current journal has been replayed (``state.in_preload``), and until
-then every window showed dashes. With this installed, each window model
-(core/windows, the EDCARS header's facts, the route) answers with what it
-showed at the end of the last run instead, the window says it is restoring
-the last session, and the first full repaint after the replay replaces it
-all with the live figures.
-
-What a model answers is remembered only once the replay has finished, so
-nothing half-built is ever kept; it is written to the commander's data
-directory when EDLD exits and every few minutes while it runs. A different
-EDLD version starts without it: the models may have changed shape.
+"""core/lastknown.py — the windows as they last stood, while the journals load.
 
     lastknown.install(core)     after the components load, before a window
 """

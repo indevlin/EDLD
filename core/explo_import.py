@@ -1,11 +1,6 @@
-"""
-core/explo_import.py — Background journal-history importer.
+"""core/explo_import.py — Background journal-history importer.
 
-Walks the commander's entire journal archive once to backfill the body
-database, then leaves the live write-through path to keep it current.  Designed
-to run on a daemon thread so a multi-year archive never blocks startup.
-
-Behaviour
+Behavior
 ---------
 - Journals are processed oldest-first so discovery / scan / map status
   accumulates in the order it actually happened.
@@ -48,12 +43,7 @@ def _log(msg: str) -> None:
 
 
 def journal_datetime(path: Path) -> datetime:
-    """Sort key for a journal file, parsed from its embedded timestamp.
-
-    Handles both the modern ``Journal.YYYY-MM-DDTHHMMSS.NN.log`` and the legacy
-    ``Journal.YYMMDDHHMMSS.NN.log`` filename forms, falling back to the file's
-    modification time when neither parses.
-    """
+    """Sort key for a journal file, parsed from its embedded timestamp."""
     m = _TOKEN_RE.match(path.name)
     token = m.group(1) if m else ""
     for fmt in ("%Y-%m-%dT%H%M%S", "%y%m%d%H%M%S"):
@@ -163,8 +153,6 @@ class JournalImporter:
                         except Exception:
                             # Skip a single malformed/unsupported event.
                             pass
-        # Only bookmark the file when we read it to the end; a stopped file is
-        # re-read in full next run (idempotent, so safe).
         if completed:
             self._db.mark_journal_imported(path.name, datetime.utcnow().isoformat())
 

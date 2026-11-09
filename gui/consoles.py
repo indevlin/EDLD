@@ -1,27 +1,14 @@
-"""
-gui/consoles.py — how each console dresses the EDCARS layout.
-
-EDCARS's layout is fixed (gui/edcars.py): a header band over a strip of facts,
-a rail of pills down the left, framed windows, the radio along the foot. A
-console decides how those are drawn — the band's shape, the pills, the frames
-round the windows, the faces the chrome is set in — and nothing else. Which
-consoles there are, and their names, is core/edcars.py.
+"""gui/consoles.py — how each console dresses the EDCARS layout.
 
     EDCARS    the band and the elbow, pills down the rail (Euro Caps)
-    ORDER     Imperial: grey steel, indicator lights, chamfered black glass
+    ORDER     Imperial: gray steel, indicator lights, chamfered black glass
               (Rajdhani)
     REBEL     Rebel: cream consoles, round lamps, screens in bezels
               (Saira Condensed)
     ROGUE     independent: worn plate, tape labels, toggles, amber CRTs
               (VT323, the labels in Permanent Marker)
 
-A console's panels are its own paint, fixed colours that do not change with
-the theme — steel is steel. The lights, the screens and the text are the
-theme's, so every theme, custom ones included, can be worn by every console;
-each of the three has a theme of its own name made to match it.
-
-The faces are bundled in fonts/ with their licences (THIRD-PARTY-NOTICES.md).
-A build without one draws that console's chrome in a fallback face.
+The faces are bundled in fonts/ with their licenses (THIRD-PARTY-NOTICES.md).
 """
 from __future__ import annotations
 

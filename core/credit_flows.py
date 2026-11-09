@@ -1,29 +1,12 @@
-"""
-core/credit_flows.py — every journal event that moves the commander's credits,
+"""core/credit_flows.py — every journal event that moves the commander's credits,
 and the credits that arrive with no event at all.
 
-Some income is never written to the journal. Claiming a PowerPlay care package
-at a Power contact — 250,000 cr below rank 100, 500,000 cr above, plus credits
-for any materials the commander cannot hold — writes nothing to the journal;
-the money simply appears in the balance. So does anything else the game pays
-without logging it. EDLD reports what it cannot attribute as **Unknown
-Credits** rather than guessing which of these it was.
-
-It is found by reconciliation. The balance is known at points the game states
-it — ``LoadGame.Credits`` in the journal, ``Balance`` in Status.json while the
-game runs — and between two of those points the journal accounts for every
-change it logs. Whatever is left over arrived without an event.
-
-Two consumers:
+Some income is never written to the journal.
 
 * :func:`credit_delta` gives the signed balance change of one journal event,
   and is what the career ledger uses to reconcile between ``LoadGame`` events.
 * :class:`BalanceReconciler` does the same live, against Status.json, for the
   session's Income tab.
-
-Only rises are reported. A fall the journal does not explain is a spend this
-table does not know, which is not income; the reconciler simply starts again
-from the new balance.
 """
 
 from __future__ import annotations
@@ -36,9 +19,7 @@ from typing import Callable, Optional
 MIN_UNKNOWN_CR = 1000
 
 #: How long the balance and the journal must both be quiet before the
-#: reconciler trusts the comparison. Status.json is rewritten the moment the
-#: balance changes, and the journal line that explains it can arrive seconds
-#: later because the game buffers the journal.
+#: reconciler trusts the comparison.
 SETTLE_S = 10.0
 
 #: Unknown Credits that a late journal line then explains are taken back if
@@ -56,9 +37,7 @@ def _i(value) -> int:
 def credit_delta(event: dict) -> Optional[int]:
     """The signed change one event makes to the commander's credit balance.
 
-    ``None`` for an event that does not move credits. Vouchers count when
-    redeemed, not when issued; carrier-bank deposits and withdrawals count,
-    because they move money out of and into the commander's own balance.
+    ``None`` for an event that does not move credits.
     """
     ev = event.get("event")
     g = event.get
@@ -151,24 +130,7 @@ CREDIT_EVENTS: tuple[str, ...] = (
 
 
 class BalanceReconciler:
-    """Live reconciliation of the Status.json balance against the journal.
-
-    Times are seconds since the epoch, from the game's own timestamps — the
-    ``timestamp`` in Status.json and in each journal line — so the two clocks
-    being compared are the same clock.
-
-    Status.json shows a balance change the moment it happens; the journal line
-    that explains it can arrive seconds later, because the game buffers the
-    journal. So nothing is compared until both have been quiet for
-    :data:`SETTLE_S`. The balance at that moment is the anchor: it includes
-    every event up to then, whether or not its line has been read yet, so
-    journal events timed at or before the anchor are never added to it. That
-    also keeps the startup replay of old journals out of the sum.
-
-    A line that turns up after a comparison, timed before it, is one the
-    comparison was missing. If it is income and that comparison reported
-    Unknown Credits, the report is taken back by as much as the line explains.
-    """
+    """Live reconciliation of the Status.json balance against the journal."""
 
     def __init__(self, on_unknown: Callable[[int, float], None]):
         self._on_unknown = on_unknown
@@ -215,7 +177,7 @@ class BalanceReconciler:
             self._recent_unknown = 0
 
     def settle(self, now: float) -> int:
-        """Compare, if both sides are quiet. Returns the credits reported."""
+        """Compare, if both sides are quiet."""
         with self._lock:
             if self._balance is None:
                 return 0

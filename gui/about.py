@@ -1,7 +1,4 @@
-"""
-gui/about.py — About dialog.
-
-Carries three things that have to be here rather than anywhere else:
+"""gui/about.py — About dialog.
 
   * what the program is, and where its source lives (GitHub);
   * the funding links, repeated from the support bar so they are findable
@@ -71,7 +68,7 @@ class AboutDialog(QDialog):
             "A live dashboard for Elite Dangerous.\n\n"
             "EDLD reads the journal files the game writes to your local "
             "filesystem and presents commander, ship, exploration, "
-            "exobiology, trade, mission, colonisation and PowerPlay state as "
+            "exobiology, trade, mission, colonization and PowerPlay state as "
             "it happens. It runs as a terminal dashboard, a scrolling "
             "terminal log, or this desktop window."
         )
@@ -97,17 +94,17 @@ class AboutDialog(QDialog):
         lay.addWidget(_rule())
 
         # ── Attribution ───────────────────────────────────────────────────────
-        # LGPLv3 4(a) and 4(c): name the library, state the licence, and point
+        # LGPLv3 4(a) and 4(c): name the library, state the license, and point
         # at the bundled texts.
         notices = QLabel(
             "Elite Dangerous is a trademark of Frontier Developments plc. "
             f"{program} is an unofficial community tool, not affiliated with, "
             "endorsed by, or supported by Frontier Developments.\n\n"
-            f"{program} is released under the MIT licence. The desktop "
+            f"{program} is released under the MIT license. The desktop "
             "interface uses Qt for Python (PySide6) under the LGPL v3; the "
             "terminal interface uses Textual, and the Radio tab miniaudio, "
-            "both under the MIT licence. Full "
-            "licence texts ship in the licenses/ directory of every release "
+            "both under the MIT license. Full "
+            "license texts ship in the licenses/ directory of every release "
             "archive, and THIRD-PARTY-NOTICES.md lists every dependency with "
             "relinking instructions."
         )

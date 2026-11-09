@@ -57,9 +57,7 @@ def test_capi_profile_ships_get_display_names():
 
 
 def test_every_ship_type_in_real_journals_has_a_name():
-    """Ids taken from real journals (2026). Each was missing from the map and
-    fell through to title-casing — "Anacondamkii", "Asp_Scout" — whenever the
-    game had not given a localised name earlier in the run."""
+    """Ids taken from real journals (2026)."""
     assert normalise_ship_name("anacondamkii") == "Anaconda Mk II"
     assert normalise_ship_name("AnacondaMkII") == "Anaconda Mk II"
     assert normalise_ship_name("asp_scout") == "Asp Scout"

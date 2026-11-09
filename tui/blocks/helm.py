@@ -1,18 +1,5 @@
-"""
-tui/blocks/helm.py — the Helm panel (Textual): the game's controls and EDLD's
+"""tui/blocks/helm.py — the Helm panel (Textual): the game's controls and EDLD's
 automation as buttons, along the foot of the terminal dashboard.
-
-The desktop's gui/blocks/helm.py, in cells: what is in it is core/helm.py,
-what can be pressed and why not is the automation component's ``helm_view``.
-It is laid out as short as the terminal allows (``arrange``): on a wide one
-every group in one row, two rows of buttons each, each group as wide as its
-buttons' names; on a narrower one the groups wrap, each group's buttons in as
-many columns as its width holds whole names in. Shown while automation is on and the
-panel is not turned off in Options → Appearance.
-
-Pressing from a terminal is pressing from another window: the game is
-brought to the front first (core/keys.focus_game), on a thread of its own,
-and the outcome comes back on the status line.
 """
 from __future__ import annotations
 
@@ -45,12 +32,6 @@ def arrange(width: int, labels: list[list[str]]) -> tuple[int, list[int], str, i
     """(groups per row, each group's button columns, the grid's column
     widths, the gap between groups) that make the panel as short as it can
     be in ``width`` cells, with every button's name whole where it can be.
-
-    Tried: every group in one row, each as wide as two rows of its buttons
-    need, a cell apart; and every count of groups per row at equal widths,
-    two cells apart. The shortest wins; of equals, the one whose deepest
-    group is shallowest, then the one with more groups to a row. A layout
-    that cuts a name short is taken only when none would not.
     """
     n = len(labels)
     cell = [max((len(t) for t in g), default=4) + 2 for g in labels]
@@ -83,7 +64,7 @@ class HelmBlock(TuiBlock):
     BLOCK_TITLE = "HELM"
 
     # Its rules are in tui/theme.py's STRUCTURAL_CSS, where the theme's
-    # colours are: a widget's own DEFAULT_CSS cannot see them.
+    # colors are: a widget's own DEFAULT_CSS cannot see them.
 
     def __init__(self, core, **kw) -> None:
         super().__init__(core, **kw)

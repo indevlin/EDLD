@@ -1,12 +1,7 @@
-"""
-core/state.py — Runtime state containers, constants, and session persistence.
-
-No imports from other EDLD core modules — this is the bottom of the
-dependency stack.  Everything else imports from here.
+"""core/state.py — Runtime state containers, constants, and session persistence.
 
 In-game reference data (ship names, module types, rank tables, etc.) now
-lives in the ``data/`` package.  All names are re-exported from this module
-so existing imports throughout the codebase continue to work unchanged.
+lives in the ``data/`` package.
 """
 
 import json
@@ -62,13 +57,7 @@ def version_key(v: str) -> tuple:
     """Sort key for EDLD versions: ``YYYYMMDD``, a letter suffix, ``-dev``.
 
     ``20260926-dev`` is the work leading up to ``20260926``, so it sorts just
-    before it and after everything older.  An unrecognised string sorts before
-    every real version rather than raising, so a malformed tag can never stop
-    EDLD starting.
-
-    The update check used to recognise only ``YYYYMMDD[a-z]``.  Every ``-dev``
-    build therefore read as version zero, and any release at all — including
-    one older than the build — was announced as an update.
+    before it and after everything older.
     """
     import re
     m = re.match(r"^v?(\d{8})([a-z]*)(-dev)?$", str(v or "").strip())
@@ -169,8 +158,6 @@ def cmdr_data_dir() -> Path:
     """Return the per-commander data directory, creating it if needed.
 
     Falls back to EDLD_DATA_DIR / "commanders" / "unknown" until FID is set.
-    All commander-specific persistent data (plugins, layout, catalog, etc.)
-    lives here.
     """
     fid = _active_fid or "unknown"
     # Made once a run, not at every call: components ask for it for every
@@ -308,9 +295,8 @@ class MonitorState:
         self.srv_cargo_count: int    = 0
         self.srv_cargo_items: dict   = {}
         self.cargo_target_market_name= ""
-        # Pin the cargo manifest to galactic average, ignoring both the
-        # target market and the station currently docked at.  Set by the
-        # panel's "Gal. Avg" control, cleared when a target is chosen.
+        # Pin the cargo manifest to galactic average, ignoring both the target
+        # market and the station currently docked at. Set by the panel's "Gal.
         self.cargo_price_galactic   = False
         self.cargo_target_market_ts  = 0.0
         self.slf_capi_type           = None
@@ -333,10 +319,6 @@ class MonitorState:
         # output, quarter-hour summaries included, stops until the commander
         # loads into the game again (LoadGame) or EDLD is restarted.
         self.output_suspended        = False
-        # "Monitoring Active" is said once per run.  monitor_journal runs
-        # again for every journal the game opens, and each run used to post
-        # it again: start EDLD before the game and the launch posted a
-        # second, identical copy a minute later.
         self.monitoring_announced    = False
         # Fighting and jumping, for telling a fighter shot down from one left
         # behind and stolen cargo from jettisoned (core/engagement.py).
@@ -358,9 +340,6 @@ class MonitorState:
         # Massacre missions that have redirected (complete — turn in), kept
         # by components/missions.py and drawn by the Objectives window.
         self.massacre_redirected: set = set()
-        # Every mission the commander currently holds, of any type — the
-        # detail map above only ever covered massacres, because that is all
-        # the stack view needed.  Keyed by MissionID.
         self.all_missions: dict = {}
         self.stack_value             = 0
         self.has_fighter_bay         = False
@@ -377,6 +356,7 @@ class MonitorState:
         self.pp_power        = None
         self.pp_rank         = None
         self.pp_merits_total = None
+        self.pp_cycle        = None   # core.weekly.CycleMerits
 
         # Ship identity (from Loadout)
         self.ship_name  = None
@@ -414,7 +394,7 @@ class MonitorState:
         self.surface_longitude: "float | None" = None
         self.surface_heading:   "float | None" = None
         self.surface_altitude:  "float | None" = None
-        self.planet_radius:     "float | None" = None   # metres
+        self.planet_radius:     "float | None" = None   # meters
         self.on_foot:           bool           = False
         self.current_body_name: str            = ""
 

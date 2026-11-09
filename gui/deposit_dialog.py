@@ -1,8 +1,4 @@
-"""
-gui/deposit_dialog.py — Add or edit the surface deposit you are parked on.
-
-One dialog for both, for the reason the TUI screen has one: the commander does
-not know which they are doing until EDLD has looked at where they are standing.
+"""gui/deposit_dialog.py — Add or edit the surface deposit you are parked on.
 
 Fields come from ``core.deposit_form.FIELDS`` so this and the TUI screen cannot
 drift apart on what a deposit has.
@@ -18,10 +14,15 @@ from core.deposit_form import FIELDS
 
 
 class DepositDialog(QDialog):
-    def __init__(self, plugin, parent=None) -> None:
+    """``dep_id`` None: the deposit underfoot (form_for_here / submit_form).
+    Otherwise that deposit (form_for / submit_form_for); commodity read-only."""
+
+    def __init__(self, plugin, parent=None, dep_id: str | None = None) -> None:
         super().__init__(parent)
         self._plugin = plugin
-        form_values, heading = plugin.form_for_here()
+        self._dep_id = dep_id
+        form_values, heading = (plugin.form_for(dep_id) if dep_id
+                                else plugin.form_for_here())
 
         self.setWindowTitle("Surface Deposit")
         lay = QVBoxLayout(self)
@@ -52,9 +53,6 @@ class DepositDialog(QDialog):
             elif field.kind == "note":
                 widget = QPlainTextEdit(current)
                 widget.setPlaceholderText(field.hint)
-                # Tab leaves the box rather than typing a tab, as it does from
-                # every other field; Save and Cancel stay reachable from the
-                # keyboard. Enter still breaks the line.
                 widget.setTabChangesFocus(True)
                 lines = widget.fontMetrics().lineSpacing()
                 widget.setFixedHeight(lines * 4 + 12)
@@ -62,6 +60,8 @@ class DepositDialog(QDialog):
                 widget = QLineEdit(current)
                 if field.hint:
                     widget.setPlaceholderText(field.hint)
+                if dep_id and field.key == "commodity":
+                    widget.setReadOnly(True)
             self._widgets[field.key] = widget
             form.addRow(field.label, widget)
 
@@ -87,10 +87,12 @@ class DepositDialog(QDialog):
         return out
 
     def _save(self) -> None:
-        result = self._plugin.submit_form(self._values())
+        values = self._values()
+        result = (self._plugin.submit_form_for(self._dep_id, values) if self._dep_id
+                  else self._plugin.submit_form(values))
         # Stay open on a rejection so the offending field can be corrected
         # rather than the whole form retyped.
-        if result.startswith(("recorded", "updated")):
+        if result.startswith(("recorded", "updated")) or result == "nothing to change":
             self.accept()
         else:
             self._result.setText(result)

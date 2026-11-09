@@ -1,11 +1,8 @@
-"""
-core/windows/commander.py — the Commander window: who the commander is
-(Info, Ranks, Wallet) and what they own (Ships, Modules, Carrier, S. Carrier).
+"""core/windows/commander.py — the Commander window: who the commander is (Info,
+Ranks, Wallet) and what they own (Ships, Modules, Carrier, S. Carrier).
 
 EDCARS splits the window: the identity tabs stay in Command, the fleet tabs go
-to Fleet. The Carrier tab is there only while a carrier is owned, and the
-squadron's only while the commander has one: an empty tab implying a carrier
-they do not own reads like a bug.
+to Fleet.
 """
 from __future__ import annotations
 
@@ -84,7 +81,7 @@ def _fuel(s) -> tuple[str, str]:
 
 
 def home_line(core) -> tuple[str, str]:
-    """(the Home System row, the footer's "→ home" line)."""
+    """(Home System row value, "→ name")."""
     s = core.state
     cmdr = (getattr(core, "_plugins", None) or {}).get("commander")
     if not cmdr:
@@ -100,6 +97,17 @@ def home_line(core) -> tuple[str, str]:
     if dist is not None:
         display += f"  |  {dist:,.0f} ly"
     return display, f"→ {name}"
+
+
+def _home_row(core) -> tuple:
+    """Home System; pressable (panel action "home") when search is available."""
+    value = home_line(core)[0]
+    plugins = getattr(core, "_plugins", None) or {}
+    if plugins.get("spansh") is None or plugins.get("commander") is None:
+        return R.kv("Home System", value)
+    if value in ("unknown", "—"):
+        value = "Set…"
+    return R.kv("Home System", f"{value}  ›", "val", action="home")
 
 
 def info(core) -> Tab:
@@ -120,7 +128,7 @@ def info(core) -> Tab:
             pprank = f"Rank {s.pp_rank}"
     rows = [R.rule(),
             R.kv("Mode", getattr(s, "pilot_mode", None) or "—"),
-            R.kv("Home System", home_line(core)[0]),
+            _home_row(core),
             R.kv("Current System", getattr(s, "pilot_system", None) or "—"),
             R.kv("Location", body),
             R.rule(),

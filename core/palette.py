@@ -1,19 +1,9 @@
-"""
-core/palette.py — UI-agnostic colour palettes.
+"""core/palette.py — UI-agnostic color palettes.
 
-The single source of truth for EDLD's colour schemes.  Both front ends read
-from here:
+The single source of truth for EDLD's color schemes.
 
   * ``tui/theme.py``  substitutes these values into the Textual CSS
   * ``gui/theme.py``  substitutes them into the Qt stylesheet
-
-Keeping the palettes out of either UI module means a theme added here appears
-in both front ends at once, and neither front end has to import the other (the
-GUI must work on a machine with no Textual installed, and vice versa).
-
-Palette keys carry their Textual ``$`` sigil because the TUI substitutes them
-directly into CSS text.  ``rgb()`` returns the same values without the sigil
-for callers that want plain names.
 """
 
 from __future__ import annotations
@@ -22,7 +12,7 @@ from pathlib import Path
 
 from core import edcars as _c
 
-# ── Colour palettes ───────────────────────────────────────────────────────────
+# ── Color palettes ───────────────────────────────────────────────────────────
 
 PALETTES: dict[str, dict[str, str]] = {
     # ── Default (Elite orange) ────────────────────────────────────────────────
@@ -186,16 +176,16 @@ PALETTES: dict[str, dict[str, str]] = {
 PALETTES["default-dark"] = PALETTES["default"]
 
 
-# ── Derived colours ───────────────────────────────────────────────────────────
+# ── Derived colors ───────────────────────────────────────────────────────────
 
 #: How far the zebra stripe is pulled from the block fill toward the text
-#: colour.  Blending toward $fg rather than adding a fixed offset means the
+#: color.  Blending toward $fg rather than adding a fixed offset means the
 #: stripe lightens on the dark palettes and darkens on the light one, with no
 #: per-theme special case.
 #:
 #: The figure is set by the terminal, not by taste.  Below 10% the stripe
-#: stops surviving 256-colour quantisation: #1c1810 and a 6%-lighter #241e16
-#: are both nearest to colour 16 on the xterm palette, so a 256-colour
+#: stops surviving 256-colour quantization: #1c1810 and a 6%-lighter #241e16
+#: are both nearest to color 16 on the xterm palette, so a 256-colour
 #: terminal paints every row the same and the striping silently disappears.
 #: Qt is always truecolor, which is why the desktop window showed a stripe the
 #: terminal never did.  12% clears the threshold in all eight palettes with
@@ -204,7 +194,7 @@ _STRIPE_BLEND = 0.12
 
 
 def _blend(base: str, toward: str, pct: float) -> str:
-    """Mix two ``#rrggbb`` colours.  Returns ``base`` if either is unparseable."""
+    """Mix two ``#rrggbb`` colors.  Returns ``base`` if either is unparseable."""
     try:
         a = base.lstrip("#")
         b = toward.lstrip("#")
@@ -223,9 +213,7 @@ def _blend(base: str, toward: str, pct: float) -> str:
 def derive(palette: dict[str, str]) -> dict[str, str]:
     """Add the computed entries a palette does not state for itself.
 
-    Currently just ``$row-alt``, the zebra stripe.  Applied to the built-ins
-    below and to every custom theme as it loads, so a theme file never has to
-    know the stripe exists.
+    Currently just ``$row-alt``, the zebra stripe.
     """
     if "$row-alt" in palette:
         return palette
@@ -260,12 +248,9 @@ THEME_CHOICES: list[tuple[str, str]] = [
 ]
 
 
-#: Colour theme names the overlay offers, plus the escape hatch.
-#:
-#: "custom" means the explicit TitleColour / LabelColour / ValueColour settings
-#: are used verbatim. Picking a theme overwrites what is drawn but not what is
-#: stored, so switching to custom brings back whatever was set before rather
-#: than whatever the last theme happened to be.
+#: Color theme names the overlay offers, plus the escape hatch. "custom" means
+#: the explicit TitleColour / LabelColour / ValueColour settings are used
+#: verbatim.
 OVERLAY_THEME_CHOICES: list[tuple[str, str]] = (
     [("Custom", "custom")] + THEME_CHOICES
 )
@@ -277,25 +262,14 @@ FOLLOW_DASHBOARD = "dashboard"
 
 
 def overlay_theme_choices() -> list[tuple[str, str]]:
-    """Every colour theme the overlay offers, as ``[(name, id)]``.
-
-    Custom (the three colour fields verbatim), Follow dashboard, the built-in
-    themes, then any custom dashboard themes in ``themes/custom/`` — read
-    when asked, so a theme file dropped in appears without a restart.
-    """
+    """Every color theme the overlay offers, as ``[(name, id)]``."""
     return ([("Custom", "custom"), ("Follow dashboard", FOLLOW_DASHBOARD)]
             + THEME_CHOICES
             + [(f"Custom: {stem}", tid) for tid, stem in list_custom_themes()])
 
 
 def overlay_colours(theme: str, dashboard_theme: str = "") -> dict | None:
-    """Title / label / value colours for a theme, or None for custom.
-
-    Derived from the palette rather than listed separately, so a theme added to
-    palette.py reaches the overlay without anything else being edited. A
-    custom dashboard theme (``custom/<stem>``) is read from its CSS file, and
-    Follow dashboard resolves ``dashboard_theme`` the same way.
-    """
+    """Title / label / value colors for a theme, or None for custom."""
     if not theme or theme == "custom":
         return None
     if theme == FOLLOW_DASHBOARD:
@@ -349,13 +323,7 @@ def load_custom_palette(css_path) -> dict | None:
 
 
 def custom_theme_dirs() -> list[Path]:
-    """Where custom themes are looked for, first match winning.
-
-    ``<data>/themes/custom/`` comes first: it is writable in every install,
-    including the packaged binaries, whose own ``themes/`` sits inside the
-    executable where nothing can be added. ``themes/custom/`` beside the code
-    follows, so a theme kept in a source checkout goes on working.
-    """
+    """Where custom themes are looked for, first match winning."""
     dirs = []
     try:
         from core.state import EDLD_DATA_DIR
@@ -382,9 +350,6 @@ def custom_theme_path(theme_name: str) -> Path | None:
 
 def list_custom_themes() -> list[tuple[str, str]]:
     """Return ``[(theme_id, stem)]`` for every custom theme, sorted by name.
-
-    A stem found in more than one directory is listed once; the file used is
-    the one :func:`custom_theme_path` picks.
     """
     stems = set()
     for d in custom_theme_dirs():
@@ -397,9 +362,6 @@ def list_custom_themes() -> list[tuple[str, str]]:
 
 def palette_for(theme_name: str) -> dict[str, str]:
     """Return the palette dict for a theme id, falling back to ``default``.
-
-    Handles the ``custom/<stem>`` form by parsing the matching CSS file, so
-    both front ends resolve a custom theme identically.
     """
     if theme_name and theme_name.startswith("custom/"):
         css_file = custom_theme_path(theme_name)
@@ -408,12 +370,7 @@ def palette_for(theme_name: str) -> dict[str, str]:
 
 
 def rgb(theme_name: str) -> dict[str, str]:
-    """Palette for a theme with the ``$`` sigils stripped from the keys.
-
-    ``rgb("default")["accent"]`` is the same colour as
-    ``palette_for("default")["$accent"]``; the sigil-free form reads better in
-    the Qt stylesheet builder, which has no use for Textual's variable syntax.
-    """
+    """Palette for a theme with the ``$`` sigils stripped from the keys."""
     return {k.lstrip("$"): v for k, v in palette_for(theme_name).items()}
 
 
@@ -440,11 +397,7 @@ def theme_name(theme_id: str) -> str:
 
 
 def wire_theme(theme_id: str) -> dict:
-    """A theme as sent to a paired device: id, display name and colours.
-
-    Resolved through palette_for(), so a custom theme arrives as the colours
-    EDLD is actually drawing with, not as a name the device cannot look up.
-    """
+    """A theme as sent to a paired device: id, display name and colors."""
     tid = theme_id or "default"
     pal = palette_for(tid)
     if tid.startswith("custom/") or tid in PALETTES:

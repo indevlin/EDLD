@@ -1,9 +1,6 @@
-"""
-components/alerts.py — Combat and hazard alert tracking.
+"""components/alerts.py — Combat and hazard alert tracking.
 
 Maintains a deque of the last 5 alert events with monotonic timestamps.
-Feeds both the Alerts dashboard block and the existing emit() pipeline
-(terminal + Discord alerts are handled here for these event types).
 
 Dashboard block: alerts (full width).
 """
@@ -76,9 +73,7 @@ class AlertsPlugin(BasePlugin):
         """Add an alert.
 
         ``urgent`` marks danger and loss, which EDCARS surfaces by pulsing its
-        Alerts pill (core.edcars.is_urgent). Journal-driven alerts are urgent
-        unless they report a recovery; status raised from elsewhere — a
-        carrier's schedule, a sign-in that needs renewing — is not.
+        Alerts pill (core.edcars.is_urgent).
         """
         # Never populate the queue during journal replay — those events are
         # historical and the player's current situation is already different.
@@ -180,8 +175,7 @@ class AlertsPlugin(BasePlugin):
 
             case "HullDamage" if event.get("PlayerPilot") and not event.get("Fighter"):
                 hullhealth = round(event["Health"] * 100)
-                # Driving an SRV, this is the SRV's hull. It was written to the
-                # ship's and announced as "Ship hull: 20%" over a ship at 100%.
+                # Driving an SRV, this is the SRV's hull.
                 in_srv = getattr(state, "vessel_mode", "ship") == "srv"
                 what = "SRV" if in_srv else "Ship"
                 if in_srv:
@@ -208,9 +202,9 @@ class AlertsPlugin(BasePlugin):
                 if state.fighter_integrity != event["Health"]:
                     self._push("🛩️", f"Fighter hull: {hullhealth}%")
             case "RefuelAll" | "RefuelPartial":
-                # Player manually refuelled — update fuel_current immediately.
-                # RefuelAll/Partial do not carry absolute FuelLevel, only Amount
-                # (tons added). Add to current known level and cap at tank size.
+                # Player manually refueled — update fuel_current immediately.
+                # RefuelAll/Partial do not carry absolute FuelLevel, only
+                # Amount (tons added).
                 amount = event.get("Amount", 0.0)
                 if amount and state.fuel_current is not None:
                     state.fuel_current = min(
@@ -241,9 +235,8 @@ class AlertsPlugin(BasePlugin):
                 if gq: gq.put(("vessel_update", None))
 
             case "DockFighter":
-                # Fighter returned to the bay — it is automatically repaired
-                # to full integrity on dock. Reset the display immediately
-                # so we do not show a damaged fighter that is actually repaired.
+                # Fighter returned to the bay — it is automatically repaired to
+                # full integrity on dock.
                 state.slf_hull = 100
                 gq = core.gui_queue
                 if gq: gq.put(("vessel_update", None))
@@ -465,9 +458,6 @@ class AlertsPlugin(BasePlugin):
 
     def push_fault(self, emoji: str, text: str) -> None:
         """Record a persistent fault — a subsystem is down, not an in-game event.
-
-        Unlike _push() this ignores in_preload and survives context resets, so
-        a startup failure is still on screen when the player looks at it.
         """
         if any(f.get("text") == text for f in self.faults):
             return

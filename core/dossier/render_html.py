@@ -1,18 +1,4 @@
-"""
-core/dossier/render_html.py — the dossier as one self-contained web page.
-
-One file, ``html/index.html``, with every page in it as a section and the
-navigation done in CSS (``:target``): no script, no network, nothing beside
-it. It opens from disk in any current browser and reads the same anywhere it
-is copied to. A ship has its own address, ``index.html#ship-36``.
-
-The colours are the EDLD theme in use when it was written, custom themes
-included, so it is regenerated when the theme changes. The frame — a rail
-down the left joined to a bar across the top by a curved elbow — is an
-original layout in that spirit, drawn entirely from the theme's colours.
-
-Headings are set in Euro Caps, the face EDLD's overlay uses, embedded in the
-page from EDLD's own ``fonts/`` so the file stays self-contained.
+"""core/dossier/render_html.py — the dossier as one self-contained web page.
 """
 
 from __future__ import annotations

@@ -1,13 +1,4 @@
-"""
-core/squadron.py — the commander's squadron, from the journal.
-
-The squadron was read from Frontier's Companion API alone, so without a
-Frontier login it never showed — in the Commander window, the EDCARS title or
-EDAM — although the game names the squadron and the commander's rank in it at
-every login (SquadronStartup) and on joining, leaving and promotion. The API's
-copy still wins where there is one: it alone carries the tag, which the
-journal never does, and a tag already known is kept while the name matches.
-"""
+"""core/squadron.py — the commander's squadron, from the journal."""
 from __future__ import annotations
 
 #: Events that name the squadron (and perhaps the rank), and those that end it.
@@ -18,7 +9,7 @@ EVENTS = NAMING + ENDING
 
 
 def _rank(raw) -> str:
-    """A rank name, or "" for a localisation key the journal left unresolved
+    """A rank name, or "" for a localization key the journal left unresolved
     ($SQUADRON_DEFAULTRANKNAME_RANK0;)."""
     text = str(raw or "").strip()
     return "" if text.startswith("$") else text

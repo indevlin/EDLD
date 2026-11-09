@@ -1,5 +1,4 @@
-"""
-core/server/protocol.py — what goes over the wire, and how it is built.
+"""core/server/protocol.py — what goes over the wire, and how it is built.
 
 Framing
 -------
@@ -8,7 +7,7 @@ overlay renderer already uses, chosen for the same reasons: trivially parsed on
 every platform, readable in a packet capture of the decrypted stream, and no
 library needed on either end.  Lines longer than :data:`MAX_LINE` are refused.
 
-Every message has a ``t`` (type).  See docs/SERVER.md for the full list.
+Every message has a ``t`` (type).
 
 The model
 ---------
@@ -30,10 +29,6 @@ Nothing here decides what a number means or how to format it.  That is the
 components' job, and the mobile client shows what they produced, the same way
 the TUI and the desktop window do.  A panel added to a component appears on the
 device without anything being written twice.
-
-Changes are sent per panel: when a panel's content differs from what was last
-published it is sent again whole.  Panels are small, and whole-panel updates
-mean the client never has to reconcile a partial one.
 """
 
 from __future__ import annotations
@@ -99,11 +94,7 @@ def rows_from_model(rows: list) -> list[dict]:
 
 
 def rows_from_overlay(rows: list) -> list[dict]:
-    """Rows from an overlay Panel: ``(label, value)`` pairs.
-
-    An empty label is a full-width line and an empty value is a heading, the
-    same convention the overlay draws with.
-    """
+    """Rows from an overlay Panel: ``(label, value)`` pairs."""
     out = []
     for pair in rows or []:
         try:
@@ -141,12 +132,7 @@ def _iso(dt) -> str | None:
 
 
 class SnapshotBuilder:
-    """Builds headers and panels from CoreAPI.
-
-    Each source is isolated: one that raises is logged once per distinct fault
-    and its panels are left out, so a broken component costs the device one
-    panel, not the connection.
-    """
+    """Builds headers and panels from CoreAPI."""
 
     #: How often the game-running check may run.  It can fall back to a
     #: process scan, which is not something to do every second.
@@ -201,8 +187,7 @@ class SnapshotBuilder:
                 "type": g("pilot_ship"),
             } if (g("ship_name") or g("pilot_ship")) else None,
             "system": g("pilot_system"),
-            # The body or station within the system. Read from a field nothing
-            # ever set until 20261018, so a device was always sent null.
+            # The body or station within the system.
             "location": self._location(s),
             "mode": g("pilot_mode"),
             "game": {
@@ -211,9 +196,8 @@ class SnapshotBuilder:
             },
             "monitorError": g("monitor_error") or None,
             "endSession": {"available": kill_ok, "reason": kill_reason or None},
-            # The Helm panel: what a device may press, when the commander
-            # has allowed it (components/automation.py). Empty otherwise;
-            # ``helm`` says why, and how its groups are labelled.
+            # The Helm panel: what a device may press, when the commander has
+            # allowed it (components/automation.py).
             "controls": self._controls(),
             "helm": self.helm(),
             # The Navigation window's forms (core/tooltab.py), for a device
@@ -226,8 +210,6 @@ class SnapshotBuilder:
         }
 
     def _tools(self) -> list[dict]:
-        # One form that cannot be described leaves the rest; it used to take
-        # them all with it.
         from core import tooltab
         try:
             tabs = tooltab.tabs(self.core)
@@ -282,11 +264,6 @@ class SnapshotBuilder:
 
     def edcars(self, s) -> dict:
         """What a device needs to draw EDCARS the way the desktop window does.
-
-        Sent whatever style EDLD itself uses, because a device can choose
-        EDCARS on its own. The sections are fixed per release; the strip
-        changes with the game and is part of the header's change tracking like
-        the rest.
         """
         from core import edcars
         cfg = getattr(getattr(self.core, "cfg", None), "ui_cfg", None) or {}
@@ -324,13 +301,7 @@ class SnapshotBuilder:
                 "groups": helm.wire_groups(), "note": note or None}
 
     def theme(self) -> dict | None:
-        """The theme EDLD is drawing with, so a device can follow it.
-
-        Resolved once per theme setting and cached: a custom theme is a CSS
-        file to parse, and the header is rebuilt every tick while a device is
-        connected.  Changing the theme in Preferences changes the setting,
-        which is what the cache is keyed on.
-        """
+        """The theme EDLD is drawing with, so a device can follow it."""
         cfg = getattr(getattr(self.core, "cfg", None), "ui_cfg", None) or {}
         tid = str(cfg.get("Theme", "default") or "default")
         if tid != self._theme_id:
@@ -381,12 +352,7 @@ class SnapshotBuilder:
         return [panel("status", "Status", "status", rows, 10)] if rows else []
 
     def _overlay_panels(self) -> list[dict]:
-        """The components' own overlay panels that carry no scope setting.
-
-        Activity panels are left out here — their figures arrive richer through
-        the session and career models — and so is anything whose content
-        depends on an overlay-only setting, which a device has no way to set.
-        """
+        """The components' own overlay panels that carry no scope setting."""
         from core.overlay_panels import context_from
         try:
             from core.surface_survey import POSITIONS

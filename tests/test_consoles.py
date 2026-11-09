@@ -1,12 +1,4 @@
-"""
-tests/test_consoles.py — EDCARS drawn as each of its four consoles.
-
-The layout is the same in all four (core/edcars.py SECTIONS); a console is
-how the band, the pills and the frames are drawn and in which faces
-(gui/consoles.py). Each name is written once, each console has its theme, the
-choice is offered in both Options and reaches EDAM in its own field, and the
-window builds, switches sections and pulses its Alerts pill in every one.
-"""
+"""tests/test_consoles.py — EDCARS drawn as each of its four consoles."""
 from __future__ import annotations
 
 import os

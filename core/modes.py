@@ -1,22 +1,10 @@
-"""
-core/modes.py — EDLD's interfaces: their ids, flags, names and shortcuts.
-
-One program, five ways to run it. Everything that needs the list — the
-command-line flags, ``[UI] Interface`` in config.toml, Options, the desktop
-window's choice of layout, EDAM's style and the launcher shortcuts — reads it
-from here, so adding or renaming an interface is a change to this table.
+"""core/modes.py — EDLD's interfaces: their ids, flags, names and shortcuts.
 
     edcars    the desktop window, EDCARS layout                --edcars (default)
     gui       the desktop window, Dashboard layout             --dashg, --gui
     textual   the terminal dashboard                           --dasht, --tui
     terminal  the scrolling terminal event log                 --term, --text
     headless  no interface, for running as a service           --headless
-
-The ids are what config.toml stores and ``--mode`` accepts; they predate
-EDCARS and are kept so that ``--mode gui`` in an existing script still means
-the Dashboard window. Server mode is not an interface: it runs beside any of them
-and is switched on in Options → Server (``[Server] Enabled``), so the launcher
-shortcuts stay one per interface.
 """
 from __future__ import annotations
 
@@ -63,8 +51,7 @@ BY_ID: dict[str, Mode] = {m.id: m for m in MODES}
 IDS: tuple[str, ...] = tuple(m.id for m in MODES)
 
 #: Flags kept working for scripts written before the current names, but not
-#: shown in --help. ``--terminal`` was the scrolling log's flag until the
-#: --term / --text pair replaced it.
+#: shown in --help.
 HIDDEN_FLAGS: dict[str, str] = {"--terminal": TERMINAL}
 
 #: The interfaces EDLD-server can run: it is built without either dashboard.
@@ -72,9 +59,8 @@ SERVER_BUILD_IDS: tuple[str, ...] = (TERMINAL, HEADLESS)
 
 
 def normalise(value: object, default: str = DEFAULT) -> str:
-    """A configured interface id, or ``default`` for anything unrecognised.
-    The removed GTK4 interface's ``gtk4`` reads as the terminal dashboard it
-    was replaced by."""
+    """A configured interface id, or ``default`` for anything unrecognized.
+    """
     raw = str(value or "").strip().lower()
     if raw == "gtk4":
         return TEXTUAL
@@ -109,11 +95,6 @@ def shortcut_modes(server_build: bool = False) -> list[Mode]:
 def from_legacy(mode: object, style: object) -> str | None:
     """The interface an old ``[UI] Mode`` / ``Style`` pair becomes, or None
     when the pair says nothing (the table should simply lose both keys).
-
-    ``Mode = "textual"`` was the default every config was written with —
-    Options never offered it — so it is read as "not chosen" and becomes the
-    new default, EDCARS. The desktop window keeps whichever layout ``Style``
-    gave it; the terminal log and headless are kept as they are.
     """
     m = str(mode or "").strip().lower()
     s = str(style or "").strip().lower()

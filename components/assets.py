@@ -1,5 +1,4 @@
-"""
-components/assets.py — Commander assets inventory.
+"""components/assets.py — Commander assets inventory.
 
 Tracks four asset categories sourced from the journal:
 
@@ -15,9 +14,6 @@ On load the plugin:
      recent StoredShips and StoredModules events, overwriting storage if found.
   3. Falls back to empty lists if neither source has data.
 
-This means the fleet list is always populated from the most recent journal data
-found on disk, not just events seen in the current session.
-
 Note: Odyssey ShipLocker inventory is in builtins/engineering/plugin.py.
 
 State stored on MonitorState (added via hasattr guard in on_load):
@@ -30,7 +26,7 @@ State stored on MonitorState (added via hasattr guard in on_load):
                                         slot, system, mass, value, hot}]
 
 CAPI note: when FDev CAPI is integrated, stored ships and modules will come
-from /profile.  The state schema is forward-compatible.
+from /profile.
 """
 
 
@@ -66,14 +62,6 @@ _ARMOUR_GRADES = _ARMOUR_GRADES_MAP
 
 def _build_loadout_from_capi_modules(modules: dict) -> list[dict]:
     """Turn a CAPI ``modules`` mapping into the loadout shape used elsewhere.
-
-    Referenced by the CAPI stored-ships and shipyard paths since before this
-    release but never defined, so populating a stored ship's loadout from CAPI
-    raised NameError.  The journal path already builds the same records; this
-    matches that shape so both feed the Ships tab identically.
-
-    CAPI keys slots by name and wraps each module in a ``module`` object; a
-    slot with no item is skipped rather than rendered as an empty row.
     """
     out: list[dict] = []
     for slot, entry in (modules or {}).items():
@@ -142,6 +130,13 @@ class AssetsPlugin(BasePlugin):
         "CarrierDecommission",   # carrier sold/decommissioned
         # Ships sold/transferred
         "ShipyardSell",
+        # Own carrier hold, between companion API polls
+        "Docked",
+        "Undocked",
+        "Location",
+        "CargoTransfer",
+        "MarketBuy",
+        "MarketSell",
         # Session boundaries
         "LoadGame",
     ]
@@ -168,7 +163,7 @@ class AssetsPlugin(BasePlugin):
         # Per-ShipID loadout cache — persisted to storage, same approach as Inara
         self._ship_loadout_cache: dict = {}
 
-        # ── Step 1: build ShipType→localised name cache from Shipyard.json ────
+        # ── Step 1: build ShipType→localized name cache from Shipyard.json ────
         # Must happen before any parsing in the background scan thread.
         self._read_shipyard_json()
 
@@ -190,7 +185,7 @@ class AssetsPlugin(BasePlugin):
         self._read_status_json()
 
     def _read_shipyard_json(self) -> None:
-        """Prime the ShipType→localised name cache from Shipyard.json.
+        """Prime the ShipType→localized name cache from Shipyard.json.
 
         Shipyard.json is written by the game whenever the player accesses a
         shipyard.  It contains ``ShipType`` and ``ShipType_Localised`` for
@@ -248,9 +243,6 @@ class AssetsPlugin(BasePlugin):
         """Read persisted CAPI data from disk and populate fleet + carrier state.
 
         CAPI writes capi_profile.json and capi_fleetcarrier.json after every poll.
-        Reading them here gives the complete fleet with loadouts on startup with
-        zero delay — no journal scanning, no 10-second CAPI re-poll wait.
-        Falls back gracefully when files don't exist (CAPI disabled / first run).
         """
         # ── Profile → current ship + stored fleet ─────────────────────────
         try:
@@ -355,9 +347,7 @@ class AssetsPlugin(BasePlugin):
         try:
             fc_data = self.storage.read_sibling_json("core", "capi_fleetcarrier.json")
             if fc_data:
-                # Reuse the existing carrier parser.  (An import of a module
-                # that does not exist used to sit here; its ImportError was
-                # swallowed below, so this branch never ran.)
+                # Reuse the existing carrier parser.
                 carrier = self._parse_carrier_stats_from_capi(fc_data)
                 if carrier:
                     self.core.state.assets_carrier = carrier
@@ -365,16 +355,7 @@ class AssetsPlugin(BasePlugin):
             _dbg.info(f"[assets] carrier from CAPI not applied: {type(exc).__name__}: {exc}")
 
     def _parse_carrier_stats_from_capi(self, fc: dict) -> dict | None:
-        """Parse capi_fleetcarrier.json into the assets_carrier state dict.
-
-        Key names must match ``_parse_carrier_stats`` (journal CarrierStats)
-        and the CAPI ingest in ``core/data.py``, because whichever source
-        fires last wins and the display reads one set of names.  They used to
-        diverge — this parser emitted ``state`` where the others emit
-        ``carrier_state``, and omitted docking, balances and cargo free space
-        entirely — so a CAPI-sourced carrier rendered with fields missing that
-        a journal-sourced one had.
-        """
+        """Parse capi_fleetcarrier.json into the assets_carrier state dict."""
         try:
             name_obj  = fc.get("name") or {}
             callsign  = name_obj.get("callsign", "")
@@ -441,14 +422,7 @@ class AssetsPlugin(BasePlugin):
             return None
 
     def _restore_from_storage(self) -> None:
-        """Load last-persisted module list from plugin storage.
-
-        Ships are always rebuilt from journal scan on startup — we do not
-        restore the ship list from storage because previous sessions may have
-        persisted CAPI-sourced data that includes non-owned ships.
-        StoredModules is safe to restore since it only changes when the player
-        opens outfitting.
-        """
+        """Load last-persisted module list from plugin storage."""
         try:
             saved = self.storage.read_json("data.json") or {}
             s = self.core.state
@@ -466,18 +440,6 @@ class AssetsPlugin(BasePlugin):
 
     def _scan_and_refresh(self) -> None:
         """Rebuild fleet state on startup.
-
-        Roster authority
-        ----------------
-        CAPI /profile ships{} is the authoritative owned-ship list — Frontier
-        maintains it server-side and it only includes ships you actually own.
-        When CAPI has polled, we build the roster exclusively from those ShipIDs.
-
-        When CAPI has NOT polled (disabled or not yet authenticated), we fall
-        back to journal data: the most recent StoredShips event for stored ships
-        plus the most recent Loadout for the current ship.  We do NOT scan
-        multiple journal files for Loadout events, because that picks up ships
-        you've since sold.
 
         Additional journal passes collect StoredModules and CarrierStats.
         """
@@ -503,7 +465,7 @@ class AssetsPlugin(BasePlugin):
 
             # ── Phase 0b: build Shipyard/Shipyard-event name cache ───────
             # Newest journal first, each read forward, as before. Only lines
-            # carrying a localised name can teach one.
+            # carrying a localized name can teach one.
             for fname in reversed(recent):
                 for _f, raw in idx.lines(None, files=(fname,)):
                     if b"_Localised" not in raw:
@@ -543,11 +505,8 @@ class AssetsPlugin(BasePlugin):
                     try:    capi_owned_ids.add(int(sid_str))
                     except: capi_owned_ids.add(sid_str)
 
-            # Include the ship that was CURRENT at the time of the last CAPI poll.
-            # It lives in profile["ship"]["id"], not in ships{}.  After the player
-            # swaps ships before the next poll, the formerly-current ship moves to
-            # stored but CAPI still shows it as current — so it's absent from ships{}
-            # and would be dropped from the roster.
+            # Include the ship that was CURRENT at the time of the last CAPI
+            # poll. It lives in profile["ship"]["id"], not in ships{}.
             if not _capi_profile_data:
                 try:
                     _capi_profile_data = self.storage.read_sibling_json("core", "capi_profile.json")
@@ -582,8 +541,6 @@ class AssetsPlugin(BasePlugin):
                     ship_type   = ev.get("Ship", "")
                     ship_type_l = (ev.get("Ship_Localised")
                                    or self._localised_ship_name(ship_type))
-                    # Only the game's own name is cached; caching our
-                    # guess would pin a title-cased id over the real name.
                     if ev.get("Ship_Localised") and ship_type:
                         self._shiptype_cache[ship_type.lower()] = ship_type_l
                         learn_ship_name(ship_type, ship_type_l)
@@ -636,7 +593,7 @@ class AssetsPlugin(BasePlugin):
             # Ships already in the persistent cache are skipped immediately.
             # Only look for loadouts for ships we know we currently own.
             # capi_owned_ids is the validated roster from Frontier's servers.
-            # If CAPI is unavailable, scan for any ShipID (fallback behaviour).
+            # If CAPI is unavailable, scan for any ShipID (fallback behavior).
             _target_sids = (capi_owned_ids | ({int(current_sid)} if current_sid else set()))\
                            if capi_owned_ids else None
             # seen_sids: already have loadout for these — skip
@@ -877,9 +834,9 @@ class AssetsPlugin(BasePlugin):
                     state.assets_carrier = self._parse_carrier_stats(ev)
                     found_carrier = True
 
-            # Commit: prefer the CAPI-loaded roster (set by _load_capi_profile_from_disk).
-            # If it exists, apply loadout cache + journal location/hot to those ships.
-            # Only replace roster entirely if it is still empty.
+            # Commit: prefer the CAPI-loaded roster (set by
+            # _load_capi_profile_from_disk). If it exists, apply loadout cache
+            # + journal location/hot to those ships.
             existing = state.assets_stored_ships
             if existing:
                 # Patch existing CAPI-sourced ships with loadout + journal data
@@ -888,10 +845,10 @@ class AssetsPlugin(BasePlugin):
                     if sid is None:
                         continue
                     sid_i = int(sid) if isinstance(sid, int) else sid
-                    # Sanitise type_display — if it looks like an unprocessed
-                    # internal name (contains "_" with no spaces, e.g. "type9_military")
-                    # refresh it through the localisation pipeline.  This corrects
-                    # any stale values written by an older version of the code.
+                    # Sanitize type_display — if it looks like an unprocessed
+                    # internal name (contains "_" with no spaces, e.g.
+                    # "type9_military") refresh it through the localization
+                    # pipeline.
                     td = ship.get("type_display", "")
                     # Re-localise if type_display looks like an unprocessed internal name.
                     # Catches two patterns CAPI can produce:
@@ -919,10 +876,10 @@ class AssetsPlugin(BasePlugin):
                 # No CAPI data — use journal-sourced roster
                 state.assets_stored_ships = list(loadout_by_id.values())
 
-            # Sanitise current ship type_display with the same logic applied to
-            # stored ships above.  Catches cases where _load_capi_profile_from_disk
-            # or a stale capi_profile.json left a raw internal name (e.g.
-            # "Type9_Military") in assets_current_ship before _build_roster ran.
+            # Sanitize current ship type_display with the same logic applied to
+            # stored ships above. Catches cases where
+            # _load_capi_profile_from_disk or a stale capi_profile.json left a
+            # raw internal name (e.g.
             _cur = state.assets_current_ship
             if _cur:
                 _td = _cur.get("type_display", "")
@@ -967,16 +924,13 @@ class AssetsPlugin(BasePlugin):
         mods = []
         for i, m in enumerate(event.get("Items", [])):
             internal = m.get("Name", "")
-            # normalise_module_name produces "8A Shield Generator" (with size/class).
-            # Name_Localised only gives "Shield Generator" (no size/class).
-            # Prefer the normalised name; fall back to localised if normaliser
-            # produces a raw title-case string (unrecognised module type).
+            # normalise_module_name produces "8A Shield Generator" (with
+            # size/class). Name_Localised only gives "Shield Generator" (no
+            # size/class).
             _norm = normalise_module_name(internal)
             _loc  = m.get("Name_Localised", "")
-            # Use the normalised name when EDLD knows the module; otherwise
-            # the game's own name. (This used to test for a size-and-class
-            # prefix, which hardpoints never have — "3 Mining Volley
-            # Repeater (Fixed)" — so stored weapons lost size and mount.)
+            # Use the normalized name when EDLD knows the module; otherwise the
+            # game's own name.
             disp = str(_norm) if is_known_module(internal) else (_loc or _norm)
             system = m.get("StarSystem", "—")
             key    = f"{i}_{internal}_{system}"
@@ -1037,12 +991,7 @@ class AssetsPlugin(BasePlugin):
         return None
 
     def _carrier_label(self, carrier_id, state, carrier_type: str = "") -> str:
-        """"NAME (IDENT)" for a carrier, falling back as data allows.
-
-        A jump can be scheduled before CarrierStats has been seen this
-        session, so this degrades to the kind of carrier rather than
-        rendering an empty name.
-        """
+        """"NAME (IDENT)" for a carrier, falling back as data allows."""
         carrier = self._carrier_by_id(carrier_id, state)
         if carrier:
             name = str(carrier.get("name") or "").strip()
@@ -1071,7 +1020,7 @@ class AssetsPlugin(BasePlugin):
         Journal timestamps are UTC.  Printing that clock time raw made the
         figure meaningless to anyone not running on UTC — it read as neither
         their wall clock nor a duration.  The clock time now follows the same
-        ``UseUTC`` setting as every other time EDLD prints, and is labelled so
+        ``UseUTC`` setting as every other time EDLD prints, and is labeled so
         it cannot be mistaken for part of the countdown.
         """
         departure = str(event.get("DepartureTime") or "")
@@ -1099,11 +1048,7 @@ class AssetsPlugin(BasePlugin):
         return self.core._plugins.get("alerts")
 
     def _notify_carrier(self, level_key: str, emoji: str, text: str) -> None:
-        """Route a carrier notification through the alerts component.
-
-        Falls back to a direct emit if alerts is disabled, so turning that
-        component off silences the Alerts window rather than the notification.
-        """
+        """Route a carrier notification through the alerts component."""
         alerts = self._alerts()
         if alerts is not None:
             try:
@@ -1160,25 +1105,14 @@ class AssetsPlugin(BasePlugin):
         where = f" to {destination}" if destination else ""
         self._notify_carrier(
             "CarrierJumpCancelled", "🛑",
-            f"{label} JUMP CANCELLED{where}")
+            f"{label} JUMP CANCELED{where}")
 
     def _complete_carrier_jump(self, carrier_id, arrived: str, state,
                                event: dict) -> None:
         """Report an arrival, but only for the jump that was actually pending.
 
-        CarrierLocation is a periodic status event as much as an arrival one —
-        in a real journal it outnumbers jumps roughly two to one — so simply
-        taking the next one after a request reports the wrong system whenever
-        a status update lands before departure.  An arrival therefore has to
-        name the destination that was requested.
-
-        The departure-time check covers the other case: a jump to a body in
-        the system the carrier is already in, where the destination matches
-        before it has gone anywhere.
-
         When the commander is aboard, both CarrierLocation and CarrierJump
-        fire for the same arrival about a minute apart.  Popping the pending
-        entry makes this fire exactly once per scheduled jump.
+        fire for the same arrival about a minute apart.
         """
         key = str(carrier_id)
         pending = self._pending_jumps.get(key)
@@ -1256,12 +1190,7 @@ class AssetsPlugin(BasePlugin):
 
     @staticmethod
     def _past_departure(pending: dict, event: dict) -> bool:
-        """Has the scheduled departure time passed?
-
-        Missing or unparseable timestamps resolve to True: a carrier that has
-        reported arriving at its destination has arrived, and refusing to say
-        so because a clock could not be read would be the worse failure.
-        """
+        """Has the scheduled departure time passed?"""
         departure = str(pending.get("departure") or "")
         stamp = str(event.get("timestamp") or "")
         if not departure or not stamp:
@@ -1353,10 +1282,48 @@ class AssetsPlugin(BasePlugin):
             pass
 
 
+    def _carrier_hold_event(self, ev: str, event: dict, state) -> None:
+        """state.assets_carrier_hold (companion API snapshot) ± transfers and
+        market trades while docked at the own carrier (MarketID == CarrierID)."""
+        if ev == "Docked" or (ev == "Location" and event.get("Docked")):
+            self._docked_market = event.get("MarketID")
+            return
+        if ev == "Location":
+            self._docked_market = None
+            return
+        if ev == "Undocked":
+            self._docked_market = None
+            return
+        own = (getattr(state, "assets_carrier", None) or {}).get("carrier_id")
+        hold = getattr(state, "assets_carrier_hold", None)
+        if own is None or hold is None or str(getattr(self, "_docked_market", "")) != str(own):
+            return
+        moves: list[tuple[str, int]] = []
+        if ev == "CargoTransfer":
+            for t in event.get("Transfers", []) or []:
+                n = int(t.get("Count", 0) or 0)
+                sign = {"tocarrier": 1, "toship": -1}.get(t.get("Direction", ""), 0)
+                moves.append((str(t.get("Type", "")).lower(), sign * n))
+        else:
+            n = int(event.get("Count", 0) or 0)
+            moves.append((str(event.get("Type", "")).lower(), n if ev == "MarketSell" else -n))
+        for key, n in moves:
+            if key and n:
+                hold[key] = max(0, hold.get(key, 0) + n)
+                if not hold[key]:
+                    hold.pop(key)
+        gq = self.core.gui_queue
+        if gq:
+            gq.put(("plugin_refresh", "assets"))
+
     def on_event(self, event: dict, state) -> None:
         core = self.core
         gq   = core.gui_queue
         ev   = event.get("event")
+
+        if ev in ("Docked", "Undocked", "Location", "CargoTransfer", "MarketBuy", "MarketSell"):
+            self._carrier_hold_event(ev, event, state)
+            return
 
         match ev:
 
@@ -1390,7 +1357,7 @@ class AssetsPlugin(BasePlugin):
                 ship_type_l = (event.get("Ship_Localised")
                                or self._localised_ship_name(ship_type)
                                or ship_type)
-                # If localised name still looks like an internal string (no spaces),
+                # If localized name still looks like an internal string (no spaces),
                 # force it through the static map.
                 if ship_type_l and " " not in ship_type_l.strip():
                     _fixed = self._localised_ship_name(ship_type)
@@ -1458,13 +1425,6 @@ class AssetsPlugin(BasePlugin):
             case "StoredShips":
                 # StoredShips lists every ship in every storage location
                 # (ShipsHere + ShipsRemote) — it is authoritative and complete.
-                # Replace the stored list entirely rather than merging, so that
-                # ships the player has sold or transferred are removed immediately
-                # without waiting for a CAPI poll.
-                #
-                # The one entry StoredShips never includes is the player's active
-                # ship (it's boarded, not stored).  Preserve that from the existing
-                # list if it's there, so state always holds the complete fleet.
                 incoming = {
                     d["ship_id"]: d
                     for d in self._parse_stored_ships(event)
@@ -1531,9 +1491,7 @@ class AssetsPlugin(BasePlugin):
 
             case "CarrierStats":
                 # CarrierType distinguishes a personal fleet carrier from a
-                # squadron one.  They were previously written to the same
-                # field, so whichever event arrived last won and the other
-                # carrier vanished from the display.
+                # squadron one.
                 parsed = self._parse_carrier_stats(event)
                 squad = bool(parsed and "Squadron" in str(parsed.get("carrier_type", "")))
                 prev = (state.assets_squadron_carrier if squad else state.assets_carrier) or {}
@@ -1585,9 +1543,6 @@ class AssetsPlugin(BasePlugin):
 
             case "CarrierJump":
                 # The arrival event, fired only when the commander is aboard.
-                # It names the system in StarSystem, not SystemName — reading
-                # the wrong key had been blanking the carrier's system to "—"
-                # on every jump the commander rode along with.
                 arrived = (event.get("StarSystem")
                            or event.get("SystemName") or "—")
                 if state.assets_carrier is not None:
@@ -1632,7 +1587,6 @@ class AssetsPlugin(BasePlugin):
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
-
 
 
 # ── FCMaterials JSON helpers ───────────────────────────────────────────────────

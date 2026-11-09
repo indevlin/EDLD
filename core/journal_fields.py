@@ -1,9 +1,4 @@
-"""
-core/journal_fields.py — Pure helpers for reading fields out of journal events.
-
-Extracted so the exploration and exobiology ingest modules can share them
-without either importing the other, and without importing the dispatcher that
-imports them both.  Nothing here touches the database or holds state.
+"""core/journal_fields.py — Pure helpers for reading fields out of journal events.
 """
 
 from __future__ import annotations
@@ -36,7 +31,7 @@ def ts(event: dict) -> str:
 
 
 def name(event: dict, key: str) -> str:
-    """Prefer a localised field when the game provides one."""
+    """Prefer a localized field when the game provides one."""
     return str(event.get(f"{key}_Localised") or event.get(key) or "")
 
 
@@ -53,7 +48,7 @@ def signal_kind(type_str: str) -> str:
 
 
 def materials_json(event: dict) -> str:
-    """Serialise a Scan's ``Materials`` to the JSON blob the planets table holds."""
+    """Serialize a Scan's ``Materials`` to the JSON blob the planets table holds."""
     m = event.get("Materials")
     out: dict[str, Any] = {}
     if isinstance(m, list):

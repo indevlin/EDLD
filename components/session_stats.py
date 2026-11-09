@@ -1,13 +1,10 @@
-"""
-components/session_stats.py — Session timing and summary aggregator.
+"""components/session_stats.py — Session timing and summary aggregator.
 
 Owns the session clock and on_new_session boundary logic.
-Collects summary rows from registered ActivityProviderMixin plugins.
-No longer owns kill/merit/credit counters — those live in activity plugins.
 
 Dashboard block: session stats.
 
-Session reset behaviour
+Session reset behavior
 -----------------------
 Manual reset (gap=0, triggered by dashboard reset):
   - _session_start_time is set to the current event time immediately, so
@@ -49,11 +46,6 @@ class SessionStatsPlugin(BasePlugin):
         "Shutdown",
     ]
 
-    # Block geometry — kept for backward-compat with stored layouts that
-    # reference "session_stats", but the component no longer registers a
-    # block of its own.  The Career block absorbed the visible Summary
-    # tab (with reset button) and the activity-provider rendering; this
-    # plugin retains only the session-timing and on_new_session reset API.
     DEFAULT_COL    = 8
     DEFAULT_ROW    = 0
     DEFAULT_WIDTH  = 8
@@ -61,11 +53,6 @@ class SessionStatsPlugin(BasePlugin):
 
     def on_load(self, core) -> None:
         super().on_load(core)
-        # Note: no register_block call — the Career block consumes our
-        # session_duration_seconds() + the registered ActivityProviderMixin
-        # plugins to render the session-scoped Summary tab.  Reset is also
-        # initiated from the Career block (and from the TUI Ctrl+R binding)
-        # via plugin_call('session_stats', 'on_new_session', 0).
         self._session_start_time = None
         self._reset_after        = None   # datetime | None
         # Whether the activity counters have been reset to _reset_after in
@@ -116,7 +103,7 @@ class SessionStatsPlugin(BasePlugin):
 
         gap_minutes == 0  →  manual dashboard reset: restart clock from right now.
         gap_minutes >  0  →  automatic boundary: clear clock so next LoadGame
-                             re-arms it (normal session boundary behaviour).
+                             re-arms it (normal session boundary behavior).
         """
         state = self.core.state
 
@@ -128,9 +115,6 @@ class SessionStatsPlugin(BasePlugin):
             self._reset_after        = now
             self._reset_applied      = True
             self._persist_reset()
-            # Logged, because it discards the session's figures and nothing
-            # else records that it happened.  A reset nobody remembered making
-            # once cost five hours of a session with no trace of why.
             _log_info(f"[session] session counters reset; the session now "
                       f"counts from {now.isoformat() if now else 'now'}")
         else:
@@ -162,13 +146,7 @@ class SessionStatsPlugin(BasePlugin):
     # ── Replaying a reset ─────────────────────────────────────────────────────
 
     def before_event(self, logtime) -> None:
-        """Called for every journal event before any component sees it.
-
-        While a reset restored from data.json has not been applied, the first
-        event later than it clears every activity's counters — so a restart
-        counts exactly what the running dashboard counted: nothing before the
-        reset, everything after it, including that event.
-        """
+        """Called for every journal event before any component sees it."""
         if self._reset_applied or self._reset_after is None or logtime is None:
             return
         if logtime > self._reset_after:

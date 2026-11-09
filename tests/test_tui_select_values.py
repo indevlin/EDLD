@@ -1,16 +1,6 @@
-"""
-tests/test_tui_select_values.py — Selects that take the preferences screen down.
+"""tests/test_tui_select_values.py — Selects that take the preferences screen down.
 
-Ctrl+O closed EDLD in TUI mode while the same screen opened in GUI mode. The
-Survey tab built two Selects, Amount and Density, with ``value=None``. Current
-Textual validates a Select's value when it mounts and rejects None, and an
-exception in a mount handler ends the app — so opening Options at all, on any
-tab, ended the session. The deposit dialog had already been fixed for exactly
-this; these two were missed.
-
-Blank Selects also read back wrong: ``str()`` of the blank sentinel is
-"Select.NULL", so an Amount left blank on purpose was rejected as not one of
-Low, Medium or High.
+Ctrl+O closed EDLD in TUI mode while the same screen opened in GUI mode.
 """
 from __future__ import annotations
 

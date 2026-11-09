@@ -1,15 +1,7 @@
-"""
-core/dossier/model.py — the dossier's pages, before they are HTML or Markdown.
-
-Every page is built here once, as a list of plain blocks — facts, tables,
-links, notes — and the two renderers turn the same blocks into their formats.
-So the HTML and the Markdown say the same things, and the privacy rules are
-applied in exactly one place.
+"""core/dossier/model.py — the dossier's pages, before they are HTML or Markdown.
 
 Privacy
 -------
-Two things are left out unless the commander turns them on in ``[Dossier]``:
-
 * ``IncludeCurrentLocation`` — where the commander and the current ship are
   now, where the fleet carrier is, and its jump history. Stored ships are
   always listed where they are kept: that is the point of the fleet list, and
@@ -18,12 +10,6 @@ Two things are left out unless the commander turns them on in ``[Dossier]``:
   bank and how long it would cover upkeep.
 
 The FID, and any token or key, are never in the model at all.
-
-Links
------
-A link to another page is ``{"text": ..., "page": "<page id>"}``; each
-renderer turns page ids into its own hrefs. An outside link is
-``{"text": ..., "url": ...}``.
 """
 
 from __future__ import annotations
@@ -117,11 +103,6 @@ def iso_epoch(text) -> float:
 
 def _encoded_loadout(loadout: dict) -> str:
     """A journal Loadout as Coriolis and EDSY take it in an import link.
-
-    The same encoding EDMC uses (plugins/common_coreutils.py): compact
-    sorted JSON, gzipped, URL-safe base64 with ``=`` escaped. The gzip
-    timestamp is fixed so the same fitting gives the same link every time,
-    and regenerating the dossier does not change a file for nothing.
     """
     body = {k: v for k, v in loadout.items() if not k.startswith("_")}
     data = json.dumps(body, ensure_ascii=False, sort_keys=True,
@@ -692,7 +673,7 @@ class Model:
         if fc:
             blocks.append(facts([
                 ("Jumps", num(fc.get("FLEETCARRIER_TOTAL_JUMPS"))),
-                ("Distance travelled", num(fc.get("FLEETCARRIER_DISTANCE_TRAVELLED"), 0, "ly")
+                ("Distance traveled", num(fc.get("FLEETCARRIER_DISTANCE_TRAVELLED"), 0, "ly")
                  if fc.get("FLEETCARRIER_DISTANCE_TRAVELLED") else ""),
                 ("Market exports", num(fc.get("FLEETCARRIER_EXPORT_TOTAL"), 0, "t")),
                 ("Market imports", num(fc.get("FLEETCARRIER_IMPORT_TOTAL"), 0, "t")),

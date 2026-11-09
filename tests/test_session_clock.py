@@ -1,13 +1,4 @@
-"""
-tests/test_session_clock.py — one session, one clock, and resets that survive.
-
-From a real session: 18,429 merits earned over five hours were shown as
-10,666/hr, because the merit rate divided by time since the first merit, and
-merits arrive in lumps when goods are sold.  Income had the same fault.  And a
-manual reset made in that session was forgotten on the next launch: replaying
-the journal met the game session's LoadGame, took it for a new session, and
-cleared the reset — so the same play read differently before and after a
-restart of EDLD.
+"""tests/test_session_clock.py — one session, one clock, and resets that survive.
 """
 from __future__ import annotations
 

@@ -44,7 +44,7 @@ pyinstaller packaging/edld.spec --noconfirm --clean
 
 `scripts/build_local.sh` runs the same sequence the Release workflow runs, on
 this machine: the preflight on the checkout, the PyInstaller build, both smoke
-tests, the archive with the licence texts, and the SHA-256 file.
+tests, the archive with the license texts, and the SHA-256 file.
 
 ```sh
 scripts/build_local.sh                 # build, test, package into out/

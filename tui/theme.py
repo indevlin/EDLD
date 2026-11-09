@@ -1,12 +1,9 @@
-"""
-tui/theme.py — Textual CSS for the EDLD TUI.
+"""tui/theme.py — Textual CSS for the EDLD TUI.
 
-Colours match the theme requested via [UI] Theme config key.
-The DEFAULT_CSS string is always loaded; colour overrides are
-appended per-theme in apply_theme().
+Colors match the theme requested via [UI] Theme config key.
 """
 
-# ── Structural CSS (layout, spacing — no colours) ─────────────────────────────
+# ── Structural CSS (layout, spacing — no colors) ─────────────────────────────
 #
 # Column layout and block heights come from the shared layout model
 # (core/layout_model.py), so every block's size follows its size class and the
@@ -31,7 +28,7 @@ Screen {
     height: 1fr;
 }
 
-/* Column widths: left 34% : centre 32% : right 34%. */
+/* Column widths: left 34% : center 32% : right 34%. */
 #col-left   { width: __COL_A__%; height: 100%; }
 #col-centre { width: __COL_B__%; height: 100%; }
 #col-right  { width: __COL_C__%; height: 100%; }
@@ -152,7 +149,7 @@ TuiBlock > TabbedContent  { height: 1fr; }
     margin: 0 0 1 0;
 }
 
-/* ── SepRow colour (resolved here where palette substitution runs) ─────────── */
+/* ── SepRow color (resolved here where palette substitution runs) ─────────── */
 SepRow { color: $border; }
 
 /* ── Preferences screen ─────────────────────────────────────────────────────── */
@@ -206,7 +203,7 @@ PreferencesScreen {
 
 /* The deposit window.  It reuses the preferences row styles, which size the
    label column at 45% — fine inside #prefs-outer, and a chasm in a modal that
-   had no container rule at all and so filled the terminal.  A fixed, centred
+   had no container rule at all and so filled the terminal.  A fixed, centered
    box keeps the labels next to their controls at any width. */
 DepositScreen {
     align: center middle;
@@ -270,7 +267,7 @@ AddStationScreen, EditStationScreen { align: center middle; }
     height: auto;
 }
 
-/* Label in each row: 45% width, text vertically centred within the row */
+/* Label in each row: 45% width, text vertically centered within the row */
 .pref-row .key {
     width: 45%;
     color: $dim;
@@ -387,7 +384,7 @@ PreferencesScreen Button { height: 3; margin-left: 1; }
 #cargo-title     { width: 1fr; }
 #cargo-price-src { width: auto; text-align: right; }
 
-#cargo-footer, #cmdr-footer, #nav-footer, #radio-footer {
+#cargo-footer, #nav-footer, #radio-footer {
     height: 1;
     background: $title-bg;
 }
@@ -431,7 +428,7 @@ SellModal { align: center middle; }
 /* Zebra striping.  $row-alt is derived from $block-bg in core.palette rather
    than being a palette entry a theme states, so custom themes get it free.
    It is deliberately NOT $title-bg: that is only six points per channel above
-   the block fill, which a 256-colour terminal quantises onto the same palette
+   the block fill, which a 256-colour terminal quantizes onto the same palette
    entry — the stripe vanished in the terminal while showing perfectly in the
    Qt window, which is always truecolor.
 
@@ -485,7 +482,7 @@ SearchModal { align: center middle; }
 #crew-rank-lbl { padding: 0 1; height: 1; }
 
 /* Radio tab.  The station list is collapsed to one row, like the Navigation
-   inputs: the default Select is three rows with a border, which in a centre
+   inputs: the default Select is three rows with a border, which in a center
    window leaves no room for the readout beneath it. */
 #radio-panel   { height: 1fr; }
 #radio-select-row { height: auto; margin: 0 0 1 0; }
@@ -511,7 +508,7 @@ Tab     { background: $title-bg; color: $dim; }
 Tab.-active { color: $accent; text-style: bold; }
 """
 
-# ── Colour palettes ────────────────────────────────────────────────────────────
+# ── Color palettes ────────────────────────────────────────────────────────────
 # The palettes themselves live in core/palette.py so the Qt GUI can render the
 # same themes without importing anything from this module (and therefore
 # without requiring Textual to be installed).  Re-exported under the original
@@ -565,12 +562,7 @@ BLOCK_DOM_ID = {
 
 
 def _height_css(assignment=None) -> str:
-    """Per-block ``height`` rules generated from the shared layout model.
-
-    Appended to the themed CSS so block heights follow the standardised size
-    classes and the current position assignment, with each column normalised
-    to 100%.
-    """
+    """Per-block ``height`` rules generated from the shared layout model."""
     try:
         from core import layout_model
         asn = assignment if assignment is not None else layout_model.load_assignment()

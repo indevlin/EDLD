@@ -274,7 +274,13 @@ def test_set_home_and_galactic_average():
     panel_actions.run(core, "commander.info", "home", device="d", text="Sol")
     assert panel_actions.run(core, "commander.info", "home", device="d", choice=0)["ok"]
     assert core._plugins["commander"].home == ("Sol", "Sol", [0, 0, 0])
-    assert _panels(core)["commander.info"]["footer"] == "→ Sol"
+    info = _panels(core)["commander.info"]
+    # The Home System row is the control: no button, no footer line.
+    home = next(r for r in info["rows"] if r["label"] == "Home System")
+    assert home["action"] == "home" and home["value"].startswith("Sol")
+    assert info["actions"] == [{"id": "home", "label": "Set Home System",
+                                "input": "System or station name…", "row": True}]
+    assert not info.get("footer")
     assert panel_actions.run(core, "cargo", "galavg")["ok"]
     assert core.state.cargo_price_galactic is True and core._plugins["spansh"].cleared
 
@@ -334,8 +340,8 @@ def test_the_squadron_comes_from_the_journal_without_frontier():
 # ── Markup never reaches a device ─────────────────────────────────────────────
 
 def test_compound_rich_tags_are_stripped_and_keep_their_tone():
-    """EDAM showed "[bold cyan]HIP 73225 (colonisation ship)[/bold cyan]" as a
-    colonisation site's heading: only one-word tags were recognised."""
+    """EDAM showed "[bold cyan]HIP 73225 (colonization ship)[/bold cyan]" as a
+    colonization site's heading: only one-word tags were recognized."""
     assert tooltab.plain("[bold cyan]HIP 73225[/bold cyan]  0%") == ("HIP 73225  0%", "accent")
     assert tooltab.plain("[bold yellow]low[/bold yellow]") == ("low", "warn")
     assert tooltab.plain("[dim]x[/]") == ("x", "dim")
@@ -343,7 +349,7 @@ def test_compound_rich_tags_are_stripped_and_keep_their_tone():
 
 
 def test_the_colonisation_window_reaches_edam_without_markup():
-    site = {"market_id": 1, "system": "HIP 73225", "station": "HIP 73225 (colonisation ship)",
+    site = {"market_id": 1, "system": "HIP 73225", "station": "HIP 73225 (colonization ship)",
             "progress": 0.0, "resources": {"steel": {"name": "Steel", "required": 6660,
                                                       "provided": 0}}}
     core = _core(colonisation_sites=[site], colonisation_docked=True,
@@ -361,5 +367,5 @@ def test_the_colonisation_window_reaches_edam_without_markup():
         elif isinstance(o, str):
             yield o
     texts = list(strings(panel))
-    assert any("HIP 73225 (colonisation ship)" in t for t in texts)
+    assert any("HIP 73225 (colonization ship)" in t for t in texts)
     assert not [t for t in texts if "[bold" in t or "[/" in t or "[yellow]" in t]

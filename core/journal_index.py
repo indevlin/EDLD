@@ -1,35 +1,10 @@
-"""
-core/journal_index.py — where every journal event is, read once.
-
-Every component that needed history used to read every journal for itself:
-the crew, mission, fighter and hull bootstraps, Journal History, Holdings,
-Assets, Discoveries, the EDSM gap check and the rest, each opening all of
-them and decoding every line to find the few events it wanted. With 263
-journals (81 MB) that was about six full passes at every start, and the time
-grew with every session played. Most of the lines are ReceiveText,
-FSSSignalDiscovered, Cargo, MiningRefined and Music, which nothing at start-up
-looks at.
-
-This keeps a small SQLite index of every event in every journal: which file,
-where in it, what event and when. Building it reads each journal once; after
-that a start reads only what the game has written since — the new files, and
-the new end of the one being written — so start-up no longer grows with the
-history. A component asks for the events it wants by name and gets them in
-journal order, decoded, without reading anything else:
+"""core/journal_index.py — where every journal event is, read once.
 
     from core.journal_index import index_for
     for name, ev in index_for(journal_dir).events({"CrewHire", "CrewFire"}):
         ...
 
-The journals stay the record. The index holds positions, not copies, so it is
-small (a few tens of bytes an event) and can always be thrown away: a
-version change, a corrupt file or a journal that is not what it was (shorter,
-or its first line different) is simply read again.
-
-Lines are matched on the game's own prefix — ``{ "timestamp":"…",
-"event":"…"`` — and decoded only when asked for; a line that does not start
-that way is decoded to find out. Only whole lines are indexed: a line still
-being written is picked up on the next refresh.
+The journals stay the record.
 """
 from __future__ import annotations
 
@@ -49,8 +24,7 @@ INDEX_VERSION = 1
 # The game writes every line as { "timestamp":"…", "event":"…", … }.
 _PREFIX = re.compile(rb'^\{\s*"timestamp"\s*:\s*"([^"]*)"\s*,\s*"event"\s*:\s*"([^"]*)"')
 
-#: How much of a journal's first line identifies it. A file whose head
-#: changed is not the file that was indexed, and is read again.
+#: How much of a journal's first line identifies it.
 _HEAD = 160
 
 #: A file with more wanted events than this is read whole rather than seeked
@@ -63,9 +37,7 @@ _OLD_NAME = re.compile(r"Journal\.(\d{2})(\d{2})(\d{2})(\d{6})\.(\d+)\.log$")
 def journal_sort_key(name: str) -> str:
     """Chronological order for journal file names, old style and new.
 
-    New: ``Journal.2026-10-14T205310.01.log``. Old (before 2022):
-    ``Journal.221231235959.01.log``, which sorts after every new name as a
-    plain string. Rewritten to the new form so the two interleave by date.
+    New: ``Journal.2026-10-14T205310.01.log``.
     """
     m = _OLD_NAME.match(name)
     if m:
@@ -113,8 +85,7 @@ class JournalIndex:
         self.db_path = Path(db_path) if db_path else default_db_path(self.journal_dir)
         self._lock = threading.RLock()
         self._db: sqlite3.Connection | None = None
-        #: Files as last seen: name → (size, mtime_ns). A refresh that finds
-        #: every file as it was touches nothing else.
+        #: Files as last seen: name → (size, mtime_ns).
         self._seen: dict[str, tuple[int, int]] = {}
         self._names: dict[str, int] = {}
 
@@ -214,8 +185,7 @@ class JournalIndex:
     def refresh(self) -> int:
         """Index whatever the journals hold that the index does not yet.
 
-        Returns the number of events added. Cheap when nothing changed: one
-        directory listing and a stat of each journal.
+        Returns the number of events added.
         """
         with self._lock:
             try:
@@ -352,8 +322,8 @@ class JournalIndex:
 
     def file_stats(self) -> dict[str, tuple[int, int]]:
         """Every indexed journal's name → (bytes of it indexed, its mtime_ns
-        when they were). What a journal was when it was read: a reader that
-        keeps results per journal compares these to know they still hold."""
+        when they were).
+        """
         self.refresh()
         with self._lock:
             return {n: (size, mtime) for n, size, mtime in

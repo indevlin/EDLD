@@ -1,15 +1,4 @@
-"""
-tests/test_cargo_pricing.py — Where a manifest price comes from.
-
-A commodity priced off the galactic average while the commodity next to it in
-the same hold is priced off the station is not a rendering problem, it is a
-lookup miss — and a lookup miss here is silent by construction, because the
-fallback produces a plausible number rather than an error.
-
-Two things are asserted: that the two market sources agree about what a
-commodity is called, and that learning one station's prices does not discard
-what was learned at every other one.
-"""
+"""tests/test_cargo_pricing.py — Where a manifest price comes from."""
 
 from __future__ import annotations
 
@@ -45,26 +34,13 @@ def test_every_spelling_of_one_commodity_canonicalises_together(raw):
 
 
 def test_canonical_name_does_not_collapse_spaces():
-    """Documented limitation, not an oversight to fix blindly.
-
-    A spaced display name does not reduce to the joined internal name, so
-    anything feeding display text in as a key will miss. CAPI supplies the
-    internal symbol, which is why canonicalising its keys is sufficient — but
-    if a future source hands over display names this is where it breaks, and
-    it breaks silently into the galactic-average fallback.
-    """
+    """Documented limitation, not an oversight to fix blindly."""
     assert canonical_name("Low Temperature Diamond") != \
         canonical_name("LowTemperatureDiamond")
 
 
 def test_the_capi_path_canonicalises_like_the_market_json_path():
-    """Both build the same structure and are read with the same keys.
-
-    Only one of them was normalising, so a CAPI name in a different form
-    produced an entry nothing could look up, and that commodity quietly priced
-    off the stored galactic average while its neighbours priced off the
-    station.
-    """
+    """Both build the same structure and are read with the same keys."""
     import ast
 
     src = (ROOT / "core" / "data.py").read_text(encoding="utf-8")
@@ -118,11 +94,7 @@ def test_a_commodity_in_the_station_table_prices_off_the_station():
 
 
 def test_a_commodity_missing_from_the_station_table_falls_back_and_is_wrong():
-    """This is the observed failure, reproduced.
-
-    Nothing raises; the number is simply the galactic average dressed as a
-    station price, which is why it went unnoticed next to two correct rows.
-    """
+    """This is the observed failure, reproduced."""
     items = {"lowtemperaturediamond": {"count": 103},
              "tritium": {"count": 161}}
     ctx = _ctx(

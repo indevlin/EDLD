@@ -1,10 +1,4 @@
-"""
-components/holdings.py — At-risk holdings tracker.
-
-Tracks vouchers, cartography, and exobiology that would be lost on death.
-Rebuilds from all journals on every startup — the journal scan is fast
-(~1-2 seconds on spinning rust, sub-second on NVMe) and always produces
-a correct balance without relying on cached state that can drift.
+"""components/holdings.py — At-risk holdings tracker.
 
 Tracking:
   Bounty vouchers   — earned: Bounty; redeemed: RedeemVoucher(bounty)
@@ -13,21 +7,14 @@ Tracking:
   Cartography data  — per-system dict; matched by SystemName on sell
   Exobiology data   — per-sample list; matched by Species key on sell
 
-Deduplication
-─────────────
-Vouchers: keyed by (timestamp, event, amount) composite — not timestamp alone.
-Two Bounty events at the same second (common in multi-faction CZ kills) have
-different reward amounts and must both count.
+Deduplication ───────────── Vouchers: keyed by (timestamp, event, amount)
+composite — not timestamp alone.
 
 Cartography and exobiology: keyed by (system, body_id) and event timestamp
 respectively, as before.
 
-Broker percentage
-─────────────────
-RedeemVoucher.Amount is what the player received after broker cut.
-We subtract Amount directly — not the inflated face value.  The full
-voucher balance is consumed regardless of broker percentage; Amount
-is the best available proxy for what was cleared from the in-game ledger.
+Broker percentage ───────────────── RedeemVoucher.Amount is what the player
+received after broker cut.
 """
 
 from core.plugin_loader import BasePlugin
@@ -224,11 +211,7 @@ def _scan_value(planet_class: str, mass_em: float, terraform_state: str,
 
 
 def _voucher_key(ev: dict) -> tuple:
-    """Composite dedup key: (timestamp, event, amount).
-
-    Two Bounty events at the same second always have different reward amounts.
-    Using the composite prevents same-second kills from being collapsed.
-    """
+    """Composite dedup key: (timestamp, event, amount)."""
     return (
         ev.get("timestamp", ""),
         ev.get("event", ""),

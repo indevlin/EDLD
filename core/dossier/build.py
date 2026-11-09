@@ -1,5 +1,4 @@
-"""
-core/dossier/build.py — reading, keeping, and writing the dossier.
+"""core/dossier/build.py — reading, keeping, and writing the dossier.
 
     <commander>/data/dossier.json      what the ledger knows, and how far into
                                        each journal it has read
@@ -7,9 +6,7 @@ core/dossier/build.py — reading, keeping, and writing the dossier.
     <commander>/dossier/md/*.md
 
 ``build()`` reads whatever the journals gained since last time, saves the
-ledger, and rewrites both outputs. Files are replaced atomically, so a page
-open in a browser never sees half a file, and Markdown files for ships no
-longer owned are removed.
+ledger, and rewrites both outputs.
 """
 
 from __future__ import annotations
@@ -125,9 +122,6 @@ def build(journal_dir, cmdr_dir: Path, fid: Optional[str], *,
     for rel, text in files.items():
         if _write(md_dir / rel, text):
             result.written.append(f"md/{rel}")
-    # Pages that no longer exist: a ship sold, a carrier decommissioned. Only
-    # files the dossier writes are ever removed; anything else in md/ is the
-    # commander's and is left alone.
     ours = set(render_md._FILES.values()) | {"index.md"}
     for path in list(md_dir.rglob("*.md")):
         rel = path.relative_to(md_dir).as_posix()

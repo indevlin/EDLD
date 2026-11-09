@@ -2,14 +2,6 @@
 
 Maintains session-scoped counters: kills, bounties, bonds, deaths, fighter
 losses, faction tallies, and ship tallies.
-
-Emits kill, death, and fighter-loss notifications directly — the journal.py
-legacy dispatch path is inactive when plugin_dispatch is in use.
-
-Idle and rate alerts are fired from tick() using state.last_kill_mono — the
-single authoritative kill timestamp written by journal.py on every live kill
-and reset on every LoadGame. Cooldowns are plugin-local so they survive
-session resets without drifting.
 """
 from __future__ import annotations
 import time
@@ -176,11 +168,7 @@ class CombatPlugin(BasePlugin, ActivityProviderMixin):
                     if gq: gq.put(("stats_update", None))
 
     def tick(self, state) -> None:
-        """Called every second.
-
-        Checks inactivity and kill-rate thresholds against state.last_kill_mono
-        — the single authoritative kill timestamp written by journal.py.
-        """
+        """Called every second."""
         if not state.in_game or state.in_preload:
             return
         if getattr(state, "in_supercruise", False):
@@ -298,13 +286,7 @@ class CombatPlugin(BasePlugin, ActivityProviderMixin):
         return self.kills > 0 or self.deaths > 0 or self.fighter_losses > 0
 
     def get_session_rows(self) -> list[dict]:
-        """Kills only.
-
-        Bounties accrue here from ``Bounty`` events — money *earned*, which
-        is still lost if the commander dies before cashing it in.  The Income
-        section counts vouchers when they are redeemed, which is the point at
-        which the credits are actually the commander's.
-        """
+        """Kills only."""
         return [r for r in self.get_summary_rows()
                 if r["label"] != "Bounties"]
 

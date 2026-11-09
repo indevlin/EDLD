@@ -1,17 +1,4 @@
-"""
-components/backups.py — automatic journal backups.
-
-The game's journals are the only record of a commander's history, and the
-game never backs them up: a reinstall, a cleaned-out Saved Games folder or a
-new PC and they are gone. Everything EDLD knows is rebuilt from them.
-
-At startup, on Shutdown, and hourly while running, every journal that is new
-or has grown since its last copy is written, compressed, to the backup folder
-(``journal-backups`` in EDLD's data folder unless set otherwise). Copies are
-never deleted: a journal is a few hundred kilobytes and compresses tenfold.
-The game's other files (Cargo.json, NavRoute.json, …) are snapshots rewritten
-constantly, so only the journals are kept.
-"""
+"""components/backups.py — automatic journal backups."""
 from __future__ import annotations
 
 import gzip

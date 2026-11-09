@@ -1,27 +1,9 @@
-"""
-tests/test_spansh_carrier_params.py — pin the Spansh fleet-carrier wire format.
-
-Background
-----------
-Carrier routing submitted successfully (HTTP 202, job id returned) and then
-never produced a usable result.  The endpoint and the parameter *names* were
-right all along; the encoding of the two list-shaped parameters was not.
+"""tests/test_spansh_carrier_params.py — pin the Spansh fleet-carrier wire format.
 
 spansh.co.uk's own front-end bundle submits the job through
 
     plotFleetCarrierRoute(e){return this.performRequest("/api/fleetcarrier/route", e)}
     performRequest(e,t){return $.ajax({... method:"POST", data:t, traditional:!0 ...})}
-
-``traditional: true`` is jQuery's flag for serialising a list as repeated bare
-keys — ``destination_systems=A&destination_systems=B`` — with no ``[]`` suffix
-and no JSON.  EDLD was sending ``json.dumps([...])``, so the destination list
-arrived as the literal string ``["6681123623626"]``, parsed to nothing, and the
-queued job had no destination to route to.
-
-The expectations here are derived from a real completed job saved from the
-site (``tests/data/spansh_fleetcarrier_job.json``).  Its ``parameters`` block
-is the server's own echo of what it parsed, so it is authoritative about the
-shape EDLD has to produce rather than a guess restated by hand.
 """
 
 from __future__ import annotations
@@ -69,10 +51,6 @@ def test_carrier_endpoint_is_the_one_the_site_posts_to():
 
 def test_list_params_match_the_captured_job(echoed_params):
     """Every list in the real job must be declared in _SPANSH_LIST_PARAMS.
-
-    Derived from the fixture rather than hand-listed, so a future Spansh
-    parameter that is also list-shaped fails here instead of silently being
-    JSON-encoded onto the wire.
     """
     actual_lists = {k for k, v in echoed_params.items() if isinstance(v, list)}
     assert actual_lists <= _SPANSH_LIST_PARAMS, (
@@ -80,7 +58,7 @@ def test_list_params_match_the_captured_job(echoed_params):
     )
 
 
-# ── Normalisation ─────────────────────────────────────────────────────────────
+# ── Normalization ─────────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize(
     "supplied",
@@ -99,7 +77,7 @@ def test_destination_normalises_to_a_real_list(supplied):
     "supplied", [[], "[]", "", ()], ids=["empty-list", "json-empty", "empty-str", "tuple"]
 )
 def test_empty_list_params_are_dropped_not_sent_empty(supplied):
-    """traditional serialisation omits empty arrays; sending '' is not the same."""
+    """traditional serialization omits empty arrays; sending '' is not the same."""
     out = _normalise_list_params({"refuel_destinations": supplied})
     assert "refuel_destinations" not in out
 
@@ -116,11 +94,7 @@ def _encode(params: dict) -> str:
 
 
 def test_encoded_body_round_trips_to_the_captured_parameters(echoed_params):
-    """Encode the real job's parameters, parse them back, and compare.
-
-    This is the end-to-end statement: what EDLD puts on the wire must parse
-    server-side into exactly what Spansh recorded for this job.
-    """
+    """Encode the real job's parameters, parse them back, and compare."""
     body = _encode(dict(echoed_params))
     parsed = urllib.parse.parse_qs(body, keep_blank_values=True)
 
@@ -136,9 +110,6 @@ def test_encoded_body_round_trips_to_the_captured_parameters(echoed_params):
 
 def test_old_json_encoding_would_not_round_trip(echoed_params):
     """Guard the premise: the previous encoding genuinely loses the list.
-
-    If this ever stops failing, the bug this module exists for was not what
-    we thought it was.
     """
     broken = dict(echoed_params)
     broken["destination_systems"] = json.dumps(echoed_params["destination_systems"])

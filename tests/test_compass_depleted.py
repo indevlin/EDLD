@@ -1,8 +1,4 @@
-"""
-tests/test_compass_depleted.py — the survey compass leaves out worked-out sites.
-
-It pointed at every recorded deposit within range, including ones marked
-depleted, which is pointing a commander at a drive to an empty site.
+"""tests/test_compass_depleted.py — the survey compass leaves out worked-out sites.
 """
 from __future__ import annotations
 

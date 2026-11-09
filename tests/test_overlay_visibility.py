@@ -1,18 +1,4 @@
-"""
-tests/test_overlay_visibility.py — the overlay's visibility tweaks.
-
-The overlay was hard to read. Labels were drawn in each theme's dim colour,
-which is meant to recede on a solid dark dashboard and on a moving game simply
-disappears: 2.2–2.7:1 against a dark scene at the usual Opacity, under 2:1
-against a bright station interior for nearly everything, and the light theme's
-dark text at 1.1:1 over space. Every labelled row, values included, was drawn
-in that dim colour.
-
-Five independent switches answer it — Outline, BackingPanel, SolidText,
-ContrastFloor, EmphasiseValues — in any combination, for every theme including
-custom ones. These tests hold each to what it claims, and render every
-combination for real.
-"""
+"""tests/test_overlay_visibility.py — the overlay's visibility tweaks."""
 from __future__ import annotations
 
 import itertools
@@ -77,7 +63,7 @@ def test_colours_already_readable_are_left_alone():
 
 
 def test_custom_colours_go_through_the_floor_too():
-    """The explicit Custom colours are the ones nobody has checked."""
+    """The explicit Custom colors are the ones nobody has checked."""
     custom = {"TitleColour": "#202020", "LabelColour": "#303030",
               "ValueColour": "#404040"}
     out = apply_contrast_floor(custom, GAME_BACKGROUND)

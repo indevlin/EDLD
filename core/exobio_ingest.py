@@ -1,13 +1,4 @@
-"""
-core/exobio_ingest.py — Exobiology journal events → body-database writes.
-
-Organic sampling and footfall: everything that records what the commander has
-*done* on a body's surface, as opposed to what the body is.  Sibling:
-:mod:`core.explo_ingest` handles scanning and mapping.
-
-These are plain functions taking the :class:`core.body_ingest.Ingestor` that
-owns the commander/system context, rather than methods on it, so the dispatcher
-can import both domains without either importing the other.
+"""core/exobio_ingest.py — Exobiology journal events → body-database writes.
 
 :data:`EVENTS` is the set this module handles.
 """

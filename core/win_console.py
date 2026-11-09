@@ -1,31 +1,9 @@
 """Making standard output usable on Windows GUI builds.
 
-The Windows EDLD binary is built with ``console=False`` so that launching
-the desktop dashboard does not flash up a console window behind it. On
-Windows that puts the executable in the GUI subsystem, where it starts
-with no console attached and PyInstaller leaves ``sys.stdout`` and
-``sys.stderr`` unusable. Anything printed then vanishes, and flushing at
-exit raises ``OSError: [Errno 22] Invalid argument``.
-
-That is fine for the desktop interface, which prints nothing once it is
-up, but it breaks ``--terminal`` and ``--version`` completely: output
-disappears whether the user is reading it in a terminal or a script is
-capturing it. It also silences the startup banner and the error paths
-that report a missing journal folder — the messages a confused user most
-needs to see.
-
-This module reconnects the streams. It handles both cases:
-
-*Redirected* — ``EDLD.exe --version > out.txt``, or a shell
-capturing the output. The shell has already given the process valid
-standard handles, inherited at creation. They just need wrapping back
-into Python file objects.
+*Redirected* — ``EDLD.exe --version > out.txt``, or a shell capturing the
+output.
 
 *Interactive* — the user runs the command in an existing console.
-There are no inherited handles, so the process attaches to the console
-of whichever process launched it and picks up the handles that creates.
-
-Everything here is a no-op off Windows.
 """
 
 from __future__ import annotations
@@ -45,12 +23,7 @@ INVALID_HANDLE_VALUE = 2**64 - 1
 
 
 def _is_usable(stream: object) -> bool:
-    """Return whether ``stream`` can actually be written to.
-
-    A windowed PyInstaller build may leave the stream as ``None``, or as
-    an object whose underlying descriptor is invalid; both must be
-    replaced.
-    """
+    """Return whether ``stream`` can actually be written to."""
     if stream is None:
         return False
     fileno = getattr(stream, "fileno", None)
@@ -96,23 +69,12 @@ def enable_console_output() -> bool:
                 return None
             return handle
 
-        # Ask what we already have *before* touching the console. This
-        # order matters: AttachConsole replaces the process's standard
-        # handles with the console's own. If the caller redirected our
-        # output to a pipe or a file, we inherited a perfectly good
-        # handle at creation, and attaching would send everything to the
-        # console instead — leaving the caller's pipe empty, which is
-        # exactly the failure this module exists to prevent.
         handles = {
             "stdout": std_handle(STD_OUTPUT_HANDLE),
             "stderr": std_handle(STD_ERROR_HANDLE),
         }
 
         if handles["stdout"] is None and handles["stderr"] is None:
-            # Nothing inherited, so we were launched from a console
-            # without redirection. Borrowing the parent's console is now
-            # the only way to be seen. Failure is expected and fine when
-            # the parent has no console either.
             kernel32.AttachConsole(ctypes.c_uint32(ATTACH_PARENT_PROCESS & 0xFFFFFFFF))
             handles = {
                 "stdout": std_handle(STD_OUTPUT_HANDLE),
@@ -142,16 +104,8 @@ def ensure_console() -> bool:
     """Give a terminal interface a console to run in, on Windows.
 
     ``enable_console_output`` borrows the console the user launched from.
-    A launcher shortcut has none: Explorer starts the windowed binary with
-    no console and nothing to attach to, so the terminal dashboard would
-    have nowhere to draw and the event log nowhere to scroll. This opens
-    a console of its own in that case — the window the shortcut's user
-    expects — and points standard input, output and error at it, at both
-    the descriptor level (Textual reads and writes fds 0 and 1) and the
-    Python level (``sys.stdin``, ``sys.__stdout__`` and the rest).
 
-    Does nothing when a console is already usable, when output was
-    redirected, or off Windows. Never raises.
+    Never raises.
     """
     if sys.platform != "win32":
         return True

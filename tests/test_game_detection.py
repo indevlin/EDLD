@@ -1,11 +1,4 @@
-"""
-tests/test_game_detection.py — is the game running?
-
-Under Proton the kernel truncates process names to fifteen characters, so the
-game runs as ``EliteDangerous6`` and a check by name never matched.  At the
-main menu Status.json also goes quiet, so the other signal said nothing either,
-and a commander at the main menu was told the game was not running.
-"""
+"""tests/test_game_detection.py — is the game running?"""
 from __future__ import annotations
 
 import os

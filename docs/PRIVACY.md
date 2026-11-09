@@ -32,7 +32,7 @@ Options or `config.toml`.
 | **EDSM** — Elite Dangerous Star Map | `[EDSM] Enabled`, commander name and API key | Your journal — travel, scans, ranks, materials, missions and the rest EDSM accepts — under your EDSM account. EDLD also asks EDSM where it last saw you |
 | **EDAstro** | `[EDAstro] Enabled` | Exploration events — scans, signals, codex entries — and, with `UploadCarrierEvents`, your fleet carrier’s movements |
 | **Inara** | `[Inara] Enabled`, commander name and API key | Your commander’s activity, under your Inara account: ranks and engineer ranks, reputation, credits, ships and their loadouts, cargo and materials, missions, docking and jumps, deaths, and community goals |
-| **Raven Colonial** | `[Colonisation] ApiKey` | Construction progress for colonisation projects you contribute to |
+| **Raven Colonial** | `[Colonisation] ApiKey` | Construction progress for colonization projects you contribute to |
 | **Discord** | `[Discord] WebhookURL` | Messages to your own channel: the startup notice (commander, location, ship, credits, cargo, fuel, PowerPlay, carrier), alerts, and the quarter-hour summaries, at the levels set under `[LogLevels]` |
 | **Google Sheets** (your own sheet’s Apps Script) | `[SurfaceSurvey] Enabled`, URL and token | Surface deposits you record — system, body, commodity, position, amount, density, notes — and the reporter name you choose. EDLD also reads back what others have recorded. See [SURFACE_SURVEY.md](https://github.com/indevlin/EDLD/blob/main/docs/SURFACE_SURVEY.md) |
 | **DuckDNS** | `[Server] DuckDNSDomain` and token | Your public IP address, to keep your DuckDNS name pointing at it |
@@ -73,8 +73,8 @@ What the EDAM app itself does is covered by the
   them in `journal-backups`.
 * What you have found in rings of each type, for the ring callout.
 * Your unsold first discoveries and the rescan list.
-* Everything EDLD keeps: config, per-commander data, the body catalogue, the
-  surface survey, the commodity catalogue, the [dossier](https://github.com/indevlin/EDLD/blob/main/docs/DOSSIER.md) and the
+* Everything EDLD keeps: config, per-commander data, the body catalog, the
+  surface survey, the commodity catalog, the [dossier](https://github.com/indevlin/EDLD/blob/main/docs/DOSSIER.md) and the
   logs, in EDLD’s data directory.
 * What makes starting quick: an index of where each event is in your journals
   (positions and event names, not their contents), the career figures as

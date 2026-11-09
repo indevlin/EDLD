@@ -1,10 +1,4 @@
-"""
-core/server/cli.py — ``edld --pair``, ``--paired`` and ``--unpair``.
-
-These run as their own short-lived process, usually while EDLD is already
-running as a dashboard or a headless service, and act only on files in the
-profile's server directory.  See core/server/pairing.py for why.
-"""
+"""core/server/cli.py — ``edld --pair``, ``--paired`` and ``--unpair``."""
 
 from __future__ import annotations
 

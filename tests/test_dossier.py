@@ -1,14 +1,4 @@
-"""
-tests/test_dossier.py — the commander's dossier.
-
-The fleet data EDLD kept threw away every stored ship's fitting: Frontier's
-account data (CAPI) only carries modules for the ship being flown, so
-core.fleet.json listed ten of eleven ships with ``loadout: []``. The journals
-had all of them. A stored ship cannot be outfitted, so its last Loadout stays
-true until it is flown again — these tests hold the dossier to that, and to
-where a ship is kept, to what it leaves out by default, and to the two files
-it writes.
-"""
+"""tests/test_dossier.py — the commander's dossier."""
 from __future__ import annotations
 
 import base64

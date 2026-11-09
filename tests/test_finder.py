@@ -1,10 +1,4 @@
-"""
-tests/test_finder.py — the Navigation window's Nearby and Services tabs.
-
-Spansh's answers are stood in for with records shaped like its systems and
-stations searches, and the DSSA list like EDAstro's: services as loose
-words, coordinates as strings. A DSSA carrier Spansh also lists appears once,
-marked DSSA; a carrier no one may dock at is left out.
+"""tests/test_finder.py — the Navigation window's Nearby and Services tabs.
 """
 from __future__ import annotations
 

@@ -1,14 +1,6 @@
-"""
-core/windows/exploration.py — the Exploration window: the system the
+"""core/windows/exploration.py — the Exploration window: the system the
 commander is in, each body's value as scanned and if mapped, and each body's
 biology nested beneath it.
-
-A heading names the system, a summary line counts what is known, and the
-rows follow: one per body with its type and markers (★ worth mapping, T
-terraformable, ◆n biological signals, ✓ mapped, FD first discovery, FF
-first footfall), then for a body with biology its signals, its sampled
-species with the clonal-distance aid while sampling, and the genera still to
-find (✦ new in the codex for this region).
 """
 from __future__ import annotations
 

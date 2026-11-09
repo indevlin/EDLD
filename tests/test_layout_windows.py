@@ -1,16 +1,4 @@
-"""
-tests/test_layout_windows.py — the window registry must agree with itself.
-
-Windows are declared in four places that have to stay in step: the layout
-model's class registry and display names, the slot grid, and each front end's
-DOM-id and block-class maps.  Merging windows repeatedly left one of those
-behind — a window with no block, a block with no slot, a repaint target
-pointing at an id nothing answers to — and every one of those failures is
-silent: the window simply never appears or never refreshes.
-
-These tests derive what must line up from the registries themselves, so a
-window added or removed in a future release fails here rather than going
-missing on someone's dashboard.
+"""tests/test_layout_windows.py — the window registry must agree with itself.
 """
 
 from __future__ import annotations
@@ -190,12 +178,7 @@ LEGACY = {
 
 
 def test_legacy_assignment_is_replaced_wholesale(tmp_path):
-    """Salvaging a pre-v2 file would leave a half-populated grid.
-
-    Almost every window it names has been folded into another, and the slot
-    grid itself changed shape, so the only sensible result is the current
-    defaults.
-    """
+    """Salvaging a pre-v2 file would leave a half-populated grid."""
     path = tmp_path / "windows.json"
     path.write_text(json.dumps(LEGACY), encoding="utf-8")
     assert load_assignment(path) == default_assignment()
@@ -252,7 +235,7 @@ def test_unreadable_file_does_not_stop_the_dashboard_drawing(tmp_path):
     # Names the game uses that EDLD had generic.
     ("int_mkii_passengercabin_size4_class2", "4C MkII Business Class Passenger Cabin"),
     ("int_hyperdrive_overcharge_size8_class5_overchargebooster_mkii",
-     "8A Mk II Supercharge Optimised Frame Shift Drive (SCO)"),
+     "8A Mk II Supercharge Optimized Frame Shift Drive (SCO)"),
     ("int_shieldgenerator_size7_class3_fast",   "7C Bi-Weave Shield Generator"),
     ("int_shieldgenerator_size3_class5_strong", "3A Prismatic Shield Generator"),
     ("int_engine_size7_class5_fast",         "7A Enhanced Performance Thrusters"),
@@ -297,9 +280,6 @@ def test_module_display_names(internal, expected):
 ])
 def test_cosmetics_are_not_modules(internal):
     """They have no health and nothing to repair; listing them is noise.
-
-    The old test was a prefix match, so anything whose id begins with the
-    ship rather than the item type slipped through.
     """
     from data.modules import is_cosmetic_module
     assert is_cosmetic_module(internal)
@@ -319,11 +299,7 @@ def test_real_modules_are_not_filtered(internal):
 # ── SRV cargo is not ship cargo ───────────────────────────────────────────────
 
 def test_srv_cargo_events_do_not_touch_the_ship_hold():
-    """Cargo fires for the SRV too, naming only a count.
-
-    Untangled, an SRV event with Count > 0 sent the ship's hold off to
-    re-read Cargo.json, and an SRV Count:0 emptied it outright.
-    """
+    """Cargo fires for the SRV too, naming only a count."""
     import importlib.util
 
     spec = importlib.util.spec_from_file_location(
@@ -433,11 +409,7 @@ def test_session_rows_exclude_per_site_breakdowns():
 
 
 def test_session_rows_total_rather_than_itemise():
-    """One refined figure, not a line per commodity.
-
-    A count of how many kinds, and a materials-collected total, were both
-    tried and dropped: neither is interesting enough to earn a row.
-    """
+    """One refined figure, not a line per commodity."""
     labels = [r["label"] for r in _mining_plugin().get_session_rows()]
     assert "Refined" in labels
     for dropped in ("Gold", "Silver", "Commodities", "Materials collected"):
@@ -489,11 +461,7 @@ def test_limpet_detection(name, expected):
 
 
 def test_limpets_sit_below_the_alphabetical_manifest():
-    """Limpets are consumables, not freight.
-
-    They are never sold, and their count is what says whether the run can
-    continue, so they sit apart from the alphabetical manifest.
-    """
+    """Limpets are consumables, not freight."""
     from tui.blocks.ship_info import _is_limpet
 
     manifest = ["Tritium", "Limpet", "Gold", "Alexandrite"]
@@ -509,8 +477,6 @@ def test_limpets_sit_below_the_alphabetical_manifest():
 @pytest.mark.parametrize("unwanted", ["Limpets left", "Yield"])
 def test_summaries_omit_hold_and_ring_state(unwanted):
     """Limpet stock and yield distribution describe the run, not its output.
-
-    Both stay on the Mining tab, where the question is "how is this going".
     """
     plugin = _mining_plugin()
     for getter in (plugin.get_summary_rows, plugin.get_session_rows):
@@ -665,11 +631,7 @@ def _manifest():
 
 
 def test_freight_sorts_cheapest_per_unit_first():
-    """With a full hold the question is what to jettison.
-
-    That is answered by whatever is worth least per tonne, so it belongs at
-    the top rather than buried alphabetically.
-    """
+    """With a full hold the question is what to jettison."""
     from tui.blocks.ship_info import _is_limpet
 
     freight = [x for x in _manifest() if not _is_limpet(x["name"])]
@@ -701,7 +663,7 @@ def test_cargo_columns_are_constant_width(front_end):
         from tui.blocks.ship_info import _cargo_cols
 
     # Realistic bounds: the largest hold is under 2,000 t and the dearest
-    # commodity a little over 1M cr per tonne.
+    # commodity a little over 1M cr per ton.
     widths = {len(_cargo_cols(c, p, c * p))
               for c, p in ((1, 10), (180, 51_000), (1_800, 1_500_000))}
     assert len(widths) == 1, f"column width varies: {widths}"
@@ -789,11 +751,6 @@ _MARKET = {
 def test_srv_hold_is_priced_like_the_ship_hold(ctx_kwargs):
     """The SRV manifest quoted galactic average while the ship quoted the
     station's sell price.
-
-    It was invisible because both numbers were plausible and the panel prints
-    one price-source label above both sections, so the SRV rows looked like
-    they came from the market named in the header.  On osmium at Metz
-    Enterprise that is 44,051 against 264,306 for the same tonne.
     """
     from core.ui_helpers import cargo_manifest
 
@@ -826,7 +783,7 @@ def test_srv_freight_sorts_cheapest_per_unit_first():
 
 def test_srv_limpets_are_separated_like_the_ships():
     """The SRV section had no limpet handling at all, so limpets sorted into
-    the manifest and headed the jettison list at ~100 cr a tonne."""
+    the manifest and headed the jettison list at ~100 cr a ton."""
     from core.ui_helpers import cargo_manifest
 
     ctx = _price_ctx(docked=_MARKET)
@@ -838,7 +795,7 @@ def test_srv_limpets_are_separated_like_the_ships():
 
 def test_a_hold_priced_from_galactic_average_orders_differently():
     """Sanity check that the fixture actually exercises the branch: osmium is
-    the cheapest tonne on galactic average and the dearest at the station."""
+    the cheapest ton on galactic average and the dearest at the station."""
     from core.ui_helpers import cargo_manifest
 
     hold = {"osmium": {"count": 20}, "alexandrite": {"count": 4},
@@ -849,15 +806,7 @@ def test_a_hold_priced_from_galactic_average_orders_differently():
 
 
 def test_both_holds_are_priced_through_the_shared_path():
-    """Structural guard, not a behaviour check.
-
-    The bug was two price expressions in one method, eighty lines apart: the
-    ship's resolved a target or docked sell price, the SRV's only ever read
-    cargo_mean_prices. The manifest is now built once, in core/windows/ship.py,
-    for the desktop window, the terminal dashboard and EDAM: one price context
-    per build, one manifest call per hold (through _hold), and no local price
-    arithmetic.
-    """
+    """Structural guard, not a behavior check."""
     source = (ROOT / "core" / "windows" / "ship.py").read_text(encoding="utf-8")
     source = "\n".join(ln for ln in source.splitlines()
                        if not ln.lstrip().startswith(("from ", "import ", "#")))
@@ -876,8 +825,8 @@ def test_both_holds_are_priced_through_the_shared_path():
 
 def test_totals_line_uses_the_manifest_column_widths():
     """The SRV totals line was built by formatting a zero price and then
-    string-replacing it back out.  It worked, but it broke the moment the
-    credit formatter's output width changed."""
+    string-replacing it back out.
+    """
     from core.ui_helpers import cargo_cols, cargo_totals_cols
 
     widths = {len(cargo_cols(c, p, c * p))
@@ -909,7 +858,7 @@ def test_totals_line_leaves_the_price_column_blank():
     (None,                       0),
 ])
 def test_srv_cargo_capacity_resolves_by_id_or_display_name(vehicle, expected):
-    """state.srv_type holds a localised display name, not the journal id, so
+    """state.srv_type holds a localized display name, not the journal id, so
     the lookup has to accept both."""
     from data.ships import srv_cargo_capacity
 
@@ -917,10 +866,10 @@ def test_srv_cargo_capacity_resolves_by_id_or_display_name(vehicle, expected):
 
 
 def test_srv_tonnage_omits_an_unknown_denominator():
-    """The journal never reports SRV capacity — not on LaunchSRV, not on
-    Cargo, not in Status.json — so for a vehicle with no confirmed figure the
-    manifest shows plain tonnage rather than a denominator that might be
-    wrong.  A wrong one would read as a full hold while there was room."""
+    """The journal never reports SRV capacity — not on LaunchSRV, not on Cargo,
+    not in Status.json — so for a vehicle with no confirmed figure the
+    manifest shows plain tonnage.
+    """
     from core.ui_helpers import srv_tonnage
 
     assert srv_tonnage(33, 72) == "33/72 t"
@@ -1123,15 +1072,11 @@ import core as core_mod
 @pytest.mark.parametrize("module,cls_name", [
     ("tui.blocks.ship_info",  "ShipInfoBlock"),
     ("tui.blocks.navigation", "NavigationBlock"),
-    ("tui.blocks.commander",  "CommanderBlock"),
 ])
 def test_no_footer_control_is_laid_out_off_screen(module, cls_name):
     """Every footer control must sit inside the footer it belongs to.
 
-    The Cargo footer's "Gal. Avg" control shipped invisible: cargo-target-btn
-    computed to the full 80-column width, so Gal. Avg was placed at x=81 and
-    the target-name label at x=161.  The navigation footer escaped only
-    because it set width:auto per id.
+    The Cargo footer's "Gal.
     """
     import importlib
     cls = getattr(importlib.import_module(module), cls_name)
@@ -1144,7 +1089,7 @@ def test_no_footer_control_is_laid_out_off_screen(module, cls_name):
 
 
 def test_the_cargo_footer_draws_both_of_its_controls():
-    """The specific regression: Set Target rendered, Gal. Avg did not."""
+    """The specific regression: Set Target rendered, Gal."""
     from tui.blocks.ship_info import ShipInfoBlock
 
     lines, _ = _render_block(
@@ -1159,11 +1104,7 @@ def test_the_cargo_footer_draws_both_of_its_controls():
 # ── Repaint routing ───────────────────────────────────────────────────────────
 
 def test_every_plugin_refresh_sender_is_mapped():
-    """An unmapped name falls back to repainting the whole dashboard.
-
-    Nothing breaks, but the fallback hides the omission — several mappings
-    were lost in a merge and only surfaced as sluggish repaints.
-    """
+    """An unmapped name falls back to repainting the whole dashboard."""
     import re
     import tui.app as tui_app
 
@@ -1200,10 +1141,6 @@ def test_all_block_ids_is_derived_and_complete():
 
 def _undefined_names(path: Path) -> list[str]:
     """Module-level names loaded but never defined, imported or assigned.
-
-    Deliberately conservative: only names that look like helpers or classes
-    (leading underscore, or capitalised) are reported, so ordinary locals
-    resolved at runtime do not produce noise.
     """
     import ast
     import builtins
@@ -1242,13 +1179,7 @@ def _source_files():
 def test_no_module_uses_an_undefined_helper(path):
     """Guards the failure mode that merging windows kept producing.
 
-    Lifting a method into another module leaves its helpers behind.  The
-    result compiles and imports cleanly, then raises NameError on the first
-    call — and because blocks swallow refresh errors, the window simply stops
-    updating partway down with no message anywhere.
-
-    `_fmt_health` reached a release this way: Commander's hull row raised, so
-    every row after it stayed blank while Mode and Shields above it worked.
+    Lifting a method into another module leaves its helpers behind.
     """
     missing = _undefined_names(path)
     assert not missing, (
@@ -1450,9 +1381,6 @@ def test_gui_columns_match_the_model_proportions():
 
 def test_gui_layout_is_not_draggable():
     """Splitters let a stray drag leave the dashboard permanently lopsided.
-
-    Which window sits where is changed through Preferences > Display; the
-    geometry itself is fixed, as it is in the terminal.
     """
     source = (ROOT / "gui" / "app.py").read_text(encoding="utf-8")
     body = source[source.index("def _build_dashboard"):
@@ -1501,12 +1429,7 @@ def _cargo_plugin():
 
 
 def test_srv_refining_then_transfer_counts_the_ore_once():
-    """An SRV with a refinery fills its own hold, not the ship's.
-
-    Taken from a real journal: eight ore refined in the Rhino, transferred to
-    the ship, twelve more, transferred again — twenty tonnes aboard.  Crediting
-    the ship on MiningRefined *and* on CargoTransfer showed forty.
-    """
+    """An SRV with a refinery fills its own hold, not the ship's."""
     plugin, state = _cargo_plugin()
 
     state.vessel_mode = "srv"
@@ -1567,8 +1490,6 @@ def test_cargo_json_is_not_read_as_the_ship_when_it_is_the_srv(tmp_path):
 
 def test_loadgame_does_not_empty_a_hold_it_cannot_refill(tmp_path):
     """Resuming straight into an SRV means no Ship cargo event ever arrives.
-
-    Clearing on LoadGame lost the ship's cargo for the rest of the session.
     """
     plugin, state = _cargo_plugin()
     plugin.core.journal_dir = str(tmp_path)
@@ -1616,13 +1537,7 @@ def test_emptied_srv_clears_its_manifest():
 
 
 def test_srv_refining_survives_a_reload_with_no_launchsrv():
-    """Resuming a save while already in an SRV emits no LaunchSRV.
-
-    LoadGame resets vessel_mode to "ship" and nothing corrects it, so a guard
-    that trusted vessel_mode alone started crediting the ship again: a hold of
-    60 t read 84 after 24 more refines.  The vessel the game last reported
-    cargo for keeps arriving throughout, so that is the reliable signal.
-    """
+    """Resuming a save while already in an SRV emits no LaunchSRV."""
     plugin, state = _cargo_plugin()
 
     # In the SRV, filling it.
@@ -1666,12 +1581,7 @@ def test_ship_cargo_event_restores_ship_refining():
 # ── Ship cargo survives a journal roll ────────────────────────────────────────
 
 def test_capacity_is_recovered_from_an_earlier_journal(tmp_path):
-    """Loadout is only written on the launch that produced it.
-
-    Resume a save while already in an SRV and the new journal has no Loadout
-    and no Ship cargo event at all — only SRV ones — so capacity was unknown
-    for the whole session and the Totals row read as a dash.
-    """
+    """Loadout is only written on the launch that produced it."""
     import importlib.util
     import queue
 
@@ -1732,12 +1642,7 @@ def test_capacity_is_recovered_from_an_earlier_journal(tmp_path):
 
 
 def test_hold_recovery_replays_transfers_after_a_count_only_event():
-    """The newest ship cargo event is often count-only.
-
-    A real capture ended with "Count: 71" and no inventory, while transfers
-    afterwards brought the hold to 110.  Picking a single event found an
-    older, emptied snapshot and reported nothing aboard.
-    """
+    """The newest ship cargo event is often count-only."""
     import importlib.util
     import queue
     import tempfile
@@ -1808,9 +1713,7 @@ def test_hold_recovery_replays_transfers_after_a_count_only_event():
 
 
 def test_ship_hold_is_persisted_and_restored():
-    """The hold's true contents are often the result of transfers rather than
-    any single Cargo event, so the last event on disk can say empty while
-    tonnes were moved aboard afterwards."""
+    """The hold's true contents are often the result of transfers."""
     plugin, state = _cargo_plugin()
 
     store: dict = {}

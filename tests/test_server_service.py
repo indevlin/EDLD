@@ -1,11 +1,4 @@
-"""
-tests/test_server_service.py — server mode end to end, over real TLS.
-
-Each test runs the real listener on 127.0.0.1 and talks to it the way the
-Android client will: TLS 1.3, the server pinned by public-key fingerprint, the
-device authenticated by a self-signed EC P-256 certificate of the kind Android's
-keystore produces.  Nothing is mocked below the socket.
-"""
+"""tests/test_server_service.py — server mode end to end, over real TLS."""
 from __future__ import annotations
 
 import base64
@@ -414,9 +407,9 @@ def test_no_controls_without_the_component(server, tmp_path):
 # ── Diagnostics for a device that cannot pair ─────────────────────────────────
 
 def test_a_device_that_hangs_up_before_tls_is_logged(tmp_path, monkeypatch):
-    """From another machine, a hang-up before TLS is a device giving up — the
-    one thing on EDLD's side that shows a pairing attempt got this far.  It was
-    being dropped silently as though it were --pair's own port check."""
+    """From another machine, a hang-up before TLS is a device giving up — the one
+    thing on EDLD's side that shows a pairing attempt got this far.
+    """
     lan = [a for a in pairing.local_addresses() if ":" not in a]
     if not lan:
         pytest.skip("no non-loopback IPv4 address on this machine")
@@ -550,8 +543,6 @@ def test_a_certificate_signed_by_a_paired_device_is_not_that_device(server, tmp_
     paired = AndroidDevice(tmp_path / "a", "Paired")
     assert _pair(srv, paired)["t"] == "paired"
     offspring = AndroidDevice(tmp_path / "b", "Offspring", signer=paired)
-    # Refused in the handshake — a device certificate cannot issue others —
-    # or, failing that, at hello, because its key is not in devices.json.
     try:
         c = Conn(srv.bound[1], srv.identity.fingerprint, offspring)
         c.send({"t": "hello", "v": 1})
@@ -670,9 +661,8 @@ def test_a_device_presses_the_buttons_under_a_window(server, tmp_path):
 
 def test_a_stopped_server_stops_listening(server):
     """Closing a listening socket on Linux does not wake the thread blocked in
-    accept() on it, and the socket went on listening. A server started again
-    in the same process had its first connections answered by the old one,
-    with the old key — the pin mismatches this file's tests met now and then."""
+    accept() on it, and the socket went on listening.
+    """
     srv, _ = server()
     port = srv.bound[1]
     time.sleep(0.2)                       # the accept thread is waiting

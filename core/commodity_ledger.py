@@ -1,14 +1,4 @@
-"""
-core/commodity_ledger.py — persistent CSV catalogue of every commodity seen.
-
-Purpose
--------
-Market.json is a snapshot of one station and is overwritten on the next dock,
-so the galactic average price it carries for each commodity is visible for as
-long as the commander stays put and then gone.  This module keeps a running
-catalogue instead: one row per commodity, written once when the commodity is
-first seen and rewritten whenever its ``MeanPrice`` drifts from what was last
-recorded.
+"""core/commodity_ledger.py — persistent CSV catalog of every commodity seen.
 
 File layout
 -----------
@@ -25,10 +15,6 @@ this module is given it).  Columns:
     last_updated        ISO-8601 UTC, when ``mean_price`` last changed
     updates             number of price drifts recorded since ``first_seen``
 
-Rows are keyed on ``name``, the canonical symbol the rest of EDLD keys
-commodities on, and the file is written sorted by ``id`` so successive
-versions diff cleanly.
-
 Zero prices
 -----------
 Fleet Carrier markets publish trade orders with ``MeanPrice`` of 0, which is
@@ -36,12 +22,6 @@ not a galactic average — it is the absence of one.  A commodity first seen at
 such a market is still recorded (identity is worth having), but a zero never
 overwrites a price already on file, and it never counts as a drift.  The row
 heals itself the first time the commodity turns up at a station market.
-
-Failures
---------
-Nothing here is load-bearing for the dashboard, but nothing here fails
-silently either: read and write errors are reported through the ``log``
-callback the caller supplies, which the cargo plugin wires to ``core.debug``.
 """
 
 from __future__ import annotations
@@ -74,19 +54,14 @@ _CAT_RE = re.compile(r"^\$market_category_(.+);$")
 
 
 def canonical_name(raw: str) -> str:
-    """Normalise a commodity name to its bare lowercase symbol.
-
-    Market.json and several journal events wrap the symbol in the
-    ``$<symbol>_name;`` localisation form; both spellings must land on the
-    same key or the same commodity is recorded twice.
-    """
+    """Normalize a commodity name to its bare lowercase symbol."""
     s = (raw or "").strip().lower()
     m = _NAME_RE.match(s)
     return m.group(1) if m else s
 
 
 def canonical_category(raw: str) -> str:
-    """Normalise a commodity category to its bare lowercase symbol."""
+    """Normalize a commodity category to its bare lowercase symbol."""
     s = (raw or "").strip().lower()
     m = _CAT_RE.match(s)
     if m:
@@ -133,12 +108,7 @@ def row_from_item(item: dict) -> dict | None:
 # ── Ledger ────────────────────────────────────────────────────────────────────
 
 class CommodityLedger:
-    """The CSV catalogue, held in memory and rewritten when it changes.
-
-    The whole file is rewritten rather than appended to, because a row is
-    replaced in place on drift rather than added — a few hundred commodities
-    is a file measured in tens of kilobytes, so there is nothing to gain from
-    being cleverer about it.
+    """The CSV catalog, held in memory and rewritten when it changes.
 
     Thread-safe: the Market.json watcher thread and the journal event thread
     both reach ``apply()``.
@@ -158,17 +128,12 @@ class CommodityLedger:
         return self._path
 
     def rows(self) -> dict[str, dict]:
-        """A copy of the current catalogue, keyed on canonical name."""
+        """A copy of the current catalog, keyed on canonical name."""
         with self._lock:
             return {k: dict(v) for k, v in self._rows.items()}
 
     def load(self) -> int:
-        """Read the CSV into memory.  Returns the number of rows loaded.
-
-        A missing file is the normal first-run case and is not an error.  A
-        malformed one is: it is reported and treated as empty, and the next
-        write replaces it.
-        """
+        """Read the CSV into memory. Returns the number of rows loaded."""
         with self._lock:
             self._rows = {}
             self._loaded = True
@@ -198,12 +163,10 @@ class CommodityLedger:
             return len(self._rows)
 
     def apply(self, items) -> tuple[int, int]:
-        """Fold one Market.json ``Items`` list into the catalogue.
+        """Fold one Market.json ``Items`` list into the catalog.
 
         Returns ``(added, drifted)`` — commodities recorded for the first
-        time, and commodities whose mean price moved.  The file is rewritten
-        only when something actually changed, so this is cheap to call on
-        every Market.json touch.
+        time, and commodities whose mean price moved.
         """
         if not self._loaded:
             self.load()

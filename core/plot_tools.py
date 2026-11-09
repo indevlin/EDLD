@@ -1,19 +1,9 @@
-"""
-core/plot_tools.py — the FSD, Neutron and Carrier plot forms, described once.
-
-Until 20261102 these three forms were written out by hand three times — the
-desktop window, the terminal dashboard, and not at all for EDAM — while the
-Survey, Nearby, Services and Discoveries tabs were described once
-(core/tooltab.py) and drawn by both interfaces. Now all seven are described
-the same way, so the desktop window, the terminal dashboard and a paired EDAM
-device draw the same forms and run them through the same code.
+"""core/plot_tools.py — the FSD, Neutron and Carrier plot forms, described once.
 
 FSD      Spansh's exact plotter, with the ship's own drive and fuel, or an
          EDSM search where no Loadout has been read (components/spansh.py).
 Neutron  Neutron-boosted, at the drive's own supercharge.
 Carrier  Fleet-carrier jumps with tritium planning.
-
-A plotted route is stored as the followed route, as before.
 """
 from __future__ import annotations
 

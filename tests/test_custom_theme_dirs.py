@@ -1,9 +1,4 @@
-"""
-tests/test_custom_theme_dirs.py — custom themes are found in the data directory.
-
-A packaged binary carries ``themes/`` inside the executable, where no file can
-be added, so custom themes only worked from source. They are now looked for in
-``<data>/themes/custom/`` first and beside the code second.
+"""tests/test_custom_theme_dirs.py — custom themes are found in the data directory.
 """
 from __future__ import annotations
 

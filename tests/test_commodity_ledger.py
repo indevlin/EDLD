@@ -1,13 +1,4 @@
-"""
-tests/test_commodity_ledger.py — the commodity catalogue must not lie.
-
-The catalogue is written from Market.json and read back weeks later, so the
-failures that matter are the quiet ones: the same commodity recorded twice
-under two spellings of its name, a Fleet Carrier's MeanPrice of 0 overwriting
-a real galactic average, a drift that never gets written, a rewrite that
-truncates the file.  Each of those is asserted here against the shape of data
-the game actually emits.
-"""
+"""tests/test_commodity_ledger.py — the commodity catalog must not lie."""
 
 from __future__ import annotations
 
@@ -59,7 +50,7 @@ def read_csv(path):
         return list(csv.DictReader(f))
 
 
-# ── Canonicalisation ──────────────────────────────────────────────────────────
+# ── Canonicalization ──────────────────────────────────────────────────────────
 
 @pytest.mark.parametrize("raw,expected", [
     ("$gold_name;",                    "gold"),
@@ -160,7 +151,7 @@ def test_a_fleet_carrier_zero_does_not_erase_a_real_price(ledger):
 
 def test_a_commodity_first_seen_at_zero_is_still_catalogued(ledger):
     """Thargoid tissue samples carry MeanPrice 0 at ordinary station markets.
-    They are still commodities and still belong in the catalogue."""
+    They are still commodities and still belong in the catalog."""
     ledger.apply([item("$thargoidtissuesampletype10a_name;",
                        cid=129022402, local="Titan Maw Deep Tissue Sample",
                        mean=0, cat="$MARKET_category_salvage;",
@@ -246,7 +237,7 @@ def test_a_corrupt_file_is_reported_and_rebuilt(tmp_path):
     seen: list[str] = []
     led = CommodityLedger(path, log=seen.append)
     assert led.load() == 0
-    assert seen, "unreadable catalogue produced no diagnostic"
+    assert seen, "unreadable catalog produced no diagnostic"
     led.apply([item("$gold_name;", mean=47113)])
     assert {r["name"] for r in read_csv(path)} == {"gold"}
 

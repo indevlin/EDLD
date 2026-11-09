@@ -1,9 +1,4 @@
-"""
-tests/test_ksw_preferences.py — Session Mgmt has a preferences page in both front ends.
-
-It was TUI-only: the GUI's Options had no way to turn session management on or
-set its thresholds. The two pages must offer the same settings and save them to
-the same keys.
+"""tests/test_ksw_preferences.py — Session Mgmt has a preferences page in both front ends.
 """
 from __future__ import annotations
 

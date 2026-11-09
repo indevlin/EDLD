@@ -1,24 +1,13 @@
-"""
-tests/test_restart_argv.py — guard the process-restart argv construction.
+"""tests/test_restart_argv.py — guard the process-restart argv construction.
 
-Background
-----------
-Preferences restarts the process with ``os.execv`` when a ⚠ setting changes
-(theme, journal folder, the Data tab's EDDN/EDSM/EDAstro toggles, window
-layout).  ``execv`` takes the new argv *including* argv[0], and what must be
-prepended differs between a source run and a frozen build:
+``execv`` takes the new argv *including* argv[0], and what must be prepended
+differs between a source run and a frozen build:
 
   source  — sys.executable is the interpreter, launch_argv[0] is the script
   frozen  — sys.executable *is* the program, and so is launch_argv[0]
 
 Prepending sys.executable to an unmodified launch_argv is correct only in the
-source case.  In a frozen build it passed the old argv[0] through as a stray
-positional; edld's parser defines no positionals, so argparse exited 2 before
-logging was initialised and the restart vanished silently — presenting as a
-crash to desktop with nothing in the log.
-
-The parser is lifted out of edld.py rather than restated here, so new flags
-are covered automatically and the test cannot drift from the real one.
+source case.
 """
 
 from __future__ import annotations
@@ -39,8 +28,7 @@ def _edld_parser():
     """Build edld.py's ArgumentParser without running the rest of the module.
 
     edld.py calls ``parser.parse_args()`` at module scope, so it cannot simply
-    be imported.  Execute the source up to that call instead — this keeps the
-    flag list mechanically in sync with the real entry point.
+    be imported.
     """
     src = (ROOT / "edld.py").read_text(encoding="utf-8")
     marker = "args = parser.parse_args()"

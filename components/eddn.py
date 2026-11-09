@@ -1,8 +1,4 @@
-"""
-components/eddn.py — EDDN (Elite Dangerous Data Network) uploader.
-
-Subscribes to relevant journal events and forwards anonymised, schema-compliant
-messages to the EDDN gateway at https://eddn.edcd.io:4430/upload/
+"""components/eddn.py — EDDN (Elite Dangerous Data Network) uploader.
 
 Behaviour
 ---------
@@ -27,13 +23,9 @@ Config (config.toml)
 Enabled       = false     # master switch; must be explicitly true to upload
 TestMode      = false     # force /test schema suffix regardless of game version
 
-The uploader ID is sourced from journal data (state.pilot_name) — there is
-no per-plugin UploaderID setting to keep in sync.
-
 Dependencies
 ------------
 Standard library only (urllib.request, gzip, json, hashlib, threading, queue).
-No requests, no third-party libraries.
 """
 
 from __future__ import annotations
@@ -129,12 +121,9 @@ def _dict_hash(d: dict) -> str:
 # ── Sender thread ─────────────────────────────────────────────────────────────
 
 class _Sender(threading.Thread):
-    """
-    Background thread that drains an in-process queue and a disk retry queue.
+    """Background thread that drains an in-process queue and a disk retry queue.
 
     The in-process queue carries (msg_dict, retry_on_fail) tuples.
-    Messages where retry_on_fail=True that fail are appended to the disk queue.
-    The disk queue is checked on every RETRY_INTERVAL_S wake-up.
     """
 
     def __init__(self, endpoint: str, queue_file: Path) -> None:
@@ -144,10 +133,7 @@ class _Sender(threading.Thread):
         self._q: queue.Queue = queue.Queue()
         self._stop_evt   = threading.Event()
 
-        # Send-side stats — visible via heartbeat and on shutdown.  Letting
-        # the user see "actually-sent" numbers is the only way to verify
-        # EDDN uploads against a downstream consumer (eddb.io, EDSM, inara,
-        # meritminer.cc, etc) that hasn't received what we think we sent.
+        # Send-side stats — visible via heartbeat and on shutdown.
         self._stats_lock = threading.Lock()
         self._stats: dict = {
             "sent":      0,            # successful POSTs
@@ -175,9 +161,7 @@ class _Sender(threading.Thread):
         self._q.put(None)  # unblock
 
     def run(self) -> None:
-        # Lifecycle banner — confirms the sender thread launched.  Critical
-        # because the rest of EDDN's log lines only fire on errors; without
-        # this banner there's no positive evidence the sender exists.
+        # Lifecycle banner — confirms the sender thread launched.
         _ilog.sender_started("EDDN", self._queue_file)
 
         last_retry     = 0.0
@@ -197,9 +181,6 @@ class _Sender(threading.Thread):
                 if not ok and retry and not permanent:
                     self._append_disk(msg)
 
-            # Heartbeat once a minute — visible proof the thread is alive
-            # plus a running tally so the user can correlate against any
-            # downstream consumer that says "we haven't seen your data".
             if time.monotonic() - last_heartbeat >= 60:
                 snap = self.stats_snapshot()
                 by   = snap["by_schema"]
@@ -229,9 +210,7 @@ class _Sender(threading.Thread):
         Returns (success, permanent_failure).
         permanent=True means don't retry (400 / 426).
         """
-        # Extract a short schema label for the log line.  EDDN schemas come
-        # in like "https://eddn.edcd.io/schemas/commodity/3" — we just want
-        # the "commodity/3" suffix.
+        # Extract a short schema label for the log line.
         schema_ref  = msg.get("$schemaRef", "")
         schema_tail = schema_ref.rsplit("/schemas/", 1)[-1] if schema_ref else "?"
 
@@ -419,12 +398,6 @@ class EDDNPlugin(BasePlugin):
         self._enabled     = bool(cfg.get("Enabled", False)) and self._primary
         self._test_mode   = bool(cfg.get("TestMode", False))
 
-        # Runtime state — tracks what we need for augmentation / headers.
-        # _cmdr_name is updated by the Commander journal event but for the
-        # EDDN uploaderID we now prefer state.pilot_name (single source of
-        # truth for commander identity across the app).  This local field
-        # stays as a fallback in case state.pilot_name isn't yet populated
-        # when an upload fires.
         self._game_version: str  = ""
         self._game_build:   str  = ""
         self._cmdr_name:    str  = ""
@@ -537,9 +510,6 @@ class EDDNPlugin(BasePlugin):
         # ── Flush any pending FSSSignalDiscovered before non-FSS events ───────
         if ev != "FSSSignalDiscovered" and self._fss_signals:
             if state.in_preload:
-                # Preload events are historical — silently discard accumulated
-                # signals rather than attempting a flush that will likely
-                # mismatch the current system and produce a spurious warning.
                 self._fss_signals = []
             else:
                 self._flush_fss_signals(flush_event=event)
@@ -549,12 +519,17 @@ class EDDNPlugin(BasePlugin):
         if ev == "Docked":
             self._docked_station_id   = event.get("MarketID")
             self._docked_station_name = event.get("StationName", "") or ""
+            # Each docking may send market, outfitting and shipyard once.
+            self._last_commodity_hash = None
+            self._last_outfitting_hash = None
+            self._last_shipyard_hash = None
         elif ev == "Undocked":
             self._docked_station_id   = None
             self._docked_station_name = ""
         elif ev == "CarrierStats":
-            # CarrierID == MarketID for fleet carriers
-            self._carrier_market_id = event.get("CarrierID")
+            # CarrierID == MarketID; own carrier only, not a squadron carrier.
+            if event.get("CarrierType", "FleetCarrier") == "FleetCarrier":
+                self._carrier_market_id = event.get("CarrierID")
         elif ev in ("Location",) and event.get("Docked"):
             self._docked_station_id   = event.get("MarketID")
             self._docked_station_name = event.get("StationName", "") or ""
@@ -634,10 +609,6 @@ class EDDNPlugin(BasePlugin):
 
             # ── Fleet Carrier trade order ─────────────────────────────────────
             case "CarrierTradeOrder":
-                # Trade order changed on our FC — re-send Market.json if we
-                # are currently docked at our own carrier. If not docked,
-                # Market.json still reflects the last station we visited and
-                # would produce a MarketID mismatch.
                 carrier_id = event.get("CarrierID")
                 if (carrier_id and
                         self._carrier_market_id == carrier_id and
@@ -662,9 +633,7 @@ class EDDNPlugin(BasePlugin):
 
     def _uploader(self) -> str:
         # State.pilot_name is the canonical commander identity, populated by
-        # the commander plugin from journal Commander/LoadGame events.  Fall
-        # back to our own local _cmdr_name tracking (also fed by Commander
-        # events) in case state isn't accessible, then to "unknown".
+        # the commander plugin from journal Commander/LoadGame events.
         pilot = getattr(getattr(self, "core", None), "state", None)
         if pilot is not None:
             name = getattr(pilot, "pilot_name", None)
@@ -700,12 +669,9 @@ class EDDNPlugin(BasePlugin):
             self._star_pos = list(sp)
 
     def _augment_system(self, msg: dict, require_match: bool = True) -> bool:
-        """
-        Add StarSystem / SystemAddress / StarPos to msg if missing.
+        """Add StarSystem / SystemAddress / StarPos to msg if missing.
 
-        If require_match=True, the event's SystemAddress must match our tracked
-        location (cross-check against game bug / missed jump). Returns False and
-        logs a warning if augmentation is unsafe.
+        Returns False and logs a warning if augmentation is unsafe.
         """
         event_sa = msg.get("SystemAddress")
 
@@ -862,14 +828,7 @@ class EDDNPlugin(BasePlugin):
     # ── FSSSignalDiscovered (batched) ─────────────────────────────────────────
 
     def _flush_fss_signals(self, flush_event: dict | None) -> None:
-        """
-        Flush the accumulated FSSSignalDiscovered batch.
-
-        flush_event is the triggering non-FSS event (used for system cross-check
-        in the Odyssey ordering where Location/FSDJump/CarrierJump comes after).
-        In the Horizons ordering the signals arrive before the jump event, so we
-        use tracked state instead.
-        """
+        """Flush the accumulated FSSSignalDiscovered batch."""
         if not self._fss_signals:
             return
 
@@ -1069,7 +1028,8 @@ class EDDNPlugin(BasePlugin):
             key=lambda x: x["name"],
         )
 
-        h = _dict_hash({"commodities": commodities, "mid": data.get("MarketID")})
+        h = _dict_hash({"commodities": commodities, "mid": data.get("MarketID"),
+                        "sys": data.get("StarSystem") or self._star_system})
         if h == self._last_commodity_hash:
             return
         self._last_commodity_hash = h
@@ -1116,15 +1076,8 @@ class EDDNPlugin(BasePlugin):
         name        = _canonicalise(event.get("Type", ""))
         sell_price  = event.get("SellPrice")
         system_name = self._star_system or ""
-        # Station name isn't in MarketSell — pull from our tracked state.
-        # When the user is docked, _docked_station_id tracks the MarketID;
-        # for the station name we rely on the most recent Docked event,
-        # surfaced via the parent plugin's tracking.
         station_name = self._docked_station_name or ""
 
-        # Skip if we don't have the schema-required identifiers.  Better
-        # to drop than emit a malformed message that EDDN will reject
-        # with HTTP 400.
         missing = []
         if not name:         missing.append("name(Type)")
         if not system_name:  missing.append("systemName")
@@ -1185,7 +1138,8 @@ class EDDNPlugin(BasePlugin):
         if not modules:
             return  # schema requires minItems=1
 
-        h = _dict_hash({"modules": modules, "mid": data.get("MarketID")})
+        h = _dict_hash({"modules": modules, "mid": data.get("MarketID"),
+                        "sys": data.get("StarSystem") or self._star_system})
         if h == self._last_outfitting_hash:
             return
         self._last_outfitting_hash = h
@@ -1217,7 +1171,8 @@ class EDDNPlugin(BasePlugin):
         if not ships:
             return  # schema requires minItems=1
 
-        h = _dict_hash({"ships": ships, "mid": data.get("MarketID")})
+        h = _dict_hash({"ships": ships, "mid": data.get("MarketID"),
+                        "sys": data.get("StarSystem") or self._star_system})
         if h == self._last_shipyard_hash:
             return
         self._last_shipyard_hash = h
@@ -1235,9 +1190,8 @@ class EDDNPlugin(BasePlugin):
     # ── FCMaterials ───────────────────────────────────────────────────────────
 
     def _send_fcmaterials(self, event: dict, is_test: bool) -> None:
-        """Read FCMaterials.json and send fcmaterials_journal/1 schema message.
-        The journal FCMaterials event is a trigger; authoritative data is in the file.
-        Schema requires: timestamp, event, MarketID, CarrierName, CarrierID, Items.
+        """Read FCMaterials.json and send fcmaterials_journal/1 schema message. The
+        journal FCMaterials event is a trigger; authoritative data is in the file.
         """
         data = self._read_json_file("FCMaterials")
         if data is None:
@@ -1297,12 +1251,8 @@ class EDDNPlugin(BasePlugin):
         items:      dict,
         timestamp:  str,
     ) -> None:
-        """
-        Called by the CAPI data layer after a /market poll on a fleet carrier.
+        """Called by the CAPI data layer after a /market poll on a fleet carrier.
         Sends the bartender micro-resource orders via fcmaterials_capi/1 schema.
-
-        items  — raw orders.onfootmicroresources dict from CAPI /market response.
-        carrier_id — CAPI "name" field (the callsign, used as CarrierID).
         """
         if not self._enabled or self._sender is None:
             return

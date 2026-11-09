@@ -1,13 +1,4 @@
-"""
-tests/test_loadgame_rank.py — the commander line before the rank is known.
-
-From a real session, 20261103: the game now writes LoadGame before Rank and
-Progress (since September; earlier journals had them the other way round), so
-the first commander line of a run said "(Anaconda Mk II / Solo / None
-+None%)". The rank is left out until it is known.
-
-The same session's pirate scans printed "Pirate didn"t engage": a double
-quote where the apostrophe belonged.
+"""tests/test_loadgame_rank.py — the commander line before the rank is known.
 """
 from __future__ import annotations
 

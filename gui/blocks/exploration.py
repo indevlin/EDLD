@@ -1,12 +1,4 @@
-"""gui/blocks/exploration.py — Exploration window (Qt).
-
-Shows the system the commander is currently in: honk / scan / map state, each
-body's current and max-if-mapped cartographic value, high-value-mappable
-highlights, bodies with biological signals, and system totals.  Location comes
-from the explo_sync component; per-body data from core.explo_view; what the
-window shows from core/windows/exploration.py, as in the terminal dashboard
-and on EDAM.
-"""
+"""gui/blocks/exploration.py — Exploration window (Qt)."""
 
 from __future__ import annotations
 

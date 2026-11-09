@@ -1,15 +1,9 @@
-"""
-core/data_migrate.py — Moving cross-commander data out of commanders/<fid>/.
+"""core/data_migrate.py — Moving cross-commander data out of commanders/<fid>/.
 
 Some of what EDLD stores is a fact about a commander and some of it is a fact
-about the galaxy.  A commodity's galactic average is the same number whoever
-reads it off a market board, and a surface mining deposit is in the same place
-whoever finds it, so neither has any business living under a commander id.
-Stored there, a second commander started from nothing and the two copies then
-drifted apart with no way to tell which was current.
+about the galaxy.
 
-``explo.db`` has always sat at the data root for exactly this reason.  This
-module moves the rest of it into ``<EDLD_DATA_DIR>/data/`` and runs once.
+``explo.db`` has always sat at the data root for exactly this reason.
 
 The commodity ledger merge
 --------------------------
@@ -27,11 +21,6 @@ counters with it, which quietly discards the other commander's observation
 count; the number that comes out still looks entirely plausible, which is why
 it would never have been noticed.  Every merge is logged with the row count so
 the arithmetic is checkable after the fact.
-
-A migration that has run leaves a marker, so the second start does nothing.
-Source files are left in place rather than deleted: nothing here is
-irreplaceable enough to justify removing a commander's only copy on the
-strength of a migration that has just run for the first time.
 """
 
 from __future__ import annotations
@@ -100,12 +89,10 @@ def _write_ledger(path: Path, rows: dict[str, dict]) -> None:
 
 
 def migrate_to_shared(data_root: Path, shared: Path, log=None) -> dict:
-    """Consolidate cross-commander data into ``shared``.  Idempotent.
+    """Consolidate cross-commander data into ``shared``. Idempotent.
 
     Returns a summary dict: ``{"ran": bool, "sources": int, "commodities": int,
-    "merged": int}``.  Never raises — a failed migration leaves the per-commander
-    files exactly where they were and says so, because the alternative is EDLD
-    refusing to start over a housekeeping task.
+    "merged": int}``.
     """
     def say(msg: str) -> None:
         if log:

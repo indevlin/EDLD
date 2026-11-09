@@ -38,7 +38,7 @@ look.
 
 ## The career scan carries on
 
-Session / Career's lifetime figures are a running total over every journal.
+Career / Session's lifetime figures are a running total over every journal.
 They are kept as they stood after every journal but the newest — which the
 game may still be writing — and the next start carries on from there, reading
 only the journal the last run was writing and any since. A journal that has

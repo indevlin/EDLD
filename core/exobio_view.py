@@ -1,15 +1,4 @@
-"""
-core/exobio_view.py — Exobiology window view builder.
-
-Turns the stored biology facts for one system (from :mod:`core.bodies_db`) plus a
-commander's sample progress into a structured view the TUI Exobiology
-blocks render.  Values and clonal distances come from :mod:`core.exobio_data`.
-
-Only accurate, journal-derived information is reported: the bio-signal count per
-body, the genera the game has revealed (after a bio surface scan), and the
-species actually sampled with their stage (Logged / Sampled / Analysed).  Genus
-value ranges are shown as hints for revealed-but-unsampled genera.
-"""
+"""core/exobio_view.py — Exobiology window view builder."""
 
 from __future__ import annotations
 
@@ -56,10 +45,7 @@ def build_exobio_view(
     """Build the exobiology view for a system, or None if unknown/unset.
 
     ``position`` (optional, from live status) carries the on-foot aid context:
-    ``{"lat", "lon", "radius", "heading", "on_foot", "body"}``.  When the
-    commander is on a body with in-progress samples, each such species gains an
-    ``aid`` giving distance/bearing to its nearest previous sample and whether
-    that already clears the clonal-spacing requirement.
+    ``{"lat", "lon", "radius", "heading", "on_foot", "body"}``.
     """
     if system_address is None or commander_id is None:
         return None

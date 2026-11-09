@@ -1,14 +1,4 @@
-"""
-tests/test_missions_board.py — the Missions tab and the board behind it.
-
-Every active mission, of every type, rebuilt from the journals at the login
-snapshot (MissionAccepted, then the redirects and cargo depot updates since)
-and carried live from there; the massacre stack reported as missions done of
-missions held, since kills made cannot be counted from the journal (it
-writes a Bounty for only about seven in ten of the kills the game credits).
-
-Also here: the redirect and turn-in arms, which a general arm before them
-used to shadow, and the Settings pill on the EDCARS rail.
+"""tests/test_missions_board.py — the Missions tab and the board behind it.
 """
 from __future__ import annotations
 
@@ -303,3 +293,56 @@ def test_a_table_heading_is_drawn_as_a_heading_in_the_terminal():
                                [R.table("Courier Destination", (("EXPIRES", 7), ("REWARD", 6)))])
     assert isinstance(out[0], TableHdr)
     assert out[0]._key_text == "COURIER DESTINATION" and out[0]._val_cls == "val hdr-val"
+
+
+# ── Mining: ore held in the ship and the own carrier ──────────────────────────
+
+def test_mining_missions_show_the_ore_held_beneath_them():
+    s = MonitorState()
+    s.all_missions = {
+        1: {"category": "Mining", "commodity": "Bromellite", "commodity_key": "bromellite",
+            "count": 80, "expiry": "2026-11-14T07:01:29Z", "reward": 5_576_000, "status": "Active"},
+        2: {"category": "Mining", "commodity": "Bromellite", "commodity_key": "bromellite",
+            "count": 118, "expiry": "2026-11-14T07:01:29Z", "reward": 8_125_800, "status": "Active"},
+        3: {"category": "Mining", "commodity": "Samarium", "commodity_key": "samarium",
+            "count": 36, "expiry": "2026-11-14T14:06:55Z", "reward": 8_126_733, "status": "Active"},
+    }
+    s.cargo_items = {"bromellite": {"count": 64}}
+    s.assets_carrier_hold = {"bromellite": 150, "samarium": 10}
+    s.assets_squadron_carrier_hold = {"samarium": 500}          # not counted
+    rows = _rows(s)
+    i = next(i for i, r in enumerate(rows) if r[0] == "table" and r[1] == "MINING ORE HELD")
+    assert rows[i][2] == [("SHIP", 5), ("CARRIER", 7), ("HELD", 5)]
+    held = {r[1]: (r[2], r[3]) for r in rows[i + 1:] if r[0] == "cells"}
+    assert held["Bromellite"] == (["64", "150", "214"], "val health-good")      # 198 needed
+    assert held["Samarium"] == (["0", "10", "10"], "val")                       # 36 needed
+
+
+def test_the_mission_board_keys_a_commodity_as_the_hold_does():
+    p, state, _said = _component()
+    p.on_event(_snapshot("06:00:00"), state)
+    p.on_event({"timestamp": "2026-11-07T07:01:40Z", "event": "MissionAccepted",
+                "Faction": "Sirius Corporation", "Name": "Mission_Mining_Expansion",
+                "Commodity": "$Bromellite_Name;", "Commodity_Localised": "Bromellite",
+                "Count": 80, "MissionID": 1070644835}, state)
+    entry = state.all_missions[1070644835]
+    assert entry["category"] == "Mining" and entry["commodity_key"] == "bromellite"
+
+
+def test_the_own_carrier_hold_follows_transfers_only_at_the_own_carrier():
+    from components.assets import AssetsPlugin
+    s = MonitorState()
+    s.assets_carrier = {"carrier_id": 3715178496}
+    s.assets_carrier_hold = {"bromellite": 100}
+    p = AssetsPlugin.__new__(AssetsPlugin)
+    p.core = SimpleNamespace(state=s, gui_queue=None)
+    xfer = {"event": "CargoTransfer", "Transfers": [
+        {"Type": "bromellite", "Count": 40, "Direction": "tocarrier"},
+        {"Type": "samarium", "Count": 5, "Direction": "tocarrier"}]}
+    p._carrier_hold_event("Docked", {"MarketID": 3713581568}, s)        # someone else's
+    p._carrier_hold_event("MarketBuy", {"Type": "bromellite", "Count": 50}, s)
+    assert s.assets_carrier_hold == {"bromellite": 100}
+    p._carrier_hold_event("Docked", {"MarketID": 3715178496}, s)        # ours
+    p._carrier_hold_event("CargoTransfer", xfer, s)
+    p._carrier_hold_event("MarketBuy", {"Type": "bromellite", "Count": 30}, s)
+    assert s.assets_carrier_hold == {"bromellite": 110, "samarium": 5}

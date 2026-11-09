@@ -1,13 +1,4 @@
-"""
-tests/test_on_foot.py — resuming the game on foot names the suit, not a ship.
-
-From a real session, 20261030: the game was resumed on foot at Gill Point.
-LoadGame names the commander's suit as its "Ship" — "ExplorationSuit_Class3"
-— and, for a grade 3 Artemis, a Ship_Localised the game never translated:
-"$ExplorationSuit_Class1_Name;". EDLD took that for the ship's type, beside
-the last ship's name, so the header strip said "PROCURATOR (AN-PRO) ·
-$ExplorationSuit_Class1_Name;" and the Ship window the same in capitals, and
-the commander was shown aboard a ship while standing on a planet.
+"""tests/test_on_foot.py — resuming the game on foot names the suit, not a ship.
 """
 from __future__ import annotations
 

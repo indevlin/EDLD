@@ -20,11 +20,11 @@ class CommanderBlock(GuiBlock):
 
     def __init__(self, core, theme: str = "default", parent=None,
                  split_fleet: bool = False) -> None:
-        #: EDCARS shows the commander's fleet — ships, stored modules, carriers —
-        #: as a section of its own. Split, those tabs are built into
-        #: ``fleet_tabs``, a widget EDCARS places itself, and the block keeps the
-        #: identity tabs; its header lines are left to EDCARS's header, which
-        #: already carries the name and squadron. Unsplit, it is unchanged.
+        #: EDCARS shows the commander's fleet — ships, stored modules, carriers
+        #: — as a section of its own. Split, those tabs are built into
+        #: ``fleet_tabs``, a widget EDCARS places itself, and the block keeps
+        #: the identity tabs; its header lines are left to EDCARS's header,
+        #: which already carries the name and squadron.
         self._split_fleet = bool(split_fleet)
         super().__init__(core, theme=theme, parent=parent)
 
@@ -89,22 +89,11 @@ class CommanderBlock(GuiBlock):
 
         layout.addWidget(self._tabs, 1)
 
-        footer = QWidget()
-        fl = QHBoxLayout(footer)
-        fl.setContentsMargins(6, 2, 6, 2)
-        fl.setSpacing(8)
-        self._home_btn = QPushButton("Set Home")
-        self._home_btn.setProperty("role", "link")
-        self._home_btn.clicked.connect(self._on_set_home)
-        self._home_lbl = QLabel()
-        self._home_lbl.setProperty("role", "dim")
-        self._home_lbl.setTextFormat(Qt.RichText)
-        self._home_lbl.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        fl.addWidget(self._home_btn, 0)
-        fl.addWidget(self._home_lbl, 1)
-        layout.addWidget(footer)
+    # ── Home System row: home search ──────────────────────────────────────────
 
-    # ── Footer: home search ───────────────────────────────────────────────────
+    def row_action(self, action: str) -> None:
+        if action == "home":
+            self._on_set_home()
 
     def _on_set_home(self) -> None:
         cmdr_plugin = self.core._plugins.get("commander")
@@ -122,9 +111,6 @@ class CommanderBlock(GuiBlock):
                 result.get("system", ""),
                 result.get("star_pos"),
             )
-            name = result.get("name", "")
-            self._home_lbl.setText(to_html(f"→ {name}" if name else "",
-                                           self.palette_map))
             self.refresh_data()
 
         dlg = SearchDialog(
@@ -159,9 +145,6 @@ class CommanderBlock(GuiBlock):
         self._show_tab(self._carrier, "Carrier", "_carrier_added", W.carrier(self.core))
         self._show_tab(self._sqcarrier, "S. Carrier", "_sqcarrier_added",
                        W.squadron_carrier(self.core))
-        home = W.home_line(self.core)[1]
-        if home:
-            self._home_lbl.setText(to_html(home, self.palette_map))
 
     def _show_tab(self, scroll, title: str, flag: str, tab) -> None:
         """Add or remove a carrier tab with ownership: an empty tab implying

@@ -1,5 +1,4 @@
-"""
-core/server/identity.py — the server's key pair and certificate.
+"""core/server/identity.py — the server's key pair and certificate.
 
 Each profile gets its own identity, generated on first use and kept beside the
 paired-device registry.  Devices do not trust it because a CA vouches for it;
@@ -9,12 +8,10 @@ pin is on the public key, so the same pairing works whether the device reaches
 EDLD by LAN address, DuckDNS name or IPv6.
 
 The fingerprint is the SHA-256 of the DER SubjectPublicKeyInfo, base64url
-without padding.  Pinning the key rather than the certificate means a future
-re-issue of the certificate over the same key does not break any pairing.
+without padding.
 
 ``cryptography`` is imported lazily: a user who never enables server mode never
-needs it, and one who does gets a sentence saying what to install rather than
-an ImportError at startup.
+needs it, and one who does gets a sentence saying what to install.
 """
 
 from __future__ import annotations

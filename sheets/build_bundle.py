@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""
-Build what a sheet's Loader.gs installs: edld_sheet.js and release.json.
+"""Build what a sheet's Loader.gs installs: edld_sheet.js and release.json.
 
     edld_sheet.js   Code.gs, Dashboard.gs, Template.gs and Upgrade.gs,
                     concatenated and stamped with the version, with TEMPLATE —
@@ -10,17 +9,6 @@ Build what a sheet's Loader.gs installs: edld_sheet.js and release.json.
     release.json    The version, the bundle's file name and SHA-256, the sheet
                     layout version it brings a sheet to, and the oldest loader
                     it runs under.
-
-The manifest names the bundle by file name only, and the loader fetches it
-from beside the manifest — the same branch, at the same moment. A sheet
-therefore needs no tag and no GitHub Release: it follows a branch. Sheets
-follow ``main`` unless their owner picks another branch from the sheet's
-menu, so merging to ``main`` is what releases sheet code, and ``dev`` can be
-tried in a test sheet before anything is merged or tagged.
-
-Standard library only, so the release workflow can run ``--check`` without
-installing anything. build_dashboard.py calls this too, so one run of that
-writes the template, the bundle and the manifest together.
 
 Usage:
     python3 sheets/build_bundle.py            # write both, beside this file
@@ -55,12 +43,7 @@ TEMPLATE_SOURCE = HERE / 'build_dashboard.py'
 
 
 def template_content() -> dict:
-    """The constants build_dashboard.py lists in TEMPLATE_KEYS, by name.
-
-    Read from the source rather than imported, because importing it needs
-    openpyxl and this must not. Each is a plain literal; anything else is a
-    build error here rather than a surprise in somebody's sheet.
-    """
+    """The constants build_dashboard.py lists in TEMPLATE_KEYS, by name."""
     tree = ast.parse(TEMPLATE_SOURCE.read_text(encoding='utf-8'))
     found: dict = {}
     for node in tree.body:

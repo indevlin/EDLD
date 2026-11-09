@@ -1,10 +1,4 @@
-"""
-core/mining_db.py — Surface mining survey store.
-
-A SQLite database of planetary surface mining deposits: where they are, what
-they yield, how rich they were, and when somebody last stood on one.  The
-``surface_mining`` component writes to it as journal events arrive; the
-Options window and the (forthcoming) Sheets publisher read from it.
+"""core/mining_db.py — Surface mining survey store.
 
 Design notes
 ------------
@@ -25,12 +19,6 @@ Design notes
 
 Deposit identity
 ----------------
-Two sightings are the same deposit when they share ``(system_address, body_id,
-commodity)`` and lie within :data:`DEDUPE_RADIUS_M` of each other on the
-surface.  Coordinates are never compared for equality: re-scans do not repeat
-floats, and rounding to a fixed precision draws an arbitrary grid across the
-body with some deposits straddling a line.
-
 On first sighting a deposit is given a stable id — the leading 12 hex digits
 of a SHA-1 over the identity tuple and that first position.  Every later
 sighting resolves to that id by geometry and the id itself never moves.  It is
@@ -39,41 +27,13 @@ equality and never has to reimplement a haversine.
 
 Depletion
 ---------
-Working a site out is not a delete, and it is not an amount either. Amount and
-density describe the deposit — what the HUD says is there when it is full — and
-a worked-out site is the same deposit, empty for now. So ``mark_depleted``
-touches neither: it appends a dated line to ``depletion_log``, and the date of
-the most recent line is the whole of how depletion is recorded, shown and
-shared. "Empty on the twelfth" is worth more to the next commander than a
-missing row, and more than an amount that would have to be put back by hand
-once the site refilled.
+Working a site out is not a delete, and it is not an amount either.
 
-Sites do refill. How long that takes is not yet known, so
-:data:`REPLENISH_DAYS` is ``None`` and :func:`replenishes_on` answers nothing;
-once it is measured, setting it is the whole change, and every depletion date
-already recorded becomes a refresh date.
-
-Amount and density
-------------------
-These are assessments, and a sighting does not overturn one: a later refine or
-a drive-by fills them only where they are blank. They change when a commander
-corrects them, and a correction stamps ``assessment_updated``. That stamp, not
-``last_confirmed``, is what decides between two versions on the sheet and on
-import — otherwise anyone who merely drove onto a site would re-send whatever
-they had imported weeks ago with a fresh date, and undo the correction.
+Sites do refill.
 
 Notes
 -----
-``notes`` is free text a commander writes about a site — the way in, a hazard,
-what else is on the ridge. Unlike every other field it is not an observation,
-so it does not merge like one. The sighting fields fill blanks and follow
-``last_confirmed``; a note follows ``notes_updated``, the moment it was last
-written, and the most recent writing wins outright — including a blank one,
-because emptying the box is how a note is withdrawn.
-
-Tying it to ``last_confirmed`` would have let any commander who merely drove
-onto a site re-send whatever note they imported weeks ago with a fresh date,
-and silently put back text its author had since changed or removed.
+``notes`` is free text a commander writes about a site — the way in, a hazard, what else is on the ridge.
 """
 
 from __future__ import annotations
@@ -92,24 +52,16 @@ from core.surface_survey import canonical_commodity, learn_commodity_name
 
 SCHEMA_VERSION = 3
 
-#: Two sightings of the same commodity on the same body within this many metres
-#: are the same deposit.
-#:
-#: Sized between two measurements. A site worked with several rigs is not a
-#: point: the SRV refines wherever it picks up the fragments, and on Kitchang
-#: Mu 3 d two refine batches at one five-rig site landed 180 m apart. At the
-#: 100 m this used to be, the second batch became a new deposit. Real deposits
-#: of one commodity are 400-500 m apart at the closest, so 200 m still cannot
-#: reach a neighbour's rigs from the middle of another's, and where two radii
-#: overlap the nearest deposit wins.
+#: Two sightings of the same commodity on the same body within this many meters
+#: are the same deposit. Sized between two measurements.
 DEDUPE_RADIUS_M = 200.0
 
-#: Fallback body radius, in metres, when no Scan has supplied one.  Only used
+#: Fallback body radius, in meters, when no Scan has supplied one.  Only used
 #: so distance comparisons degrade to something sane rather than dividing by
 #: zero; a body with no radius is recorded and flagged rather than dropped.
 _FALLBACK_RADIUS_M = 2.0e6
 
-#: Lowest first. "Depleted" is deliberately absent — see Depletion above.
+#: Lowest first.
 AMOUNT_LEVELS  = ("Low", "Medium", "High")
 
 #: The assessed fields, which only a correction changes once they are set.
@@ -144,20 +96,14 @@ def normalise_notes(raw) -> str:
 
 
 def clean_notes(raw) -> str:
-    """:func:`normalise_notes`, cut to :data:`MAX_NOTES_CHARS`.
-
-    For text arriving from the sheet, which is cut rather than refused —
-    refusing is the form's job, where somebody can act on it.
-    """
+    """:func:`normalise_notes`, cut to :data:`MAX_NOTES_CHARS`."""
     return normalise_notes(raw)[:MAX_NOTES_CHARS]
 
 
 def replenishes_on(depleted_on: str) -> str:
     """The day a site worked out on ``depleted_on`` should have refilled.
 
-    ``""`` while :data:`REPLENISH_DAYS` is unknown, and for no date. The one
-    place the refill rule lives, so the sheet, the overlay and the form can all
-    ask it once it means something.
+    ``""`` while :data:`REPLENISH_DAYS` is unknown, and for no date.
     """
     day = str(depleted_on or "")[:10]
     if not day or REPLENISH_DAYS is None:
@@ -172,9 +118,7 @@ def replenishes_on(depleted_on: str) -> str:
 def is_depleted(depleted_on: str, today: str = "") -> bool:
     """Whether a site worked out on ``depleted_on`` is still worked out.
 
-    Always true for a dated site while :data:`REPLENISH_DAYS` is unknown —
-    the honest answer is "empty when last seen" — and true until the refill
-    day once it is known. ``today`` is an ISO date, for tests; blank is today.
+    ``today`` is an ISO date, for tests; blank is today.
     """
     if not str(depleted_on or "")[:10]:
         return False
@@ -188,9 +132,6 @@ def is_depleted(depleted_on: str, today: str = "") -> bool:
 def deposit_id(system_address: int, body_id: int, commodity: str,
                latitude: float, longitude: float) -> str:
     """Stable 12-hex-digit id for a deposit, from its first recorded position.
-
-    Never recomputed for a deposit that already exists — a later sighting a few
-    metres away resolves to the existing row by distance and keeps its id.
     """
     raw = f"{int(system_address)}|{int(body_id)}|{commodity.lower()}|" \
           f"{float(latitude):.6f}|{float(longitude):.6f}"
@@ -306,8 +247,7 @@ class MiningDB:
         have = int(row["value"]) if row else 0
         # Version 1 is the initial schema, created in full by _SCHEMA above.
         # Later versions add strictly — CREATE TABLE IF NOT EXISTS for new
-        # tables, ALTER TABLE ADD COLUMN for new columns.  Never edit a block
-        # that has shipped.
+        # tables, ALTER TABLE ADD COLUMN for new columns.
         if have < 2:
             # A commander's free-text note, and when it was last written.
             # Checked rather than assumed: a store copied back from a newer
@@ -369,11 +309,7 @@ class MiningDB:
     # ── bodies ────────────────────────────────────────────────────────────────
 
     def upsert_body(self, system_address: int, body_id: int, **fields) -> None:
-        """Record or update what is known about a body.
-
-        Only supplied fields are written, so a later ``Scan`` filling in
-        volcanism does not blank a gravity recorded earlier from Status.json.
-        """
+        """Record or update what is known about a body."""
         cols = ("system_name", "body_name", "planet_class", "gravity",
                 "radius_m", "atmosphere", "volcanism", "surface_temp")
         given = {k: v for k, v in fields.items() if k in cols and v is not None}
@@ -433,11 +369,7 @@ class MiningDB:
     def find_deposit_near(self, system_address: int, body_id: int,
                           commodity: str, latitude: float, longitude: float,
                           radius_m: float | None = None) -> Optional[dict]:
-        """Return the existing deposit this position belongs to, or None.
-
-        Nearest match wins when several are inside the radius, which happens on
-        bodies where the same commodity appears in a tight cluster.
-        """
+        """Return the existing deposit this position belongs to, or None."""
         conn = self._connect()
         rows = conn.execute(
             "SELECT * FROM deposits WHERE system_address=? AND body_id=? "
@@ -463,13 +395,7 @@ class MiningDB:
                        signal_no: int | None = None,
                        reported_by: str = "", is_test: bool = False,
                        refined: bool | int = False) -> tuple[str, bool]:
-        """Record a sighting.  Returns ``(deposit_id, created)``.
-
-        An existing deposit within :data:`DEDUPE_RADIUS_M` is confirmed rather
-        than duplicated: ``last_confirmed`` moves, the refine counter rises, and
-        any field this sighting knows that the stored row does not is filled in.
-        Stored values are not overwritten with blanks.
-        """
+        """Record a sighting. Returns ``(deposit_id, created)``."""
         # The game's symbol, however it was spelled: a name typed into the
         # form and the symbol on a refine must land on the same key.
         commodity = canonical_commodity(commodity)
@@ -486,9 +412,7 @@ class MiningDB:
                 updates = {"last_confirmed": now}
                 if refined:
                     # A run of refines is collapsed into one call, so the
-                    # counter advances by how many there were rather than by
-                    # one — otherwise a deposit worked for an hour and one
-                    # touched once are indistinguishable.
+                    # counter advances by how many there were.
                     updates["refine_count"] = (int(existing["refine_count"])
                                                + max(1, int(refined)))
                 for key, val in (("commodity_display", commodity_display),
@@ -533,11 +457,6 @@ class MiningDB:
                         latitude: float, longitude: float,
                         radius_m: float | None = None) -> Optional[dict]:
         """Closest deposit to a position on this body, whatever the commodity.
-
-        Unlike :meth:`find_deposit_near`, which answers "is this the same
-        deposit I am recording" and so must not cross commodities, this answers
-        "which deposit am I standing on" — and the commander standing on one
-        does not need to name it first.
         """
         conn = self._connect()
         rows = conn.execute(
@@ -562,26 +481,17 @@ class MiningDB:
                          depleted_on: str = "",
                          is_test: bool | None = None,
                          notes: str | None = None) -> bool:
-        """Apply a commander's assessment to a deposit.  Returns whether it changed.
+        """Apply a commander's assessment to a deposit. Returns whether it changed.
 
-        Blank arguments leave the stored value alone, so setting the amount
-        does not wipe a density recorded earlier. Any change clears
-        ``published_at`` so the sheet is told about it on the next flush —
-        otherwise the correction would sit in the local store forever while the
-        squadron kept reading the old value.
+        Blank arguments leave the stored value alone, so setting the amount does not
+        wipe a density recorded earlier.
 
-        Setting amount or density to something other than what is stored is a
-        correction, and stamps ``assessment_updated`` — the stamp that lets it
-        replace another commander's value on the sheet and on their import.
+        ``depleted_on`` adds a dated line to the depletion log and changes nothing
+        else: the amount stays what the site holds when it is full.
 
-        ``depleted_on`` adds a dated line to the depletion log and changes
-        nothing else: the amount stays what the site holds when it is full.
-
-        ``notes`` is the exception: ``None`` leaves the note alone, and any
-        string — the empty one included — replaces it, since the form always
-        shows the current note and an emptied box is a deliberate removal. A
-        changed note stamps ``notes_updated``, which is what decides between
-        two commanders' versions of it; an unchanged one stamps nothing.
+        ``notes`` is the exception: ``None`` leaves the note alone, and any string —
+        the empty one included — replaces it, since the form always shows the
+        current note and an emptied box is a deliberate removal.
         """
         updates: dict = {}
         if amount:
@@ -630,19 +540,7 @@ class MiningDB:
             return True
 
     def touch_deposit(self, dep_id: str) -> bool:
-        """Record that somebody was just standing on this deposit.
-
-        Freshness is the one thing about a deposit that decays on its own and
-        that nobody will ever update by hand — sites are worked out by other
-        commanders, so an old High is not a current High. Driving onto one is
-        evidence it is still there, and that evidence is free.
-
-        Deliberately not annotate_deposit(): that exists to apply a judgement
-        and refuses a call with no fields, which a visit is. This moves the
-        timestamp and nothing else, and clears published_at so the shared sheet
-        learns the site was seen recently rather than keeping a date from
-        whenever it was first dug.
-        """
+        """Record that somebody was just standing on this deposit."""
         now = _utcnow()
         conn = self._connect()
         with self._lock:
@@ -653,11 +551,7 @@ class MiningDB:
             return bool(cur.rowcount)
 
     def mark_depleted(self, dep_id: str, note: str = "") -> bool:
-        """Stamp today as the day this site was worked out.
-
-        Not a delete, and not an amount: the dated log line is the whole
-        record. See Depletion in the module docstring.
-        """
+        """Stamp today as the day this site was worked out."""
         now = _utcnow()
         conn = self._connect()
         with self._lock:
@@ -688,6 +582,30 @@ class MiningDB:
             "ORDER BY commodity, first_seen",
             (int(system_address), int(body_id))).fetchall()]
 
+    def all_deposits(self) -> list[dict]:
+        """Every deposit with its body's names and gravity, and ``depleted_on``
+        (latest depletion date), ordered system, body, commodity."""
+        conn = self._connect()
+        return [dict(r) for r in conn.execute(
+            "SELECT d.*, b.system_name, b.body_name, b.gravity, "
+            "(SELECT MAX(noted_at) FROM depletion_log l "
+            " WHERE l.deposit_id = d.deposit_id) AS depleted_on "
+            "FROM deposits d LEFT JOIN bodies b "
+            "ON d.system_address=b.system_address AND d.body_id=b.body_id "
+            "ORDER BY b.system_name, b.body_name, d.commodity, d.first_seen").fetchall()]
+
+    def deposit(self, dep_id: str) -> Optional[dict]:
+        """One deposit as all_deposits() returns it; None if absent."""
+        conn = self._connect()
+        r = conn.execute(
+            "SELECT d.*, b.system_name, b.body_name, b.gravity, "
+            "(SELECT MAX(noted_at) FROM depletion_log l "
+            " WHERE l.deposit_id = d.deposit_id) AS depleted_on "
+            "FROM deposits d LEFT JOIN bodies b "
+            "ON d.system_address=b.system_address AND d.body_id=b.body_id "
+            "WHERE d.deposit_id=?", (dep_id,)).fetchone()
+        return dict(r) if r else None
+
     def unpublished(self, limit: int = 500, include_test: bool = False) -> list[dict]:
         """Deposits changed since they were last published, oldest first."""
         conn = self._connect()
@@ -709,14 +627,9 @@ class MiningDB:
         """Merge deposits found by somebody else. Returns ``(added, updated)``.
 
         Imported rows are stamped as already published, so a deposit that came
-        down from the sheet is never sent back up to it. Without that every
-        commander would re-publish every other commander's finds on their next
-        flush, and the sheet would spend its write quota echoing itself.
+        down from the sheet is never sent back up to it.
 
-        Local observation wins. A row already in the store keeps every field it
-        has; the import only fills blanks, and only advances ``last_confirmed``
-        if the sheet's is newer. What the commander saw with their own eyes is
-        better evidence than what a stranger wrote down last month.
+        Local observation wins.
         """
         conn = self._connect()
         now = _utcnow()
@@ -744,8 +657,7 @@ class MiningDB:
                     continue
 
                 # The sheet holds the display name ("Low Temp. Diamonds"), not
-                # the symbol. Stored as written, it was a key no refine or
-                # form entry could ever match.
+                # the symbol.
                 display = str(row.get("commodity_display")
                               or row.get("commodity", "") or "")
                 commodity = canonical_commodity(row.get("commodity", "") or "")
@@ -771,9 +683,6 @@ class MiningDB:
                 # is written as the sheet spells it, and a sheet is a document
                 # people edit by hand — so "high" or "Very High" can arrive and
                 # would then be stored as a value nothing downstream accepts.
-                # Matched case-insensitively; anything unrecognised is dropped
-                # rather than kept, because a wrong value is worse than a blank
-                # one a later sighting can fill in.
                 row = dict(row)
                 notes = clean_notes(row.get("notes", ""))
                 notes_at = str(row.get("notes_updated", "") or "").strip()
@@ -837,9 +746,6 @@ class MiningDB:
                     incoming = str(row.get(field_name, "") or "")
                     if incoming and not existing[field_name]:
                         changes[field_name] = incoming
-                # A correction made since the one held here replaces it —
-                # the one case where the sheet overrides what was seen
-                # locally, because somebody has said the local value is wrong.
                 assessed_at = str(row.get("assessment_updated", "") or "").strip()
                 if assessed_at and assessed_at > str(existing["assessment_updated"] or ""):
                     for field_name in ASSESSED_FIELDS:
@@ -888,15 +794,6 @@ class MiningDB:
 
     def repair(self) -> dict:
         """Put every deposit on the game's symbol and fold together duplicates.
-
-        Two passes. First, any row whose commodity key is not what
-        :func:`canonical_commodity` now says — a name typed into the form, or
-        one imported from the sheet as its display name — is re-keyed. Then,
-        on each body, deposits of one commodity within :data:`DEDUPE_RADIUS_M`
-        of an older one are merged into it: the oldest keeps its id and
-        position, refine counts add up, the latest confirmation and any field
-        the oldest lacks are kept. A merged row that had reached the sheet is
-        remembered, so the next publish removes it there.
 
         Safe to run on every start; a clean store comes back unchanged.
         """
@@ -988,12 +885,6 @@ class MiningDB:
 
     def delete_deposit(self, dep_id: str) -> bool:
         """Remove a deposit and its depletion history. Returns whether it went.
-
-        Deletion is for a row that should never have existed — a bad commodity,
-        a position filed under the wrong body — not for a site that is empty.
-        An empty site gets a depletion date, which somebody else wants;
-        deleting it throws that away and invites the next commander to rediscover
-        it.
         """
         conn = self._connect()
         with self._lock:

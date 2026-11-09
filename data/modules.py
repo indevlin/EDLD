@@ -1,14 +1,6 @@
-"""
-data/modules.py — Elite Dangerous module internal name → display name maps.
-
-Keys in MODULE_TYPES follow the normalised internal format produced by
-stripping the ``int_`` / ``hpt_`` prefix and any ``_size{N}_class{N}``
-suffix from journal/CAPI module internal names.  Where the game uses a
-variant suffix (e.g. ``_fast``, ``_overcharge``) that is kept as part of
-the key.
+"""data/modules.py — Elite Dangerous module internal name → display name maps.
 
 Sources: in-game outfitting panels and journal/CAPI module identifiers.
-Validated and augmented against in-game data as of 2026.
 """
 from __future__ import annotations
 import re as _re
@@ -49,13 +41,13 @@ ARMOUR_GRADES: dict[str, str] = {
 }
 
 # ── Module type map ────────────────────────────────────────────────────────────
-# Keys are lower-case normalised internal names (prefix + size/class stripped).
+# Keys are lower-case normalized internal names (prefix + size/class stripped).
 
 MODULE_TYPES: dict[str, str] = {
     # ── Thrusters / drives ────────────────────────────────────────────────────
     "engine":                       "Thrusters",
     "engine_fast":                  "Enhanced Performance Thrusters",
-    "engine_gravityoptimised":      "Gravity Optimised Thrusters",
+    "engine_gravityoptimised":      "Gravity Optimized Thrusters",
     "hyperdrive":                   "Frame Shift Drive",
     "hyperdrive_overcharge":        "Frame Shift Drive (SCO)",
     # ── Power ─────────────────────────────────────────────────────────────────
@@ -155,9 +147,6 @@ MODULE_TYPES: dict[str, str] = {
     # ── Optional internals ────────────────────────────────────────────────────
     "fuelscoop":                    "Fuel Scoop",
     "cargorack":                    "Cargo Rack",
-    # Modules the fallback used to mangle into run-together ids —
-    # "Largecargorack", "Mkii Passengercabin", "Fighterbaymk2".
-    # Names as the game's own *_Localised fields give them.
     "largecargorack":               "Mk II Cargo Rack",
     "mkii_passengercabin":          "Passenger Cabin",
     "largebuggybay":                "Large Planetary Vehicle Hangar",
@@ -188,8 +177,8 @@ MODULE_TYPES: dict[str, str] = {
     "stellarbodydiscoveryscanner_advanced":     "Advanced Discovery Scanner",
     "planetapproachsuite":          "Planetary Approach Suite",
     "codexscanner":                 "Codex Scanner",
-    "colonisation":                 "Colonisation Suite",
-    "colonisationmodule":           "Colonisation Module",
+    "colonisation":                 "Colonization Suite",
+    "colonisationmodule":           "Colonization Module",
     "expmodulestabiliser":          "Experimental Weapon Stabiliser",
     # ── Limpet controllers — dronecontrol_* prefix form ──────────────────────
     "dronecontrol_prospector":      "Prospector Limpet Controller",
@@ -253,7 +242,7 @@ _COSMETIC_MARKERS = (
 
 
 def is_cosmetic_module(internal: str) -> bool:
-    """True for a Loadout entry that is decoration rather than equipment."""
+    """True for a Loadout entry that is decoration."""
     key = (internal or "").lower()
     return any(marker in key for marker in _COSMETIC_MARKERS)
 
@@ -283,9 +272,7 @@ class _Unknown(str):
 
 
 def is_known_module(internal: str) -> bool:
-    """Whether normalise_module_name has a real name for this id, rather than
-    a guess made by title-casing it. Callers with the game's own localised
-    name use that instead of a guess."""
+    """Whether normalise_module_name has a real name for this id."""
     return bool(internal) and not isinstance(normalise_module_name(internal), _Unknown)
 
 
@@ -335,8 +322,6 @@ def normalise_module_name(internal: str) -> str:
 
     # ── Hardpoint: extract size, mount, base type ─────────────────────────────
     if _is_hardpoint:
-        # Pattern: {type}_{mount}_{size}[_{variant}]
-        # e.g. hpt_beamlaser_fixed_medium → "Medium Beam Laser (Fixed)"
         hp_m = _re.match(r"^(.+?)_(fixed|gimbal|turret|basic)_(tiny|small|smallfree|medium|large|huge)"
                          r"(?:_(.*?))?$", body)
         if hp_m:

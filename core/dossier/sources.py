@@ -1,5 +1,4 @@
-"""
-core/dossier/sources.py — what the dossier reads besides the journals.
+"""core/dossier/sources.py — what the dossier reads besides the journals.
 
 * Surface deposits, from the survey database (``<shared>/mining.db``), read
   only. The dossier never writes to it, never repairs it, and never runs its
@@ -8,8 +7,6 @@ core/dossier/sources.py — what the dossier reads besides the journals.
   for what the journal does not carry: weekly upkeep and the itinerary.
 * Career income by source, from the journal-history component's scan — the
   same figures as Career's Credits tab — when it is running.
-
-Each returns something empty rather than raising when its source is missing.
 """
 
 from __future__ import annotations
@@ -64,11 +61,7 @@ def capi_carrier(cmdr_dir: Path) -> dict:
 
 
 def career(core) -> Optional[dict]:
-    """Career income and spending by source, from journal_history.
-
-    Waits for that component's startup scan to finish (briefly — the dossier
-    is built in the background) and returns None when it is not loaded.
-    """
+    """Career income and spending by source, from journal_history."""
     plugins = getattr(core, "_plugins", {}) if core is not None else {}
     jh = plugins.get("journal_history")
     if jh is None:

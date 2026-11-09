@@ -1,15 +1,9 @@
-"""
-tests/test_surface_survey.py — Surface mining survey: join, identity, dedupe.
-
-The three things that can silently corrupt the survey are tested here:
+"""tests/test_surface_survey.py — Surface mining survey: join, identity, dedupe.
 
   * a refine matched to the wrong position, or to none when one exists;
   * a deposit given a new identity every time it is seen, filling the store
     and then the shared sheet with duplicates of one rock;
   * the commodity ledger merge dropping an observation count.
-
-Each of those produces data that looks entirely reasonable, which is why they
-get tests rather than a careful read.
 """
 
 from __future__ import annotations
@@ -345,7 +339,7 @@ def test_touch_moves_the_timestamp_and_nothing_else(db):
 
     assert db.touch_deposit(dep) is True
     after = db.deposits_on(1234, 7)[0]
-    assert after["density_observed"] == "High", "a visit is not a judgement"
+    assert after["density_observed"] == "High", "a visit is not a judgment"
     assert after["refine_count"] == before["refine_count"]
     assert after["published_at"] == "", "the sheet should learn it was seen"
 
@@ -438,7 +432,7 @@ def test_a_bad_amount_is_refused(tmp_path, monkeypatch):
 
 def test_the_dedupe_radius_matches_observed_deposit_spacing():
     """Wide enough for one rig site — two refine batches at a five-rig site
-    were 180 m apart — and too narrow to reach a neighbour, which is 400-500 m
+    were 180 m apart — and too narrow to reach a neighbor, which is 400-500 m
     away at the closest."""
     from core.mining_db import DEDUPE_RADIUS_M
     assert 180.0 < DEDUPE_RADIUS_M < 300.0
@@ -495,13 +489,7 @@ def _refine_plugin(tmp_path, monkeypatch, *, pos_age=0.0, event_age=0.0,
 
 
 def test_a_refine_read_late_still_lands(tmp_path, monkeypatch):
-    """The game writes the journal in batches.
-
-    The gap between a refine happening and EDLD reading the line routinely
-    exceeds the two-second match window, and every live refine was falling
-    through that hole — 190 in one real session, silently, because only the
-    replay branch logged anything.
-    """
+    """The game writes the journal in batches."""
     p, _, event = _refine_plugin(tmp_path, monkeypatch, event_age=30.0)
     p.on_event(event, None)
     p._flush_pending(force=True)
@@ -607,7 +595,7 @@ def test_both_front_ends_offer_the_recording_controls():
 
 def test_a_hand_typed_commodity_matches_the_journal_spelling():
     """The journal writes $helium3_name; and a commander types "Helium-3".
-    Canonicalising those differently makes one rock into two deposits — one
+    Canonicalizing those differently makes one rock into two deposits — one
     recorded by hand, one by the first refine."""
     from core.surface_survey import canonical_commodity
 
@@ -618,12 +606,10 @@ def test_a_hand_typed_commodity_matches_the_journal_spelling():
 
 def test_a_finished_run_of_refines_is_written_without_another_event(
         tmp_path, monkeypatch):
-    """The flush used to run only at the end of _on_refined, and a run of
-    refines collapses into one pending entry that is not ready to write until
-    the confirm interval has passed. Mine four tonnes and stop, and the deposit
-    sat in memory with nothing left to trigger the write — no log line, no row,
-    because the code had succeeded right up to the last step and then had no
-    reason to run again."""
+    """The flush used to run only at the end of _on_refined, and a run of refines
+    collapses into one pending entry that is not ready to write until the
+    confirm interval has passed.
+    """
     import time as _t
 
     p, _mod, event = _refine_plugin(tmp_path, monkeypatch, event_age=1.0)
@@ -741,9 +727,8 @@ def test_the_imported_deposit_is_findable_by_the_compass(db):
 
 def test_a_published_deposit_names_its_system(tmp_path, monkeypatch):
     """A body scanned in an earlier session has no Scan in this one, so the
-    system name has to come from wherever we last learned where we were. A
-    shared row that names the rock but not the system is one nobody else can
-    use."""
+    system name has to come from wherever we last learned where we were.
+    """
     p = _plugin_at(tmp_path, monkeypatch)
     p._system_name = "Ega"
     p._body_name = "Ega 3 a"
@@ -815,7 +800,8 @@ def test_the_form_offers_a_new_deposit_when_there_is_nothing_here(
 def test_the_form_offers_the_deposit_underfoot_when_there_is_one(
         tmp_path, monkeypatch):
     """One call answers add-or-edit, so a front end needs one keybind and one
-    window rather than two of each."""
+    window.
+    """
     p = _plugin_at(tmp_path, monkeypatch)
     p.record_here("Silver", amount="High")
     form, heading = p.form_for_here()
@@ -940,9 +926,8 @@ def test_the_apps_script_widens_a_sheet_that_predates_a_column():
 
 def test_a_surface_scan_does_not_move_the_commander(tmp_path, monkeypatch):
     """Scanning two bodies back to back while parked in an SRV on the first
-    filed every later refine against the second. Three deposits landed on a
-    body that had never been approached, carrying the coordinates of the one
-    underneath."""
+    filed every later refine against the second.
+    """
     p = _plugin_at(tmp_path, monkeypatch)
     p._system_address, p._body_id, p._body_name = 999, 37, "Igbonii A 2 c"
 

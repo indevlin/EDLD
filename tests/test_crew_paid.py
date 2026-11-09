@@ -1,11 +1,4 @@
-"""
-tests/test_crew_paid.py — when NPC crew were hired, and what they have been paid.
-
-"Hired" showed the first CrewAssign, which can come days after CrewHire: a
-crew member hired on 28 May showed as hired on 3 June. And the total was shown as exact whenever the first assignment
-happened to be in the oldest journal, though the game's own Total Paid
-includes wages the journal never records.
-"""
+"""tests/test_crew_paid.py — when NPC crew were hired, and what they have been paid."""
 from __future__ import annotations
 
 import json

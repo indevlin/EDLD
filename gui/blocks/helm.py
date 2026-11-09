@@ -1,20 +1,6 @@
-"""
-gui/blocks/helm.py — the Helm panel (Qt): the game's controls and EDLD's
-automation as buttons.
+"""gui/blocks/helm.py — the Helm panel (Qt): the game's controls and EDLD's automation as buttons.
 
-What is in it, in which group and in what order is core/helm.py; whether each
-button can be pressed, and why not, is the automation component's
-``helm_view``. This only lays it out and passes a click on.
-
-The groups sit side by side as many as fit, then wrap, evened out so six
-groups that need two rows go three and three rather than five and one; each
-group's buttons fill its width in as many columns as fit. So the same panel is one low strip along the foot of
-the Dashboard and a block of large buttons in EDCARS's Helm section, without
-either being laid out by hand. ``compact`` picks the strip's sizes.
-
-A click takes the focus from the game, so the press brings the game to the
-front first (core/keys.focus_game), on a thread of its own; the outcome comes
-back on the status line.
+``compact`` picks the strip's sizes.
 """
 from __future__ import annotations
 
@@ -31,8 +17,8 @@ from gui.block_base import GuiBlock
 
 def balanced_columns(width: float, min_width: float, n: int) -> int:
     """Groups per row: as many as fit (core.helm.columns_for), then evened
-    out over the rows that makes — six groups three and three rather than
-    five and one."""
+    out over the rows that makes — six groups three and three.
+    """
     cols = H.columns_for(width, min_width, n)
     rows = ceil(n / cols) if n else 1
     return max(1, ceil(n / rows)) if n else 1
@@ -115,9 +101,8 @@ class HelmBlock(GuiBlock):
         self._grid.setContentsMargins(m, m, m, 2)
         self._grid.setHorizontalSpacing(14 if self._compact else 24)
         self._grid.setVerticalSpacing(8 if self._compact else 18)
-        # In EDCARS the panel has the section to itself, and its buttons
-        # grow to fill the height (up to TALLEST) rather than leave the lower
-        # half empty.
+        # In EDCARS the panel has the section to itself, and its buttons grow
+        # to fill the height (up to TALLEST).
         layout.addWidget(self._host, 0 if self._compact else 1)
 
         self._status = QLabel("")
@@ -217,7 +202,8 @@ class HelmBlock(GuiBlock):
 
     def _fit_height(self, per_row: int) -> None:
         """EDCARS: the buttons as tall as the section allows, so the panel
-        fills it rather than the top of it."""
+        fills it.
+        """
         _gw, _bw, least = self._sizes
         height = least
         if not self._compact:

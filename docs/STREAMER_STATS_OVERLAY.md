@@ -57,7 +57,7 @@ is whatever that part of EDLD already knows.
 
 ### Placement
 
-Three zones across the top — **left**, **centre**, **right** — plus
+Three zones across the top — **left**, **center**, **right** — plus
 **dock-left** and **dock-right**, separate windows against the side edges, each
 a single stacked column. Every zone takes positions 1–9.
 
@@ -106,7 +106,7 @@ Pad      window edge   →  first glyph   (breathing room inside the box)
 `MarginY` is what moves the top bar down the screen. `DockTop` is the same
 measurement for the side windows.
 
-### Type and colour
+### Type and color
 
 `FontFamily` takes any installed family by name, plus anything EDLD ships in
 `fonts/` and anything you drop in `<data>/fonts/` — those are registered at
@@ -115,7 +115,7 @@ startup, so they work without being installed system-wide.
 `ColourTheme` offers every EDLD palette plus **Elite Dangerous**, which matches
 the cockpit HUD's orange; your own [custom dashboard themes](THEMING.md#custom-themes);
 **Follow dashboard**, which draws with whatever theme the dashboard uses, custom
-ones included; and **Custom**, which uses the three colour fields verbatim.
+ones included; and **Custom**, which uses the three color fields verbatim.
 Picking a theme changes what is drawn but not what is stored, so switching back
 to Custom restores what you had set.
 
@@ -126,7 +126,7 @@ capped at 2px, past which it stops being depth and becomes a blurry second copy.
 ### Visibility tweaks
 
 The overlay draws on whatever the game shows, which in one session is a black
-starfield, a white station interior and a ring full of ice. A theme's colours
+starfield, a white station interior and a ring full of ice. A theme's colors
 are chosen for the dashboard's solid background, and the dimmer ones — labels
 above all — can all but vanish over the game. Five switches in `[Overlay]`,
 under **Visibility Tweaks** in Options, each independent and all off by
@@ -134,13 +134,13 @@ default. Any combination works, with every theme.
 
 | Setting | Label | What it does |
 |---|---|---|
-| `Outline` | Outline text | A ring round every letter, outside it, in the backing colour. A shadow only separates text from a dark scene; an outline separates it from a bright one too. |
-| `BackingPanel` | Backing panel | A rounded, translucent panel behind each overlay panel, in the backing colour. The most reliable of the five over busy scenes. |
+| `Outline` | Outline text | A ring round every letter, outside it, in the backing color. A shadow only separates text from a dark scene; an outline separates it from a bright one too. |
+| `BackingPanel` | Backing panel | A rounded, translucent panel behind each overlay panel, in the backing color. The most reliable of the five over busy scenes. |
 | `SolidText` | Keep text solid | `Opacity` fades the shadow, outline and panel, and the text is drawn at full strength. Off, `Opacity` fades the text itself. |
-| `ContrastFloor` | Contrast floor | Lightens or darkens any colour too faint to read, keeping its hue, until labels and titles reach 5.5:1 and values 8:1. Measured against the outline or panel when either is on, otherwise against a dark scene, and allowing for `Opacity`. Applies to Custom colours and custom themes as much as to the built-in ones. |
-| `EmphasiseValues` | Emphasise values | A labelled row is drawn as its label in the label colour and its value in the value colour, bold. Off, the whole row is drawn in the label colour, as before. |
+| `ContrastFloor` | Contrast floor | Lightens or darkens any color too faint to read, keeping its hue, until labels and titles reach 5.5:1 and values 8:1. Measured against the outline or panel when either is on, otherwise against a dark scene, and allowing for `Opacity`. Applies to Custom colors and custom themes as much as to the built-in ones. |
+| `EmphasiseValues` | Emphasize values | A labeled row is drawn as its label in the label color and its value in the value color, bold. Off, the whole row is drawn in the label color, as before. |
 
-The **backing colour** is derived from the value colour the way the shadow is:
+The **backing color** is derived from the value color the way the shadow is:
 near-black for a theme with light text, near-white for the light theme. So the
 light theme gets pale panels behind dark text, and with the contrast floor and
 no backing its dark text is lightened to read over space.
@@ -195,7 +195,7 @@ interfaces, and all take effect without a restart, whether changed there or in `
 | `Scale` | `1.0` | Scales every size and position, for high-DPI screens |
 | `Opacity` | `0.85` | How strongly everything is drawn, 0–1. With `SolidText`, it applies to the backing only |
 | `FontFamily` | blank | Any installed family, or one from `fonts/` or `<data>/fonts/`. Blank uses the system default |
-| `ColourTheme` | `elite-orange` | Any EDLD theme, a custom theme, `dashboard` to follow the dashboard, or `custom` for the three colours below |
+| `ColourTheme` | `elite-orange` | Any EDLD theme, a custom theme, `dashboard` to follow the dashboard, or `custom` for the three colors below |
 | `ShadowOffset` | `1` | Drop shadow offset in pixels, 0–2. `0` turns it off |
 | `ShadowStrength` | `0.85` | Drop shadow strength, 0–1, multiplied by `Opacity` |
 | `Outline`, `BackingPanel`, `SolidText`, `ContrastFloor`, `EmphasiseValues` | `false` | The [visibility tweaks](#visibility-tweaks) |
@@ -208,7 +208,7 @@ interfaces, and all take effect without a restart, whether changed there or in `
 |---|---|---|
 | `HideMode` | `reserve` | `reserve` or `collapse` — see [Hidden panels](#hidden-panels) |
 | `TitleSize`, `BodySize` | `12`, `13` | Text sizes in points |
-| `TitleColour`, `LabelColour`, `ValueColour` | `#7aa2d2`, `#9aa4b2`, `#cfd6e4` | The colours used when `ColourTheme` is `custom` |
+| `TitleColour`, `LabelColour`, `ValueColour` | `#7aa2d2`, `#9aa4b2`, `#cfd6e4` | The colors used when `ColourTheme` is `custom` |
 | `PanelZone_<panel>` | — | `left`, `centre`, `right`, `dock-left` or `dock-right` |
 | `PanelOrder_<panel>` | — | Position in its zone, 1–9 |
 | `PanelMode_<panel>` | `off` | `on`, `off` or `auto` |

@@ -1,10 +1,4 @@
-"""
-tests/test_deposit_form.py — Validating what a commander types about a deposit.
-
-A malformed row on a shared sheet is not a local mistake. It is a row somebody
-else fetches, fails to parse, and blames on their own install — so the formats
-accepted here are the ones Frontier's journal uses, and a hand-typed row has to
-be indistinguishable from a captured one downstream.
+"""tests/test_deposit_form.py — Validating what a commander types about a deposit.
 """
 
 from __future__ import annotations
@@ -234,7 +228,7 @@ def test_both_front_ends_submit_through_the_component():
 
 
 def test_a_rejection_keeps_the_window_open():
-    """So the offending field can be corrected rather than the form retyped."""
+    """So the offending field can be corrected."""
     for path in (ROOT / "tui" / "deposit_screen.py",
                  ROOT / "gui" / "deposit_dialog.py"):
         src = path.read_text(encoding="utf-8")

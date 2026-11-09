@@ -27,7 +27,7 @@ how dense the seam is, how many rigs the site took. Those are typed.
 | `SAASignalsFound` | How many mining location signals a body has, before any has been visited |
 | `MiningRefined` in an SRV | A deposit at the current position, with a running refine count |
 | Driving within 25 m | Confirmation that a known deposit is still there |
-| `Scan`, or the exploration catalogue | The body's class, gravity, radius, atmosphere and volcanism |
+| `Scan`, or the exploration catalog | The body's class, gravity, radius, atmosphere and volcanism |
 
 Depletion is kept as dated history rather than a deletion. "Empty on the
 twelfth" is worth more to whoever reads it next than a missing row.
@@ -85,6 +85,24 @@ deposit's identity, and altering it would leave the id pointing at something
 else on every sheet that already has the row. A wrong commodity is retired by
 flagging it as test data and recording the right one.
 
+## The Deposits tab
+
+Objectives → **Deposits** lists every deposit in the local survey store, the
+same columns as the shared sheet: system, body, gravity, mining site, commodity,
+amount, density, rigs, depleted on and notes. The filter box matches any of
+them, notes included.
+
+On the desktop and in EDCARS the table sorts on any column; double-click a
+cell to change it in place (amount and density offer the game's levels), or
+select a row and press **Edit…** for the whole form. In the terminal dashboard
+a row opens the same form as Ctrl+D, for that deposit. Either way the change is
+stamped and published like any other correction, and the commodity stays as
+recorded. EDAM shows the tab, filter included, but edits nothing.
+
+Gravity and the system name come from the exploration catalog. EDLD fills them
+at startup for any deposit missing them, so a body scanned after the deposit was
+recorded catches up on the next launch; a body never scanned shows a blank.
+
 ## Identity and duplicates
 
 Two sightings are the same deposit when they share system, body and commodity
@@ -103,7 +121,7 @@ The commodity is matched on the game's own symbol, whatever it was called when
 it was recorded: the form takes the name the game shows — *Low Temp. Diamonds*
 — and EDLD resolves it to the symbol a refine carries,
 `lowtemperaturediamond`. Display names are learned from every refine and from
-the market catalogue, so a commodity added to the game after this release is
+the market catalog, so a commodity added to the game after this release is
 resolved too once one has been refined or seen in a market.
 
 If a store already holds one site as several deposits, EDLD folds them together
@@ -159,10 +177,10 @@ Some rules worth knowing:
 Most of a squadron will open the sheet rather than run EDLD. For them there is
 a template, `sheets/Mining_Dashboard.xlsx`: filter by system or commodity, sort
 by any column, with the rows banded and depleted sites struck through, in one
-of five HUD colour schemes or your own. Start the sheet from it instead of from
+of five HUD color schemes or your own. Start the sheet from it instead of from
 a blank one and the receiver writes into it unchanged. It is optional — the
 sharing above works the same either way. The code the loader installs also
-applies its colours and adds click-to-sort; setup is in
+applies its colors and adds click-to-sort; setup is in
 [`sheets/README.md`](../sheets/README.md#the-dashboard).
 
 ### Test data

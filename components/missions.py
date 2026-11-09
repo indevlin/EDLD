@@ -1,15 +1,10 @@
-"""
-components/missions.py — Massacre mission stack tracking.
+"""components/missions.py — Massacre mission stack tracking.
 
 Owns: active_missions, missions_complete, stack_value,
       mission_value_map, mission_target_faction_map, mission_detail_map.
 
-Persistence
-───────────
-mission_detail_map is persisted to plugin storage on every change and
-restored on load. This is the only source of kill_count, faction, target,
-and reward data after a restart, since the Missions bulk event carries only
-MissionID, Name, PassengerMission, and Expires.
+Persistence ─────────── mission_detail_map is persisted to plugin storage on
+every change and restored on load.
 
 On the Missions bulk event:
   - The reconciliation ALWAYS runs (no short-circuit guard) so that an empty
@@ -19,21 +14,7 @@ On the Missions bulk event:
     backfill scans backwards through journals to populate it.
   - Any stored detail for a MissionID no longer in Active is discarded.
 
-The mission board
-─────────────────
-state.all_missions holds every active mission, of every type, for the
-Missions tab: what it asks for (commodity and tons, passengers, a target, a
-donation), where, by when, and whether it is ready to turn in. The Missions
-snapshot at login carries only each mission's ID, name and time left, so at
-every snapshot the board is rebuilt from the journals: each active mission's
-MissionAccepted, then the MissionRedirected and CargoDepot events since, up to
-the snapshot. Live events carry it from there. It is not persisted; the
-rebuild makes it right however long EDLD was not running.
-
-Massacre kills are not counted. The journal writes a Bounty for only about
-seven in ten of the kills the game credits, so a running count always fell
-behind the mission screen. A redirect is exact, so the stack reports missions
-done of missions held (docs/MISSION_BOOTSTRAP.md).
+Massacre kills are not counted.
 """
 
 from datetime import datetime, timedelta
@@ -68,7 +49,7 @@ def _mission_category(raw: str) -> str:
 
 
 def _pretty_mission_name(raw: str) -> str:
-    """Best-effort readable name when the journal gives no localised one."""
+    """Best-effort readable name when the journal gives no localized one."""
     text = (raw or "").strip()
     for prefix in ("Mission_", "MISSION_"):
         if text.startswith(prefix):
@@ -153,12 +134,9 @@ class MissionsPlugin(BasePlugin):
     # ── The mission board ─────────────────────────────────────────────────────
 
     def _rebuild_board(self, event) -> dict:
-        """The board for the snapshot's Active missions, from the journals up
-        to the snapshot; what follows is replayed or comes live. Returns each
+        """The board for the snapshot's Active missions, from the journals up to
+        the snapshot; what follows is replayed or comes live. Returns each
         found MissionAccepted by mission ID, for the massacre detail.
-
-        A failure is logged, not swallowed: the board then shows what the
-        snapshot alone says, and the log says why.
         """
         state = self.core.state
         active = {int(m["MissionID"]): m for m in event.get("Active", [])
@@ -282,13 +260,7 @@ class MissionsPlugin(BasePlugin):
 
 
     def _track_mission(self, state, event) -> None:
-        """Record any accepted mission on the general board.
-
-        Deliberately shallow: mission events vary a lot by type, so this
-        keeps the fields they share and picks up whatever target, count or
-        commodity detail happens to be present.  Anything absent is omitted
-        rather than rendered as a blank row.
-        """
+        """Record any accepted mission on the general board."""
         mid = event.get("MissionID")
         if mid is None:
             return
@@ -316,6 +288,9 @@ class MissionsPlugin(BasePlugin):
             value = event.get(src)
             if value not in (None, "", 0) and key not in entry:
                 entry[key] = value
+        raw = str(event.get("Commodity", "") or "")
+        if raw:
+            entry["commodity_key"] = raw.strip("$;").removesuffix("_Name").removesuffix("_name").lower()
         if "donation" in entry:
             try:
                 entry["donation"] = int(entry["donation"])
@@ -332,11 +307,7 @@ class MissionsPlugin(BasePlugin):
         match ev:
 
             case "Missions" if "Active" in event:
-                # Bulk reconciliation on login.  This branch ALWAYS runs —
-                # no short-circuit guard — so that an empty Active list (zero
-                # active missions) correctly clears any stale stored detail
-                # that survived from a previous session whose MissionCompleted
-                # events were processed during the prior preload.
+                # Bulk reconciliation on login.
                 live_ids = {
                     int(m["MissionID"])
                     for m in event["Active"]
@@ -428,10 +399,7 @@ class MissionsPlugin(BasePlugin):
                     self._on_massacre_accepted(event, state, core, gq, notify)
 
             case "MissionRedirected":
-                # One arm for every mission.  There used to be two, the
-                # general one first: a match takes the first arm that fits,
-                # so the massacre arm after it never ran — a redirect never
-                # marked a massacre complete or said so, live.
+                # One arm for every mission.
                 mid = event.get("MissionID")
                 if self._progress(state, event):
                     if gq: gq.put(("mission_update", None))
@@ -480,8 +448,6 @@ class MissionsPlugin(BasePlugin):
         if gq: gq.put(("mission_update", None))
 
     def _on_massacre_ended(self, ev, event, state, core, gq, notify) -> None:
-        # Processed during preload too, so that _redirected is drained of
-        # turned-in missions; only the notification waits for live events.
         mid = int(event.get("MissionID", 0))
         if mid not in state.active_missions:
             return

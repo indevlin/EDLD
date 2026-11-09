@@ -1,10 +1,4 @@
-"""
-tests/test_server_firewall.py — telling the commander their firewall is in the way.
-
-A phone that cannot reach EDLD because this computer drops new incoming
-connections produces nothing on EDLD's side at all: the connection never
-arrives.  The first real pairing attempt failed exactly this way, on Arch's
-stock nftables ruleset, which accepts ssh and drops everything else.
+"""tests/test_server_firewall.py — telling the commander their firewall is in the way.
 """
 from __future__ import annotations
 

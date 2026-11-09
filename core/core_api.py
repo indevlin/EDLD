@@ -1,8 +1,6 @@
-"""
-core/core_api.py — CoreAPI: the interface every component receives via on_load().
+"""core/core_api.py — CoreAPI: the interface every component receives via on_load().
 
 Plugins must not import from edld.py or from each other.
-All shared access goes through this object.
 """
 
 import os
@@ -61,9 +59,6 @@ class CoreAPI:
         ui_mode: str = "",
     ):
         #: Which front end is running: "gui", "textual" or "terminal".
-        #: Components that only make sense against a windowed session — the
-        #: overlay — need to know, because "terminal" is a scrolling log with
-        #: no window to sit beside.
         self.ui_mode        = (ui_mode or "").lower()
         self.state          = state
         self.data           = data_provider   # DataProvider — unified source of truth
@@ -95,9 +90,6 @@ class CoreAPI:
     def restart_argv(self) -> list[str]:
         """Build the argv for re-executing this process with the same options.
 
-        ``os.execv`` takes the new argv *including* argv[0], so what gets
-        prepended depends on what ``sys.executable`` actually is:
-
           * Source run — ``sys.executable`` is the Python interpreter and
             ``launch_argv[0]`` is the script path, so the interpreter is
             prepended and the whole of launch_argv follows.
@@ -107,7 +99,7 @@ class CoreAPI:
             was invoked with.  Prepending the executable to the unmodified
             launch_argv therefore passes the old argv[0] through as a stray
             positional argument.  edld's parser defines no positionals, so
-            argparse rejects it and exits 2 before logging is initialised —
+            argparse rejects it and exits 2 before logging is initialized —
             the restart vanishes with no window and no log entry.  Drop the
             old argv[0] and keep only the options.
         """
@@ -118,8 +110,7 @@ class CoreAPI:
     def restart_process(self) -> None:
         """Replace this process with a fresh one carrying the same options.
 
-        Does not return.  Callers should have already flushed anything that
-        must survive (``os.execv`` runs no atexit handlers).
+        Does not return.
         """
         sys.stdout.flush()
         sys.stderr.flush()
@@ -151,8 +142,7 @@ class CoreAPI:
     def register_session_provider(self, plugin) -> None:
         """Register plugin as an activity data provider for Session Stats.
 
-        Plugins must implement ActivityProviderMixin.  Tabs appear in the
-        Session Stats block in alphabetical order after the Summary tab.
+        Plugins must implement ActivityProviderMixin.
         """
         self._session_providers.append(plugin)
 

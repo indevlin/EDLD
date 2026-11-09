@@ -1,11 +1,4 @@
-"""
-components/dossier.py — keeps the commander's dossier up to date.
-
-The dossier is a set of documents EDLD writes about the commander: their
-record, their fleet with every ship's fitting, stored modules, engineering,
-fleet carrier, survey and mining, and on-foot kit. One self-contained web page
-and a folder of Markdown files, under ``<commander>/dossier/``. What anyone
-does with them is up to them; EDLD only writes them. See docs/DOSSIER.md.
+"""components/dossier.py — keeps the commander's dossier up to date.
 
 When it is written
 ------------------
@@ -16,9 +9,6 @@ When it is written
   rewrite, not dozens.
 * When the dashboard theme or a ``[Dossier]`` setting changes.
 * On request, from the button in Options.
-
-Reading the journals is incremental (core/dossier/ledger.py): after the first
-run, a rewrite reads only what the journals gained since the last one.
 """
 
 from __future__ import annotations

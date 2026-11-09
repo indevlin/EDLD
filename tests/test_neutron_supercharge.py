@@ -1,11 +1,5 @@
-"""
-tests/test_neutron_supercharge.py — a neutron route is plotted with the ship's
+"""tests/test_neutron_supercharge.py — a neutron route is plotted with the ship's
 own supercharge.
-
-Every route was sent to Spansh at ×4. The Caspian Explorer's SCO drive Mk II
-supercharges ×6 (its +500% against the standard +300%), so its neutron routes
-used every boost at two thirds of its length and took more jumps than the
-ship needs.
 """
 from __future__ import annotations
 

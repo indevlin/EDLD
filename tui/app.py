@@ -1,12 +1,7 @@
-"""
-tui/app.py — Textual TUI application for EDLD.
+"""tui/app.py — Textual TUI application for EDLD.
 
-Three-column layout built from the shared layout model (see
-core/layout_model.py), with the Helm panel along the foot while automation is
-on (tui/blocks/helm.py):
-
-  Left   : Assets  |  Engineering  |  Colonisation
-  Centre : Commander  |  Crew/SLF  |  Alerts  |  Cargo
+  Left   : Assets  |  Engineering  |  Colonization
+  Center : Commander  |  Crew/SLF  |  Alerts  |  Cargo
   Right  : Massacre Mission Stack  |  Navigation  |  Career
 
 Hotkeys
@@ -54,7 +49,7 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     # Generic state changes — keep Career's wealth rows and the Session
     # window live, plus Navigation's Carrier tab readout.
     "state_update":       ["block-career", "block-career", "block-nav"],
-    # Colonisation now renders in the Cargo window's second tab.
+    # Colonization now renders in the Cargo window's second tab.
     "colonisation_update":["block-objectives"],
     "crew_update":        ["block-status"],
     "slf_update":         ["block-status"],
@@ -71,8 +66,7 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     "exobiology_update":  ["block-exploration", "block-career"],
     "materials_update":   ["block-ship"],
     "alert_update":       ["block-status"],
-    # What the alerts component actually sends. Only "alert_update" was
-    # listed, so every new alert fell through to a repaint of every window.
+    # What the alerts component actually sends.
     "alerts_update":      ["block-status"],
     "pp_update":          ["block-career", "block-career", "block-commander"],
     "cmdr_update":        ["block-commander", "block-nav"],
@@ -91,6 +85,7 @@ _PLUGIN_TO_BLOCK: dict[str, str] = {
     "ship_health":   "block-ship",
     "assets":        "block-commander",
     "colonisation":  "block-objectives",
+    "surface_mining": "block-objectives",
     "career":        "block-career",
     "navigation":    "block-nav",
     "status":       "block-status",
@@ -114,7 +109,6 @@ _BLOCK_CLASSES = {
 
 # Layout-model column → Textual column container id.
 _COLUMN_DOM = {"A": "col-left", "B": "col-centre", "C": "col-right"}
-
 
 
 # ── Main app ──────────────────────────────────────────────────────────────────
@@ -199,7 +193,7 @@ class EdldTui(App):
     def on_key(self, event) -> None:
         """Delegate keypresses to components that registered hotkeys."""
         table = getattr(self, "_component_keys", {})
-        # Normalise: Textual reports ctrl+k as "ctrl+k"
+        # Normalize: Textual reports ctrl+k as "ctrl+k"
         key = event.key
         handler = table.get(key)
         if handler:
@@ -268,10 +262,7 @@ class EdldTui(App):
     def _preload_active(self) -> bool:
         """True while the journal is still being replayed at startup.
 
-        Preload fires thousands of events in a few seconds.  Repainting on
-        each one makes the dashboard flicker through months of history before
-        settling, so repaints are held until the replay finishes and then
-        done once.
+        Preload fires thousands of events in a few seconds.
         """
         return bool(getattr(getattr(self._core, "state", None),
                             "in_preload", False))
@@ -296,8 +287,6 @@ class EdldTui(App):
         try:
             block.refresh_data()
         except Exception as exc:
-            # One faulty window must not take the dashboard down, but it is
-            # reported, once, rather than swallowed.
             from core.ui_helpers import report_block_fault
             faults = getattr(self, "_block_faults", None)
             if faults is None:
@@ -312,13 +301,7 @@ class EdldTui(App):
             self._refresh_block(bid)
 
     def _all_block_ids(self) -> list[str]:
-        """Every window's DOM id, derived rather than listed by hand.
-
-        The hand-written list had drifted again: it named block-ship-health,
-        which no longer exists, and repeated two ids.  Deriving it from
-        BLOCK_DOM_ID means adding or renaming a window cannot leave a window
-        that never refreshes.
-        """
+        """Every window's DOM id, derived."""
         return list(BLOCK_DOM_ID.values())
 
     # ── Actions ───────────────────────────────────────────────────────────────
@@ -371,11 +354,7 @@ class EdldTui(App):
                          lambda _r=None: self._refresh_block("block-helm"))
 
     def action_deposit(self) -> None:
-        """Add or edit the deposit underfoot.
-
-        One binding for both: which it is depends on where the commander is
-        standing, and they should not have to know before pressing a key.
-        """
+        """Add or edit the deposit underfoot."""
         plugin = self._core._plugins.get("surface_mining")
         if plugin is None or not hasattr(plugin, "form_for_here"):
             return
@@ -393,9 +372,7 @@ class EdldTui(App):
         """Open the sell table, or close it if it is already open.
 
         The modal binds Ctrl+S to dismiss, so a second press while it has
-        focus closes it and never reaches here.  The guard covers the case
-        where it does not have focus — two stacked copies of the same table
-        would be a puzzle to get out of.
+        focus closes it and never reaches here.
         """
         if any(isinstance(s, SellModal) for s in self.screen_stack):
             return

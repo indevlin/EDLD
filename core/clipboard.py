@@ -36,9 +36,6 @@ __all__ = ["copy", "available_backend"]
 
 def _linux_backends() -> list[tuple[str, list[str]]]:
     """Clipboard commands available on this Linux/BSD session, best first.
-
-    Wayland first when the session is Wayland, because xclip under XWayland
-    can appear to work and then serve nothing to native clients.
     """
     wayland = bool(os.environ.get("WAYLAND_DISPLAY"))
     candidates: list[tuple[str, list[str]]] = []
@@ -113,11 +110,7 @@ def _run(cmd: list[str], text: str) -> tuple[bool, str]:
 
 
 def available_backend() -> str | None:
-    """Name of the backend that would be used, or None if there is none.
-
-    Lets the UI say "no clipboard tool found — install wl-clipboard or xclip"
-    before the user presses anything, rather than after.
-    """
+    """Name of the backend that would be used, or None if there is none."""
     if sys.platform == "win32":
         return "windows"
     if sys.platform == "darwin":
@@ -129,9 +122,7 @@ def available_backend() -> str | None:
 def copy(text: str) -> tuple[bool, str]:
     """Put ``text`` on the system clipboard.
 
-    Returns ``(ok, detail)``.  On success ``detail`` names the backend used;
-    on failure it explains what went wrong, which the caller is expected to
-    surface rather than swallow.
+    Returns ``(ok, detail)``.
     """
     if not text:
         return False, "nothing to copy"

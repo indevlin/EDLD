@@ -1,10 +1,4 @@
-"""
-core/windows/wire.py — the windows, as panels for a paired EDAM device.
-
-One panel per tab of the desktop window, with the tab's title, from the same
-model the desktop window and the terminal dashboard draw (core/windows). The
-panel ids stay put whatever the titles say — the Modules count, the system
-being explored — so a device can key on them.
+"""core/windows/wire.py — the windows, as panels for a paired EDAM device.
 
     group        panels                                     window
     vessel       ship (the vessel's name), cargo            Ship
@@ -17,9 +11,10 @@ being explored — so a device can key on them.
     navigation   navigation.route — and the forms, sent     Navigation
                  in the header as "tools"
     missions     missions.missions                          Objectives
-    colonisation colonisation.colonisation                  Objectives
-    session      session.session                            Session / Career
-    career       career.summary, .combat, … .powerplay      Session / Career
+    colonization colonisation.colonisation                  Objectives
+    survey       survey.deposits (filter: true)             Objectives
+    session      session.session                            Career / Session
+    career       career.summary, .combat, … .powerplay      Career / Session
 """
 from __future__ import annotations
 
@@ -27,9 +22,11 @@ from core.windows import Tab, wire_rows
 
 
 def panel(pid: str, title: str, group: str, tab: Tab | None = None, order: int = 100,
-          rows: list | None = None) -> dict:
+          rows: list | None = None, filter: bool = False) -> dict:
     p = {"id": pid, "title": title, "group": group, "order": order,
          "rows": wire_rows(tab.rows if tab is not None else rows or [])}
+    if filter:
+        p["filter"] = True            # the device offers a text filter over the rows
     if tab is not None and tab.pages:
         p["pages"] = [{"id": pg.id, "title": pg.title, "rows": wire_rows(pg.rows)}
                       for pg in tab.pages]
@@ -91,6 +88,9 @@ def panels(core, fault=lambda name, exc: None) -> list[dict]:
     t = _safe(fault, "colonisation", objectives.colonisation, core)
     if t is not None:
         out.append(panel("colonisation.colonisation", t.title, "colonisation", t, 1600))
+    t = _safe(fault, "survey", objectives.deposits, core)
+    if t is not None:
+        out.append(panel("survey.deposits", t.title, "survey", t, 1700, filter=True))
 
     order = 300
     for t in _safe(fault, "career", career.tabs, core) or []:

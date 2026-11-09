@@ -1,22 +1,4 @@
-"""
-components/overlay.py — The Streamer Stats Overlay.
-
-The overlay used to live inside ``surface_mining``, which was only ever true of
-the first thing it drew. It shows cargo, commander and ship identity, and
-whatever else components contribute; owning it from a mining component made
-every future panel a mining feature. It owns nothing but the window now —
-every panel's data belongs to the component that produced it.
-
-What this does
---------------
-Once every :data:`_TICK_S` it builds one :class:`PanelContext`, asks every
-registered component for the panels the commander has actually placed, lays
-them out into three zones, and sends a frame. Nothing about what any panel
-means is decided here.
-
-The renderer is a child process and is not started until the first frame is
-genuinely due, so a commander with the overlay switched off — or one whose
-placed panels never become eligible — never pays for it.
+"""components/overlay.py — The Streamer Stats Overlay.
 
 Tab title: Overlay
 """
@@ -42,7 +24,7 @@ def _on(value) -> bool:
 
 #: The visibility tweaks, as both preference pages offer them: config key,
 #: label, and what it does. Independent switches in [Overlay]; any combination
-#: is valid. See docs/STREAMER_STATS_OVERLAY.md.
+#: is valid.
 VISIBILITY_TWEAKS: tuple[tuple[str, str, str], ...] = (
     ("Outline", "Outline text",
      "a ring round every letter, so text stands off bright scenes as well as dark"),
@@ -51,10 +33,10 @@ VISIBILITY_TWEAKS: tuple[tuple[str, str, str], ...] = (
     ("SolidText", "Keep text solid",
      "Opacity fades the shadow, outline and panel, never the text"),
     ("ContrastFloor", "Contrast floor",
-     "lightens or darkens any colour too faint to read, keeping its hue — "
-     "custom colours included"),
-    ("EmphasiseValues", "Emphasise values",
-     "values in the value colour and bold; labels stay in the label colour"),
+     "lightens or darkens any color too faint to read, keeping its hue — "
+     "custom colors included"),
+    ("EmphasiseValues", "Emphasize values",
+     "values in the value color and bold; labels stay in the label color"),
 )
 
 #: When the whole overlay steps aside: config key in [Overlay], label, and
@@ -100,8 +82,7 @@ _STALE_S = 3.0
 #: short enough that one killed by accident comes back before anyone notices.
 _RESTART_BACKOFF_S = 10.0
 
-#: Shipped placement. Everything off until the commander places it — an
-#: overlay that decides for you what to cover the game with is not a feature.
+#: Shipped placement.
 DEFAULT_PANELS = {
     "cargo":          {"Zone": "left",   "Mode": "off", "Order": 1},
     "commander":      {"Zone": "left",   "Mode": "off", "Order": 2},
@@ -129,8 +110,7 @@ class OverlayPlugin(BasePlugin):
         self._client_cfg: dict | None = None
         self._drawn = False
         self._started = False
-        #: Whether the last frame went out. Only a change is logged, so a
-        #: renderer that has gone away is reported once, not twice a second.
+        #: Whether the last frame went out.
         self._sending = True
         self._restart_at = 0.0
         self._heights: dict[str, int] = {}
@@ -156,9 +136,7 @@ class OverlayPlugin(BasePlugin):
             return
 
         # Logged unconditionally at load, before anything can go wrong, so a
-        # trace always answers "which build is this" without a repo diff. We
-        # are a dozen archives deep and "did that fix get applied" has cost
-        # more than one round trip.
+        # trace always answers "which build is this" without a repo diff.
         self._log(f"component {self.PLUGIN_VERSION}, "
                   f"{len(self._placements)} placement(s), "
                   f"{sum(1 for p in self._placements if p.mode != 'off')} active, "
@@ -167,8 +145,7 @@ class OverlayPlugin(BasePlugin):
         # Started whether or not the overlay is enabled yet. The loop is also
         # what notices a config change, so gating it on a client meant a
         # commander who switched the overlay on in Preferences got nothing
-        # until the next launch. With no client it stats config.toml twice a
-        # second and does nothing else.
+        # until the next launch.
         threading.Thread(target=self._loop, daemon=True,
                          name="edld-overlay").start()
 
@@ -178,13 +155,7 @@ class OverlayPlugin(BasePlugin):
             self._client.stop()
 
     def _unsupported_reason(self) -> str:
-        """Why the overlay should not run here, or empty if it should.
-
-        Checked before any config is read, because none of these are settings
-        a commander got wrong — they are sessions where an overlay cannot work
-        or has nothing to sit on, and starting a renderer to draw over a
-        terminal that is scrolling past is worse than not having the feature.
-        """
+        """Why the overlay should not run here, or empty if it should."""
         import os
 
         mode = str(getattr(self._core, "ui_mode", "") or "").lower()
@@ -222,14 +193,7 @@ class OverlayPlugin(BasePlugin):
                                              warn=False, include_extra=True)
         self._placements = op.placements_from_config(self._layout_cfg,
                                                      log=self._log)
-        # A layout-only change keeps the renderer that is already running. Any
-        # change to the window settings needs a new one, because the renderer
-        # is handed them at spawn — and the old one has to be stopped first.
-        # Replacing the client without stopping it orphaned a live renderer
-        # still showing the last frame it was sent, while every frame after
-        # went to a new client that had never been started and was dropped:
-        # the overlay froze on whatever it said when Apply & Save was pressed
-        # and drifted further from the dashboard with every event.
+        # A layout-only change keeps the renderer that is already running.
         if self._client is None or self._window_cfg != self._client_cfg:
             self._retire_client()
             self._client = client_from_config(self._window_cfg, log=self._log)
@@ -261,13 +225,7 @@ class OverlayPlugin(BasePlugin):
             pass
 
     def _reload_if_changed(self) -> None:
-        """Pick up Apply & Save without a restart.
-
-        Watched by modification time rather than through a hook, because both
-        front ends write the same file and neither had anything to notify a
-        component with. It also means a hand-edited config.toml takes effect
-        the same way.
-        """
+        """Pick up Apply & Save without a restart."""
         try:
             path = self._core.cfg.config_path
             mtime = path.stat().st_mtime
@@ -341,9 +299,7 @@ class OverlayPlugin(BasePlugin):
         wanted = {p.panel_id for p in self._placements if p.mode != "off"}
 
         # Scope is a per-panel setting, applied to the component just before it
-        # is asked. Set on the component rather than passed through collect()
-        # because a component that overrides overlay_panel() — cargo, the
-        # survey compass — takes no scope argument and should not have to.
+        # is asked.
         for comp in self._components():
             for pid in getattr(comp, "OVERLAY_PANELS", ()) or ():
                 if pid in wanted:
@@ -397,9 +353,6 @@ class OverlayPlugin(BasePlugin):
             caps = self._client.start()
             self._status = caps.summary()
             if not caps.usable:
-                # Reported once by start(). Retrying a renderer that cannot
-                # work on this platform twice a second would fill the log with
-                # one line.
                 self._client = None
                 return []
 
@@ -442,7 +395,7 @@ class OverlayPlugin(BasePlugin):
         return elements
 
     def _frame_colours(self) -> dict:
-        """The colours a frame is laid out in, visibility tweaks applied."""
+        """The colors a frame is laid out in, visibility tweaks applied."""
         from core.overlay_ink import (GAME_BACKGROUND, apply_contrast_floor,
                                       backing_colour)
         from core.palette import overlay_colours
@@ -456,8 +409,7 @@ class OverlayPlugin(BasePlugin):
         except Exception:
             pass
         # A theme overrides what is drawn, never what is stored — switching
-        # back to Custom restores whatever the commander had set rather than
-        # whatever the last theme happened to leave behind.
+        # back to Custom restores whatever the commander had set.
         colours = {**self._layout_cfg,
                    **(overlay_colours(theme, dashboard) or {})}
 
@@ -467,9 +419,9 @@ class OverlayPlugin(BasePlugin):
             colours["BackingColour"] = backing
         if _on(wcfg.get("ContrastFloor")):
             # Measured against what the text actually sits on: its own outline
-            # or panel when it has one, otherwise the game. Custom colours go
+            # or panel when it has one, otherwise the game. Custom colors go
             # through it too — a floor that only covered the built-in themes
-            # would leave exactly the colours nobody has checked.
+            # would leave exactly the colors nobody has checked.
             alpha = (1.0 if _on(wcfg.get("SolidText"))
                      else float(wcfg.get("Opacity", 0.85) or 0.85))
             colours = apply_contrast_floor(
@@ -522,8 +474,7 @@ class OverlayPlugin(BasePlugin):
     def _panel_rows(self) -> list[tuple[str, str, str, int, str, bool]]:
         """(panel_id, zone, mode) for every panel any component can produce.
 
-        Read from the components rather than from config, so a panel added by a
-        component appears here without anything being registered twice.
+        Read from the components.
         """
         placed = {p.panel_id: p for p in self._placements}
         out = []
@@ -539,9 +490,7 @@ class OverlayPlugin(BasePlugin):
                             str(self._layout_cfg.get(
                                 f"{op.KEY_SCOPE}{pid}", "session")),
                             scoped))
-        # Alphabetical. Grouping by zone made the page read like the screen,
-        # but it also meant a row moved the moment its zone changed — so the
-        # setting you had just edited jumped somewhere else in the list.
+        # Alphabetical.
         return sorted(set(out), key=lambda r: r[0])
 
     def _status_line(self) -> str:
@@ -564,12 +513,7 @@ class OverlayPlugin(BasePlugin):
                                            QWidget, QGridLayout, QScrollArea)
 
             # One scroll area around the entire page, not an inner one around
-            # the panel grid. An inner scroll took stretch inside a fixed-height
-            # tab, so every form row above it was squeezed below its own minimum
-            # and the sections drew on top of each other. The page is simply
-            # taller than the tab now — twenty-odd settings will not fit
-            # whatever the arrangement — so the tab scrolls and nothing is
-            # compressed to make room.
+            # the panel grid.
             page = QScrollArea()
             page.setWidgetResizable(True)
             page.setFrameShape(QScrollArea.NoFrame)
@@ -589,9 +533,6 @@ class OverlayPlugin(BasePlugin):
                 lay.addLayout(form)
                 return form
 
-            # core.load_setting(), not dlg._cfg.load_setting() — the two take
-            # different keyword names and the TypeError is swallowed by the
-            # tab loop, which is how a page silently fails to exist.
             wcfg = self._core.load_setting("Overlay", WINDOW_DEFAULTS, warn=False)
 
             win = section("STREAMER STATS OVERLAY")
@@ -627,7 +568,7 @@ class OverlayPlugin(BasePlugin):
             from core.palette import overlay_theme_choices
 
             typo = section("TYPE")
-            typo.addRow("Colour theme",
+            typo.addRow("Color theme",
                         dlg._choice_combo(wcfg.get("ColourTheme", "elite-orange"),
                                           "Overlay", "ColourTheme",
                                           [v for _n, v in overlay_theme_choices()]))
@@ -648,9 +589,9 @@ class OverlayPlugin(BasePlugin):
                 typo.addRow(label,
                             dlg._text_edit(self._layout_cfg.get(key, default),
                                            "OverlayPanels", key, typ=int))
-            for label, key, default in (("Title colour", "TitleColour", "#7aa2d2"),
-                                        ("Label colour", "LabelColour", "#9aa4b2"),
-                                        ("Value colour", "ValueColour", "#cfd6e4")):
+            for label, key, default in (("Title color", "TitleColour", "#7aa2d2"),
+                                        ("Label color", "LabelColour", "#9aa4b2"),
+                                        ("Value color", "ValueColour", "#cfd6e4")):
                 typo.addRow(label,
                             dlg._text_edit(self._layout_cfg.get(key, default),
                                            "OverlayPanels", key))
@@ -679,9 +620,7 @@ class OverlayPlugin(BasePlugin):
                                             op.HIDE_MODES))
 
             # One row per panel, three pickers side by side, inside a scroll
-            # area.  Three separate form rows each was 36 rows on a page that
-            # does not scroll, which overlapped into unreadable text once more
-            # than a couple of components contributed panels.
+            # area.
             grid_host = QWidget()
             grid = QGridLayout(grid_host)
             grid.setContentsMargins(0, 4, 0, 0)
@@ -717,7 +656,7 @@ class OverlayPlugin(BasePlugin):
             lay.addWidget(grid_host)
 
             note = QLabel(
-                "Zones: left / centre / right are the three columns of the top "
+                "Zones: left / center / right are the three columns of the top "
                 "bar; dock-left and dock-right are windows against the side "
                 "edges, each a single stacked column. Modes: on, off, auto — auto lets "
                 "the panel's own component decide when it applies. Hidden "
@@ -799,7 +738,7 @@ class OverlayPlugin(BasePlugin):
                 # rather than dropped: a Select whose value is not one of its
                 # options takes the whole preferences screen down on mount.
                 themes.append((f"{current_theme} (not found)", current_theme))
-            yield from row("Colour theme",
+            yield from row("Color theme",
                            Select(themes, value=current_theme,
                                   id="ov-theme", classes="pref-choice-lg",
                                   allow_blank=False))
@@ -816,9 +755,9 @@ class OverlayPlugin(BasePlugin):
             for _lbl, _id, _key, _dflt in (
                     ("Title size", "ov-titlesize", "TitleSize", 12),
                     ("Body size", "ov-bodysize", "BodySize", 13),
-                    ("Title colour", "ov-titlecol", "TitleColour", "#7aa2d2"),
-                    ("Label colour", "ov-labelcol", "LabelColour", "#9aa4b2"),
-                    ("Value colour", "ov-valuecol", "ValueColour", "#cfd6e4")):
+                    ("Title color", "ov-titlecol", "TitleColour", "#7aa2d2"),
+                    ("Label color", "ov-labelcol", "LabelColour", "#9aa4b2"),
+                    ("Value color", "ov-valuecol", "ValueColour", "#cfd6e4")):
                 yield from row(_lbl,
                                Input(value=str(self._layout_cfg.get(_key, _dflt)),
                                      id=_id, classes="pref-input"))

@@ -88,14 +88,14 @@ same class:
 
 | Class | Slots | Windows |
 |-------|-------|---------|
-| Large | `A1`, `A2`, `C1`, `C2` | Exploration / Exobiology, Navigation, Ship, Session / Career |
-| Centre | `B1`, `B2`, `B3` | Commander, Crew / Alerts, Objectives |
+| Large | `A1`, `A2`, `C1`, `C2` | Exploration / Exobiology, Navigation, Ship, Career / Session |
+| Center | `B1`, `B2`, `B3` | Commander, Crew / Alerts, Objectives |
 
 There are seven windows and seven slots, so every window is on screen at
 once; rearranging swaps two windows rather than hiding one.
 
 Left and right columns mirror each other — two large windows apiece — and the
-centre column is three equal windows. Any window may occupy any slot of its
+center column is three equal windows. Any window may occupy any slot of its
 own class.
 
 Anything invalid — an unknown window, a class mismatch, the same window twice —
@@ -110,12 +110,12 @@ window they belonged with:
 | Assets | Wallet / Ships / Modules / Carrier / S. Carrier tabs on **Commander** |
 | Exobiology | nested under each body in **Exploration** |
 | Massacre Mission Stack | the Missions tab in **Objectives** |
-| Colonisation | the Colonisation tab in **Objectives** |
+| Colonization | the Colonization tab in **Objectives** |
 | Cargo | the Cargo tab in **Ship** |
 | Engineering | the Engineering tab in **Ship** |
 | Ship Health | renamed **Ship**; hull, shields and fuel moved to Commander's Info tab |
 | Alerts, Crew / SLF | merged into **Crew / Alerts** |
-| Session | the Session tab in **Session / Career** |
+| Session | the Session tab in **Career / Session** |
 
 A `windows.json` written before version 2 describes a window set that no longer
 exists, and the slot grid changed shape with it. Rather than leave a
@@ -138,7 +138,7 @@ rewritten once, on the next launch.
 
 All entries are hot-reloadable. Controls terminal, Discord, and dashboard output independently per event type.
 
-| Level | Behaviour |
+| Level | Behavior |
 |-------|-----------|
 | `0` | Disabled entirely |
 | `1` | Local only (no Discord) |
@@ -163,7 +163,7 @@ All entries are hot-reloadable. Controls terminal, Discord, and dashboard output
 | `MissionUpdate` | `2` | Mission accepted, completed, redirected, or removed |
 | `AllMissionsReady` | `3` | All active massacre missions ready to turn in |
 | `CarrierJumpScheduled` | `3` | Fleet or squadron carrier jump scheduled — carrier, destination and countdown |
-| `CarrierJumpCancelled` | `3` | A scheduled carrier jump was cancelled |
+| `CarrierJumpCancelled` | `3` | A scheduled carrier jump was canceled |
 | `CarrierJumpComplete` | `2` | Carrier arrived at its destination |
 | `MeritEvent` | `0` | Individual merit gain from a kill |
 | `InactiveAlert` | `3` | No kills for the configured time period (`WarnNoKills`, or `WarnNoKillsInitial` before the first) |
@@ -379,7 +379,7 @@ curl -sI 'https://example.org:8000/stream' | grep -i content-type
 
 `audio/mpeg`, `audio/ogg`, `application/ogg` and `audio/flac` will play.
 
-### Behaviour
+### Behavior
 
 - **Nothing plays until you press Play.** The last station you chose is selected again at the next launch, but not started.
 - Choosing another station while one is playing switches to it.
@@ -471,7 +471,7 @@ where to find them and what they mean.
 | `data/cargo.commodities.md` | The sell table, as Markdown |
 | `data/cargo.commodities.html` | The sell table, as a standalone HTML page |
 
-### The catalogue
+### The catalog
 
 `Market.json` is a snapshot of one station and is overwritten the next time you
 dock, so the galactic average it carries for each commodity is visible while
@@ -491,7 +491,7 @@ figure.
 
 A commodity is recorded even when the market reports a `MeanPrice` of 0 —
 identity is worth having wherever it turns up — but a zero never overwrites a
-price already on file, so a carrier visit cannot flatten the catalogue. Such a
+price already on file, so a carrier visit cannot flatten the catalog. Such a
 row heals itself the first time the commodity appears at a station market.
 
 ### The sell table
@@ -521,13 +521,13 @@ Two things are deliberately left out.
 
 **Carrier markets.** Fleet and squadron carriers are player-run, mobile, and
 rewritten without notice, so docking at one leaves the files and the popup
-describing whatever was quoting beforehand. The catalogue still records a
+describing whatever was quoting beforehand. The catalog still records a
 carrier's commodities; its prices just never reach the sell table.
 
 **Prices no NPC will pay.** Stations list carrier-only commodities and quote a
-sell price for them that nobody in the galaxy will honour — the Titan Maw
+sell price for them that nobody in the galaxy will honor — the Titan Maw
 tissue samples list at over 470,000 cr at an ordinary starport. The tell is
-that they carry no galactic average, so any commodity the catalogue has never
+that they carry no galactic average, so any commodity the catalog has never
 seen an average for is left out of the table. This is not a demand filter: a
 station with nothing on order still pays, and filtering on demand would hide
 most of what is worth carrying.
@@ -581,7 +581,7 @@ reports it as **Unknown Credits**, without guessing what it was.
   commander plus everything logged between them.
 
 Only rises are counted. A fall the journal does not explain is a cost EDLD
-does not recognise, which is not income. Anything under a thousand credits is
+does not recognize, which is not income. Anything under a thousand credits is
 rounding and is ignored. The career figure covers every journal on disk, so
 it also holds whatever else the game ever paid without logging it; a journal
 file that is missing makes the next load's balance look like income too.
@@ -605,6 +605,8 @@ If you run EDLD on multiple machines reading the same journal share (e.g. a remo
 The commander name sent to EDSM and Inara is the one in your journal; there is no setting for it.
 
 **Restarting EDLD does not upload anything twice.** At startup EDLD reads the current journal from its first line, to know what has happened this game session. Each uploader remembers the time of the last journal event it handled — `<uploader>.sent.json` in the commander's data folder — and does not send anything from that read-through up to that time again. Started after the game, EDLD still sends what happened before it started.
+
+**When uploads are sent.** EDSM, EDAstro and Inara collect events and send them together; EDDN sends each message as it is made. The collected events go out at every dock and undock — stations, fleet carriers and surface ports alike — when the FSD starts a hyperspace jump and on arrival, on a carrier jump, at a ship purchase or swap, when an SRV (Scarab, Nomad or Rhino) or fighter launches, docks or is destroyed, at death, and whenever the loadout changes (a module bought, sold, stored, retrieved or swapped). Each service's own rate limit still applies; Inara's is the slowest.
 
 **Nothing is dropped while a service is unreachable.** Uploads that fail are kept in `<uploader>.queue.jsonl` in the same folder and tried again every few minutes, and at the next start.
 
@@ -680,7 +682,7 @@ Uploads your flight log and discoveries to [edsm.net](https://www.edsm.net).  Re
 | `Enabled` | `false` | ❌ Enable EDSM uploads |
 | `ApiKey` | `""` | ❌ Your EDSM API key |
 
-Events are batched and flushed on session transitions (FSDJump, Docked, LoadGame) to stay well within EDSM's rate limit.  A discard list is fetched from EDSM at startup so only requested events are sent.
+Events are batched and sent at the moments listed under [When uploads are sent](#data-contributions-opt-in), and at login.  A discard list is fetched from EDSM at startup so only requested events are sent.
 
 ---
 
@@ -712,9 +714,9 @@ Inara allows two requests a minute; EDLD's uploads and its community-goal fetch 
 
 ### `[Colonisation]`
 
-Syncs colonisation construction supply needs and commander contributions to [Raven Colonial](https://ravencolonial.com) — a community tool for tracking colonisation projects. Local tracking of resource requirements and delivery progress works without an API key.
+Syncs colonization construction supply needs and commander contributions to [Raven Colonial](https://ravencolonial.com) — a community tool for tracking colonization projects. Local tracking of resource requirements and delivery progress works without an API key.
 
-> **Note:** Colonisation support is experimental and under active development.
+> **Note:** Colonization support is experimental and under active development.
 
 | Key | Default | Description |
 |-----|---------|-------------|

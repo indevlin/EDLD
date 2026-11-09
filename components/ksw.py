@@ -1,13 +1,4 @@
-"""
-components/ksw.py — Session management plugin.
-
-Auto-terminates the Elite Dangerous game process when configured in-game
-conditions are met (SLF destroyed, low fuel, low hull).  Termination can be
-local (psutil) or remote over SSH for thin-client setups.
-
-Hard-gated to Solo mode: flush_session() refuses to act unless the current
-game mode is Solo, so a session is never terminated in Open or Private Group.
-pilot_mode is populated from LoadGame.GameMode by the commander plugin.
+"""components/ksw.py — Session management plugin.
 
 Exposes via CoreAPI.plugin_call("ksw", ...):
   flush_session(reason="")  — terminate the game process (Solo mode only)
@@ -38,10 +29,7 @@ import subprocess as _sp
 import time
 
 # Session management genuinely needs psutil in order to find and stop the game
-# process, so a missing psutil disables this component rather than degrading it.
-# Raising here would abort the component load and be reported by the loader;
-# setting it to None instead lets the component load and report the reason
-# through its own status, which is the friendlier of the two.
+# process, so a missing psutil disables this component.
 try:
     import psutil
 except ImportError:            # pragma: no cover - environment dependent
@@ -122,9 +110,6 @@ def _release_handle_remote(pattern: str, description: str,
     """Kill the game process on a remote machine over SSH.
 
     Requires key-based SSH auth to be pre-configured (no password prompt).
-    Uses tasklist/taskkill on Windows-hosted games, pkill on Linux.
-    The remote OS is detected by attempting a Windows-style check first;
-    if it fails we fall back to the Linux/pkill path.
     """
     dest = f"{user}@{host}" if user else host
 
@@ -163,7 +148,6 @@ def _release_handle(pattern: str, description: str,
         _release_handle_remote(pattern, description, remote_host, remote_user)
     else:
         _release_handle_local(pattern, description)
-
 
 
 # -- Plugin --------------------------------------------------------------------
@@ -265,8 +249,7 @@ class KswPlugin(BasePlugin):
                 return
             hull_pct  = round(event["Health"] * 100)
             threshold = s["QuitOnLowHullThreshold"]
-            # Driving, this is the SRV's hull. It still triggers — an SRV lost
-            # with ore aboard is a loss — but the reason says which hull it was.
+            # Driving, this is the SRV's hull.
             what = "SRV hull" if getattr(state, "vessel_mode", "ship") == "srv" else "hull"
             if hull_pct <= threshold:
                 self.flush_session(f"{what} at {hull_pct}% (threshold {threshold}%)")
@@ -280,10 +263,8 @@ class KswPlugin(BasePlugin):
             fuel_main = event["FuelMain"]
             fuel_pct  = round((fuel_main / tank) * 100)
 
-            # Supercruise exclusion.
-            # No fuel kills while in supercruise or within the post-SC grace
-            # period.  The player cannot refuel in SC; let them exit normally.
-            # If they run out of fuel in SC that is their own decision.
+            # Supercruise exclusion. No fuel kills while in supercruise or
+            # within the post-SC grace period.
             SC_GRACE_SECONDS = s["QuitFuelSCGraceSeconds"]
             now      = time.monotonic()
             in_sc    = self._in_supercruise or getattr(state, "in_supercruise", False)
@@ -307,9 +288,7 @@ class KswPlugin(BasePlugin):
             # If a minutes threshold is also configured, require time-remaining
             # to be low as well — makes the trigger more conservative and
             # protects against firing on small tanks that spend a lot of time
-            # at low % even when burn time is plentiful.  Time-remaining alone
-            # is intentionally not sufficient: too sensitive to transient burn
-            # rate spikes from fuel scooping and system entry.
+            # at low % even when burn time is plentiful.
             if minutes_limit:
                 burn_rate = getattr(state, "fuel_burn_rate", None)
                 if not (burn_rate and burn_rate > 0):
@@ -352,8 +331,6 @@ class KswPlugin(BasePlugin):
             return
         self._slf_lost_on_jump = None
         from core import engagement
-        # Judged on the game's clock, from the moment of the loss: any sign of
-        # a fight from a minute before it until now.
         if engagement.fought_since(state, at):
             self.flush_session("SLF destroyed in combat; the jump did not complete")
         else:
@@ -373,19 +350,12 @@ class KswPlugin(BasePlugin):
     # -- Public interface ------------------------------------------------------
 
     def flush_session(self, reason: str = "") -> None:
-        """Terminate the game process — Solo mode only.
-
-        Hard gate: refuses to act unless the current game mode is Solo, so no
-        session is ever terminated in Open or Private Group, regardless of how
-        this is reached (event-driven or a manual interface call).
-        """
+        """Terminate the game process — Solo mode only."""
         if (getattr(self.core.state, "pilot_mode", None) or "").lower() != "solo":
             return
         if reason:
             print(f"[ksw] flush_session: {reason}")
-        # In the diagnostic log too. Ending the game is the most consequential
-        # thing EDLD does, and it was recorded nowhere that survives the
-        # session: the terminal line goes to /dev/null under the dashboards.
+        # In the diagnostic log too.
         try:
             from core import debug as _dbg
             _dbg.log(f"[ksw] ending the game session: {reason or 'manual'}",

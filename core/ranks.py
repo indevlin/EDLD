@@ -1,13 +1,4 @@
-"""
-core/ranks.py — the commander's ranks, from the journal or from Frontier.
-
-The Rank and Progress events at every login carry each rank — combat,
-trade, exploration, CQC, mercenary, exobiology, Federation, Empire — and the
-progress towards the next. The Ranks tab read only the companion API's copy,
-so without a Frontier login it said "Awaiting CAPI data…" for ever while the
-journal held every figure; and it read the API's progress from a name the
-API data was never stored under, so progress never showed with it either.
-The API's figures are used when there are any, the journal's otherwise.
+"""core/ranks.py — the commander's ranks, from the journal or from Frontier.
 """
 from __future__ import annotations
 

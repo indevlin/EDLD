@@ -1,12 +1,5 @@
-"""
-tests/test_lastknown.py — the windows show the last session while the
+"""tests/test_lastknown.py — the windows show the last session while the
 journals load, and start-up no longer waits for the history.
-
-core/lastknown.py wraps every window model: while the current journal is
-being replayed (``state.in_preload``) a model answers with what it showed at
-the end of the last run; afterwards it answers live and that answer is what
-the next run will show. edld.py runs the history bootstraps, the session
-restore and the server on the monitor thread, so a window opens before them.
 """
 from __future__ import annotations
 

@@ -1,5 +1,4 @@
-"""
-core/radio.py — community radio for the Crew / Alerts window's Radio tab.
+"""core/radio.py — community radio for the Crew / Alerts window's Radio tab.
 
 One player, shared by both front ends.  The terminal dashboard and the desktop
 window each draw their own controls, but neither plays anything itself: both
@@ -22,9 +21,7 @@ the first time Preferences saved the file.  One key per attribute survives
 that round trip, and it is the same shape ``[OverlayPanels]`` already uses.
 
 Profiles override and extend the global list with dotted keys, exactly like
-every other setting.  An empty ``Url_<Id>`` hides a station — the way to drop a
-default, because the defaults are re-added to a ``[Radio]`` section they are
-missing from.
+every other setting.
 
 Playback
 --------
@@ -41,10 +38,6 @@ verification while the first one reported success.  When that thread dies its
 dropped connection.  Each of those presents as a station that says it is
 playing and makes no sound.  The reader here makes one connection, fails
 loudly, and returns end-of-stream when it stops.
-
-Nothing is played until the user presses play.  EDLD never starts audio on
-its own, and that includes at launch: the last station is remembered and
-preselected, not resumed.
 """
 from __future__ import annotations
 
@@ -144,9 +137,6 @@ def stations_from_config(section: dict) -> tuple[list[Station], list[str]]:
 
 def load_stations(core) -> tuple[list[Station], list[str]]:
     """Resolve the station list through the live config, profile included.
-
-    Tolerates a core without a config manager (the block tests boot blocks
-    against a stand-in) by falling back to the defaults.
     """
     section: dict = dict(RADIO_DEFAULTS)
     cfg = getattr(core, "cfg", None)
@@ -193,7 +183,7 @@ def classify_content_type(ctype: str) -> str:
         raise RadioError(f"{_UNSUPPORTED_TYPES[base]} stream — not supported")
     if base.startswith("text/html"):
         raise RadioError("address is a web page, not a stream")
-    raise RadioError(f"unrecognised stream type: {base or 'none given'}")
+    raise RadioError(f"unrecognized stream type: {base or 'none given'}")
 
 
 def _stream_kind(url: str, resp) -> str:
@@ -228,7 +218,7 @@ _PLAYLIST_LIMIT  = 64 * 1024
 
 def _ssl_context() -> ssl.SSLContext:
     # core/certs.install() has already pointed SSL_CERT_FILE at the bundled
-    # store in a frozen build; a default context honours it.
+    # store in a frozen build; a default context honors it.
     return ssl.create_default_context()
 
 
@@ -261,8 +251,9 @@ def _open(url: str):
 
 
 def _socket_of(resp) -> Optional[socket.socket]:
-    """The live socket under an http.client response, so stop() can shut it
-    and unblock a read in progress.  Internal attributes, hence the guard."""
+    """The live socket under an http.client response, so stop() can shut it and
+    unblock a read in progress.
+    """
     try:
         return resp.fp.raw._sock
     except Exception:
@@ -280,8 +271,7 @@ class IcySource(_SourceBase):
 
     ``read`` returns ``b""`` for end of stream, a stop, or a failure; the
     decoder then ends cleanly and the worker reports whichever it was from
-    ``eof`` and ``error``.  It never waits indefinitely: a stall surfaces as
-    the socket timeout.
+    ``eof`` and ``error``.
     """
 
     def __init__(self, resp, on_title: Callable[[str], None],
@@ -738,9 +728,6 @@ def get_player() -> RadioPlayer:
             except Exception:
                 prefs = None
             _PLAYER = RadioPlayer(prefs)
-            # Close the device before the interpreter tears down: a native
-            # audio thread calling back into a half-finalised Python is a
-            # crash at exit rather than a clean one.
             atexit.register(_PLAYER.shutdown)
         return _PLAYER
 
@@ -751,9 +738,7 @@ class RadioController:
     """Everything the Radio tab does, minus the widgets.
 
     The terminal and desktop tabs each own one, forward clicks to it, and draw
-    whatever ``view()`` returns.  Labels, wording, the volume step and what
-    happens when the list changes under a playing station are therefore
-    decided once, here, and cannot drift between the two.
+    whatever ``view()`` returns.
     """
 
     VOLUME_STEP = 5
@@ -784,9 +769,6 @@ class RadioController:
             self.selected = want if want in ids else (ids[0] if ids else "")
             changed = True
 
-        # A station removed or hidden while it plays is stopped: carrying on
-        # playing something the list no longer offers leaves no way to tell
-        # what it is.
         playing = self.player.status().station
         if playing is not None and self.player.is_active():
             current = next((st for st in stations if st.id == playing.id), None)
@@ -806,7 +788,7 @@ class RadioController:
 
     def select(self, station_id: str) -> None:
         """Choose a station.  If one is playing, switch to the new one — the
-        behaviour of a radio's tuning dial, rather than a second press."""
+        behavior of a radio's tuning dial, rather than a second press."""
         if not station_id or station_id == self.selected:
             return
         if station_id not in (st.id for st in self.stations):
@@ -911,10 +893,7 @@ class RadioController:
     @staticmethod
     def new_station_id(name: str, taken: set[str]) -> str:
         """A bare-key Id from a station name: "Lave Radio" -> "LaveRadio".
-
-        Unique across the defaults, [Radio] and every profile's Radio table,
-        compared without case, so a new station can never pair up with the
-        leftover half of another one."""
+        """
         words = re.findall(r"[A-Za-z0-9]+", name)
         base = "".join(w[:1].upper() + w[1:] for w in words)[:40] or "Station"
         sid, n = base, 2
@@ -1019,12 +998,9 @@ class RadioController:
         return {"id": st.id, "name": st.name, "url": st.url, "saved_to": where}
 
     def edit_station(self, station_id: str, name: str, url: str) -> Station:
-        """Change a station's name and address.  Raises RadioError with a
+        """Change a station's name and address. Raises RadioError with a
         readable reason and leaves config.toml untouched if it cannot.
-
-        A station that was playing keeps playing: a new address is tuned in
-        straight away rather than leaving the commander on a stopped radio
-        they did not stop."""
+        """
         st = self._listed(station_id)
         problem = self._validate(name, url, exclude_id=station_id)
         if problem:

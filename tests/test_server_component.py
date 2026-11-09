@@ -1,12 +1,4 @@
-"""
-tests/test_server_component.py — the Server preferences page, in both front ends.
-
-The contract checks mirror tests/test_preferences_contract.py for this
-component: a builder call the real dialog would reject is swallowed by the tab
-loop and the page silently does not exist.  Then both pages are actually built
-— the Textual one mounted in an app, the Qt one offscreen — and the pairing
-button is pressed, because a page that composes but whose button throws is the
-same silent failure one click later.
+"""tests/test_server_component.py — the Server preferences page, in both front ends.
 """
 from __future__ import annotations
 

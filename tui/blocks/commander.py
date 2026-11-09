@@ -1,13 +1,11 @@
 """tui/blocks/commander.py — Commander window (Textual).
 
-Info, Ranks and Wallet, then Ships, Modules, Carrier and S. Carrier. What each
-shows is core/windows/commander.py, drawn the same way in the desktop window
-and on a paired EDAM device; this file draws it and owns the home search.
+Info, Ranks and Wallet, then Ships, Modules, Carrier and S.
 """
 from __future__ import annotations
 from textual.app     import ComposeResult
-from textual.widgets import Label, TabbedContent, TabPane, Static
-from textual.containers import VerticalScroll, Horizontal
+from textual.widgets import Label, TabbedContent, TabPane
+from textual.containers import VerticalScroll
 from tui.block_base  import TuiBlock
 
 # Moved to core; kept importable from here.
@@ -34,16 +32,10 @@ class CommanderBlock(TuiBlock):
                 yield VerticalScroll(id="assets-ships-scroll")
             with TabPane("Modules", id="tab-modules"):
                 yield VerticalScroll(id="assets-modules-scroll")
-            # The carriers' panes are hidden unless one is owned: an empty
-            # tab implying a carrier the commander does not own reads like a
-            # bug.
             with TabPane("Carrier", id="tab-carrier"):
                 yield VerticalScroll(id="assets-carrier-scroll")
             with TabPane("S. Carrier", id="tab-sqcarrier"):
                 yield VerticalScroll(id="assets-sqcarrier-scroll")
-        with Horizontal(id="cmdr-footer"):
-            yield Static(">> Set Home System", id="cmdr-home-btn", classes="footer-lbl")
-            yield Label("", id="cmdr-home-lbl", classes="dim")
 
     def refresh_data(self) -> None:
         from core.windows import commander as W
@@ -65,9 +57,6 @@ class CommanderBlock(TuiBlock):
                 pass
             if tab is not None:
                 self._fill(scroll_id, tab.rows)
-        home = W.home_line(self.core)[1]
-        if home:
-            self._set_label("cmdr-home-lbl", home)
 
     def _fill(self, selector: str, rows) -> None:
         try:
@@ -85,12 +74,11 @@ class CommanderBlock(TuiBlock):
         except Exception:
             pass
 
-    # ── Footer: home search ───────────────────────────────────────────────────
+    # ── Home System row: home search ──────────────────────────────────────────
 
-    def on_click(self, event) -> None:
-        if str(getattr(event.widget, "id", "")) != "cmdr-home-btn":
+    def row_action(self, action: str) -> None:
+        if action != "home":
             return
-        event.stop()
         cmdr_plugin = self.core._plugins.get("commander")
         spansh      = self.core._plugins.get("spansh")
         if not spansh:
@@ -104,13 +92,7 @@ class CommanderBlock(TuiBlock):
                 result.get("system", ""),
                 result.get("star_pos"),
             )
-            name = result.get("name", "")
-            try:
-                self.query_one("#cmdr-home-lbl", Label).update(
-                    f"→ {name}" if name else ""
-                )
-            except Exception:
-                pass
+            self.refresh_data()
 
         from tui.search_modal import SearchModal
         self.app.push_screen(SearchModal(

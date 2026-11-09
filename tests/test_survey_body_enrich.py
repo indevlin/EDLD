@@ -1,10 +1,4 @@
-"""
-tests/test_survey_body_enrich.py — survey bodies filled from the body catalogue.
-
-_enrich_body() called a ``_connect()`` the body catalogue does not have, so
-every lookup failed with AttributeError and was logged at INFO; deposits on a
-body not scanned that session were published with its columns blank. The
-catalogue now answers through ``planet_facts()``.
+"""tests/test_survey_body_enrich.py — survey bodies filled from the body catalog.
 """
 from __future__ import annotations
 
@@ -41,7 +35,9 @@ def _plugin(tmp_path, monkeypatch, cat):
 def test_planet_facts_reports_unknowns_as_none(tmp_path):
     cat = _catalogue(tmp_path, type="High metal content body", gravity=1.0428)
     facts = cat.planet_facts(SYS, BODY)
-    assert facts == {"planet_class": "High metal content body", "atmosphere": None,
+    assert facts == {"system_name": "Col 285 Sector NK-R b20-0",
+                     "body_name": "Col 285 Sector NK-R b20-0 A 2",
+                     "planet_class": "High metal content body", "atmosphere": None,
                      "volcanism": None, "radius_m": None, "gravity": 1.043}
     assert cat.planet_facts(SYS, BODY + 1) is None
 

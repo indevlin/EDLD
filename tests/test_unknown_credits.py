@@ -1,9 +1,7 @@
 """Unknown Credits: income the journal never mentions.
 
 Claiming a PowerPlay care package writes nothing to the journal; the credits
-just appear in the balance. These tests pin down how EDLD notices that, live
-from Status.json and across a career from LoadGame, and how it avoids
-counting money the journal does explain.
+just appear in the balance.
 """
 import json
 from types import SimpleNamespace

@@ -1,18 +1,11 @@
-"""
-tests/test_mining_session.py — mining session tracking and summary layout.
+"""tests/test_mining_session.py — mining session tracking and summary layout.
 
 EDLD already tracked tonnage, TPH, RPM, yield distribution and limpet counts.
-The gaps closed here are the numbers a commander actually watches during a run
-and which none of that answered:
 
   * how many limpets are left (the thing that ends a run)
   * how full the hold is (the other thing that ends a run)
   * which ring this is, and whether it is worth being in
   * raw materials picked up alongside the ore
-
-Reserve level and hotspots matter most: 180 t is excellent in a depleted ring
-and mediocre in a pristine one, and without that context the tonnage figures
-mean very little to anyone reading them.
 """
 
 from __future__ import annotations
@@ -216,11 +209,7 @@ def test_high_content_hit_rate_in_summary(plugin):
 # ── Summary layout ────────────────────────────────────────────────────────────
 
 def test_wide_value_does_not_stretch_the_column():
-    """A long ring description must not right-shift every numeric column.
-
-    The Ring row is far wider than any figure in the block; before the width
-    cap it set the column width and pushed all the numbers across the line.
-    """
+    """A long ring description must not right-shift every numeric column."""
     from core.emit import emit_summary
 
     class State:
@@ -242,7 +231,7 @@ def test_wide_value_does_not_stretch_the_column():
 
         def get_summary_rows(self):
             return [
-                {"label": "Tonnes refined", "value": "276 t", "rate": "180.0 t/hr"},
+                {"label": "Tons refined", "value": "276 t", "rate": "180.0 t/hr"},
                 {"label": "Ring", "value": "Pristine · Metallic · Painite x2, Platinum",
                  "rate": None},
             ]
@@ -262,9 +251,9 @@ def test_wide_value_does_not_stretch_the_column():
     emit_summary(Emitter(), State, [Provider()], Session())
     lines = captured["text"].splitlines()
 
-    tonnes = next(l for l in lines if "Tonnes refined" in l)
+    tonnes = next(l for l in lines if "Tons refined" in l)
     # "276 t" must sit close to its label, not be pushed out by the Ring row.
-    assert tonnes.index("276 t") - tonnes.index("Tonnes refined") < 30
+    assert tonnes.index("276 t") - tonnes.index("Tons refined") < 30
 
 
 def test_summary_header_carries_commander_and_location():
@@ -285,7 +274,7 @@ def test_summary_header_carries_commander_and_location():
             return True
 
         def get_summary_rows(self):
-            return [{"label": "Tonnes refined", "value": "276 t", "rate": None}]
+            return [{"label": "Tons refined", "value": "276 t", "rate": None}]
 
     class Session:
         core = None
@@ -331,7 +320,7 @@ def test_income_reaches_the_summary():
             return True
 
         def get_summary_rows(self):
-            return [{"label": "Tonnes refined", "value": "276 t", "rate": None}]
+            return [{"label": "Tons refined", "value": "276 t", "rate": None}]
 
     class Session:
         core = Core()
@@ -354,13 +343,7 @@ def test_income_reaches_the_summary():
 # ── Surface signals that are not hotspots ─────────────────────────────────────
 
 def test_surface_poi_signals_are_not_hotspots(plugin):
-    """A planetary surface scan returns two unrelated families of signal.
-
-    Human settlements, biological and geological sites, and the planetary
-    mining location marker all arrive through SAASignalsFound alongside real
-    commodity hotspots.  Counting them produced rows like "Human 3 hotspots"
-    in the mining panel.
-    """
+    """A planetary surface scan returns two unrelated families of signal."""
     plugin.on_event({"event": "SAASignalsFound", "BodyName": "Ega 3 d", "Signals": [
         {"Type": "$PlanetaryMiningLocation_Name;",
          "Type_Localised": "Planetary Mining Location", "Count": 28},
@@ -390,17 +373,13 @@ def test_localised_commodity_name_is_preferred():
 
 
 def test_camel_case_falls_back_readably():
-    """Most commodities carry no localised name."""
+    """Most commodities carry no localized name."""
     assert mining._hotspot_name(
         {"Type": "LowTemperatureDiamond"}) == "Low Temperature Diamond"
 
 
 def test_ring_and_planetary_sites_are_listed_separately(plugin):
-    """They are different kinds of place and must not share a heading.
-
-    A ring has hotspots you fly into; a planet has surface sites you land at.
-    Merging them made a planetary body look like a ring with no hotspots.
-    """
+    """They are different kinds of place and must not share a heading."""
     # A planetary body with surface mining sites.
     plugin.on_event({"event": "SAASignalsFound", "BodyName": "Ega 3 d", "Signals": [
         {"Type": "$PlanetaryMiningLocation_Name;",
@@ -427,11 +406,7 @@ def test_ring_and_planetary_sites_are_listed_separately(plugin):
 
 
 def test_planetary_sites_carry_no_caveat_row(plugin):
-    """The journal gives a count and nothing about what a site holds.
-
-    That is worth knowing but not worth a row: the panel is short on width and
-    a caveat is not information.
-    """
+    """The journal gives a count and nothing about what a site holds."""
     plugin.on_event({"event": "SAASignalsFound", "BodyName": "Ega 3 d", "Signals": [
         {"Type": "$PlanetaryMiningLocation_Name;", "Count": 28}]}, plugin.state)
     rows = plugin.get_tab_rows()
@@ -495,11 +470,7 @@ def test_section_is_headed_by_the_body_not_the_word_ring(plugin):
 
 
 def test_every_handled_event_is_subscribed():
-    """A handler for an unsubscribed event never runs.
-
-    The hotspot-drop handler was written before its event was added to
-    SUBSCRIBED_EVENTS and was silently dead.
-    """
+    """A handler for an unsubscribed event never runs."""
     import re as _re
     source = (ROOT / "components" / "mining.py").read_text(encoding="utf-8")
     handled = set(_re.findall(r'case "(\w+)"', source))

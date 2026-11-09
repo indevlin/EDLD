@@ -1,8 +1,4 @@
-"""
-core/explo_value.py — Body cartographic value math.
-
-The single implementation of the body-value formula, shared by the session
-exploration tracker and the Exploration window so both always agree.
+"""core/explo_value.py — Body cartographic value math.
 
 Model
 -----

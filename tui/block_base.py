@@ -8,7 +8,7 @@ Every block:
   - Uses compose() to build its static widget tree once
 
 Helper widgets:
-  KVRow   — key/value display row with optional colour class on value
+  KVRow   — key/value display row with optional color class on value
   SepRow  — zero-height spacer (grouping without consuming a line)
   HRule   — visible one-row horizontal rule
   SecHdr  — bold section header
@@ -17,6 +17,7 @@ Helper widgets:
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
+from textual         import events, on
 from textual.app     import ComposeResult
 from textual.widget  import Widget
 from textual.widgets import Label, Static
@@ -77,9 +78,7 @@ class HRule(Static):
     """Visible full-width horizontal rule.
 
     Distinct from SepRow, which is a zero-height spacer the Commander block
-    relies on for grouping without consuming a line.  HRule occupies a real
-    row and draws a rule across it, for windows that want a visible division
-    between sections.
+    relies on for grouping without consuming a line.
     """
     DEFAULT_CSS = "HRule { height: 1; padding: 0 1; }"
 
@@ -98,10 +97,7 @@ class SecHdr(Static):
 class HdrRow(Widget):
     """Section header fused with its primary value on one row.
 
-    The key is rendered in accent colour (bold) on the left.
-    The value is right-aligned on the right — identical to KVRow but with
-    an accent-styled key.  Eliminates the blank row that SecHdr + KVRow
-    would otherwise consume.
+    The key is rendered in accent color (bold) on the left.
     """
 
     DEFAULT_CSS = "HdrRow { height: 1; layout: horizontal; padding: 0 1; }"
@@ -166,6 +162,20 @@ class TuiBlock(Widget):
         """Override to update displayed values. Called on each relevant queue event."""
         pass
 
+    @on(events.Click)
+    def _press_row(self, event: events.Click) -> None:
+        """Click inside a row carrying row_action → row_action(id)."""
+        w = getattr(event, "widget", None)
+        while w is not None and w is not self:
+            action = getattr(w, "row_action", None)
+            if isinstance(action, str) and action:
+                self.row_action(action)
+                return
+            w = w.parent
+
+    def row_action(self, action: str) -> None:
+        """A row's action (R.kv(..., action=…)). Blocks override."""
+
     def render_rows(self, rows) -> list:
         """Widgets for rows from core/windows: the same rows the desktop
         window and EDAM draw."""
@@ -176,7 +186,10 @@ class TuiBlock(Widget):
             if kind == "hdr":
                 out.append(SecHdr(row[1]))
             elif kind == "kv":
-                out.append(KVRow(row[1], row[2], val_classes=row[3] if len(row) > 3 else "val"))
+                w = KVRow(row[1], row[2], val_classes=row[3] if len(row) > 3 else "val")
+                if len(row) > 4 and row[4]:
+                    w.row_action = row[4]  # type: ignore[attr-defined]
+                out.append(w)
             elif kind == "text":
                 out.append(Label(row[1], classes=row[2] if len(row) > 2 else ""))
             elif kind == "rule":
@@ -194,8 +207,11 @@ class TuiBlock(Widget):
                 # A heading, not a dim line: in the accent, as EDAM draws it.
                 out.append(TableHdr(row[1], table_text(row[2])))
             elif kind == "cells":
-                out.append(KVRow(row[1], cells_text(widths, row[2]),
-                                 val_classes=row[3] if len(row) > 3 else "val"))
+                w = KVRow(row[1], cells_text(widths, row[2]),
+                          val_classes=row[3] if len(row) > 3 else "val")
+                if len(row) > 4 and row[4]:
+                    w.row_action = row[4]  # type: ignore[attr-defined]
+                out.append(w)
         return out
 
     # ── Convenience formatters (delegates to core) ────────────────────────────

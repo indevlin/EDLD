@@ -19,7 +19,7 @@ from core.radio import RadioError
 
 
 class AddStationScreen(ModalScreen):
-    """Dismissed with the new station's Id, or None when cancelled."""
+    """Dismissed with the new station's Id, or None when canceled."""
 
     BINDINGS = [("escape", "cancel", "Close")]
 
@@ -84,7 +84,7 @@ class EditStationScreen(ModalScreen):
     """Change the selected station's name and address.
 
     Dismissed with the station's Id once the change is written, or None when
-    cancelled.  The change goes to the layer the station already lives in,
+    canceled.  The change goes to the layer the station already lives in,
     which the form states rather than offers.  Validation and the write are
     ``RadioController.edit_station``'s, shared with the desktop dialog.
     """

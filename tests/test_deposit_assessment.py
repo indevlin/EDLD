@@ -1,13 +1,6 @@
-"""
-tests/test_deposit_assessment.py — Amount, density and depletion, as recorded.
+"""tests/test_deposit_assessment.py — Amount, density and depletion, as recorded.
 
-Amount and density are what the HUD says a site holds when it is full. They
-are filled in once and changed only when somebody corrects them; a later
-sighting does not overturn them. Depletion is not an amount at all — it is the
-date a site was last worked out, and nothing else about the deposit moves when
-it is set. These pin both rules in the store, the form's path into it, the
-import from the sheet and the upgrade of a store written before either rule.
-The sheet's side is in test_sheets_code_gs.py.
+Amount and density are what the HUD says a site holds when it is full.
 """
 from __future__ import annotations
 

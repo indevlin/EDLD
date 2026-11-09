@@ -1,20 +1,4 @@
-"""
-gui/funding.py — "Support EDLD Development" bar.
-
-A single quiet strip carrying the three funding destinations from
-``.github/FUNDING.yml`` as clickable icons, separated by thin rules.  It reads
-that file at runtime rather than hard-coding the URLs, so the funding
-configuration has exactly one home and the bar cannot drift out of step with
-what GitHub's own Sponsor button offers.
-
-The design brief was "visible but not obnoxious": small monochrome glyphs in
-the muted text colour that pick up the accent on hover, on the same bar as the
-status line rather than anywhere near the dashboard data.  Nothing animates,
-nothing nags, and the bar can be hidden from the View menu.
-
-Icons are recoloured at load time to the active theme's colours, which is why
-they ship as SVG with ``currentColor`` fills rather than as PNGs.
-"""
+"""gui/funding.py — "Support EDLD Development" bar."""
 
 from __future__ import annotations
 
@@ -47,13 +31,7 @@ def _funding_file() -> Path:
 
 
 def parse_funding(path: Path | None = None) -> list[tuple[str, str, str]]:
-    """Return ``[(icon_file, label, url), …]`` parsed from FUNDING.yml.
-
-    A deliberately small parser rather than a YAML dependency: the file has a
-    fixed three-line shape that the GitHub schema pins down, and adding PyYAML
-    to ship one config read would be a poor trade.  Anything unrecognised is
-    skipped, so a key added upstream cannot break the bar.
-    """
+    """Return ``[(icon_file, label, url), …]`` parsed from FUNDING.yml."""
     p = path or _funding_file()
     out: list[tuple[str, str, str]] = []
     try:
@@ -84,7 +62,7 @@ def parse_funding(path: Path | None = None) -> list[tuple[str, str, str]]:
 
 
 def _coloured_icon(svg_name: str, colour: str, hover: str) -> QIcon:
-    """Render an SVG at two colours into a single QIcon.
+    """Render an SVG at two colors into a single QIcon.
 
     ``currentColor`` in the source is substituted textually before handing the
     markup to the renderer — Qt's SVG module does not implement

@@ -1,6 +1,5 @@
-"""
-tests/test_disk_queue.py — queued uploads survive being re-sent, and Inara's
-"slow down" is obeyed rather than argued with.
+"""tests/test_disk_queue.py — queued uploads survive being re-sent, and Inara's
+"slow down" is obeyed.
 """
 from __future__ import annotations
 

@@ -1,5 +1,4 @@
-"""
-core/debug.py — Debug / trace / error log facility.
+"""core/debug.py — Debug / trace / error log facility.
 
 Purpose
 -------
@@ -11,12 +10,7 @@ and goes to /dev/null after fork in UI modes.  Diagnostic information
 
 File layout
 -----------
-Path:  ``<data_dir>/logs/error[_<profile>]_<YYYYMMDD>.log``
-
-The file is opened in append mode the first time anything actually writes
-to it, so runs that never trip --trace or an error path leave no file
-behind.  Multiple runs on the same day append into the same file,
-separated by a clearly fenced run header that records:
+Path: ``<data_dir>/logs/error[_<profile>]_<YYYYMMDD>.log``
 
   - EDLD version
   - human-readable start timestamp
@@ -42,10 +36,6 @@ API
 
     path() -> Path | None
         — current target file path, or None if init() not yet called.
-
-The module is thread-safe: writes serialize through a single lock so
-plugin threads and the main thread can call log() concurrently without
-interleaving partial lines.
 """
 
 from __future__ import annotations
@@ -82,10 +72,6 @@ def init(data_dir: Path,
          trace_echo: bool = False) -> None:
     """Configure where the log will go and build the run header.
 
-    The log file is NOT opened here — it opens lazily on the first
-    log() / trace() call so that runs which never exercise the debug
-    facility leave no log file behind.
-
     Args
     ----
     data_dir          base data directory (``<data_dir>/logs/`` is created)
@@ -118,15 +104,7 @@ def log(message: str, *, level: str = "DEBUG", echo: bool = False) -> None:
     """Append a single line to the debug log file.
 
     The first call after init() opens the file (creating ``logs/`` if
-    needed) and emits the run header.  Failures (disk full, permission
-    denied) are silently swallowed — the log facility must never crash
-    the application it is meant to diagnose.
-
-    When ``echo`` is True AND the facility was initialised with
-    ``trace_echo=True``, the message is also printed to stdout.  Routine
-    informational lines from the startup path use ``echo=True`` so that
-    a ``--trace`` run sees them on the terminal while a normal UI run
-    sees them only in the log.
+    needed) and emits the run header.
     """
     if not _INITIALIZED:
         return
@@ -158,9 +136,6 @@ def exception(message: str = "", exc: BaseException | None = None) -> None:
     """Log a Python exception with full traceback.
 
     If ``exc`` is None the current exception is captured from sys.exc_info().
-    Used by the installed sys.excepthook and threading.excepthook handlers,
-    and can be called directly from any except clause that wants to record
-    a stack trace without spamming stdout.
     """
     if exc is None:
         exc_type, exc_val, exc_tb = sys.exc_info()
@@ -190,8 +165,8 @@ def path() -> Path | None:
 
 def install_exception_hooks() -> None:
     """Install sys.excepthook and threading.excepthook handlers that route
-    unhandled exceptions to the debug log.  Pre-existing hooks (if any)
-    are chained: we log first, then delegate."""
+    unhandled exceptions to the debug log.
+    """
     prior_sys_hook    = sys.excepthook
     prior_thread_hook = getattr(threading, "excepthook", None)
 
@@ -247,9 +222,6 @@ def _build_header(version: str,
         # key = value
         # ...
         ================================================================
-
-    The config and overrides sections are rendered as comment lines so the
-    block reads as a paste-back-able snippet for support workflows.
     """
     bar  = "=" * 72
     when = time.strftime("%a %d %b %Y %H:%M:%S %Z").strip()
@@ -321,11 +293,7 @@ def _redact(key: str, value: Any) -> Any:
     """Replace a credential value with a set/unset marker.
 
     Non-secret keys pass through untouched — except that a table is walked, at
-    any depth, whatever its own name. A profile section holds its overrides as
-    nested tables (``[EDP1]`` carrying ``EDSM = {ApiKey = ...}``), so the key
-    beside a credential is the section name, not the credential's. Checking
-    only the outer key let every profile-level API key, token and webhook URL
-    through in full, in every trace log since profiles existed.
+    any depth, whatever its own name.
     """
     if isinstance(value, dict):
         if _is_secret_key(key):

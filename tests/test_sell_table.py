@@ -1,11 +1,4 @@
-"""
-tests/test_sell_table.py — the sell table must quote the market it names.
-
-The table appears in four places — a Markdown file, an HTML file, and a popup
-in each front end — all built from one dict.  What has to hold is that the
-heading and the prices under it always describe the same market, that a
-carrier never becomes that market, and that the ordering is the one the table
-exists to provide.
+"""tests/test_sell_table.py — the sell table must quote the market it names.
 """
 
 from __future__ import annotations
@@ -62,8 +55,7 @@ LEDGER = {
     "platinum": {"name_localised": "Platinum", "mean_price": 55505},
     "silver":   {"name_localised": "Silver",   "mean_price": 36553},
     # No galactic average anywhere — carrier-only, as the real Titan Maw
-    # samples are.  Frontier's internal symbol for these bears no relation
-    # to the display name, which is why the match is on the latter.
+    # samples are.
     "thargoidtissuesampletype10a": {
         "name_localised": "Titan Maw Deep Tissue Sample", "mean_price": 0},
 }
@@ -136,7 +128,8 @@ def test_pinning_to_galactic_overrides_a_loaded_station():
 
 def test_a_carrier_target_is_never_quoted():
     """Carrier markets are player-run and mobile; the table declines them and
-    falls back rather than presenting a price that may already be gone."""
+    falls back.
+    """
     st = FakeState(target=market("VECTURA", "Borfor",
                                  {"gold": comm("Gold", 1)},
                                  station_type="Drake-Class Carrier"),
@@ -181,7 +174,7 @@ def test_a_commodity_with_no_price_is_left_out():
 
 def test_a_station_price_no_npc_will_pay_is_left_out():
     """Stations quote a sell price for carrier-only goods and no NPC will
-    honour it.  The real Titan Maw Deep Tissue Sample lists at 476,614 cr and
+    honor it.  The real Titan Maw Deep Tissue Sample lists at 476,614 cr and
     would otherwise head the table at almost every station in the bubble."""
     st = FakeState(market=market("Al Saud Ring", "Borfor", {
         "thargoidtissuesampletype10a": comm("Titan Maw Deep Tissue Sample",
@@ -219,14 +212,14 @@ def test_a_commodity_with_a_real_average_is_kept_however_odd():
 
 def test_demand_is_not_what_decides():
     """A station with no current demand still pays; only the absence of an
-    NPC price at all excludes.  The market dict carries no demand figure
-    precisely because it is not consulted."""
+    NPC price at all excludes.
+    """
     st = FakeState(market=market("X", "Y", {"gold": comm("Gold", 67390)}))
     assert len(sell_table(st, LEDGER)["rows"]) == 1
 
 
 def test_an_empty_catalogue_excludes_nothing():
-    """The exclusions are learned, so before anything is catalogued the table
+    """The exclusions are learned, so before anything is cataloged the table
     guesses at nothing and shows what the market says."""
     st = FakeState(market=market("X", "Y", {
         "thargoidtissuesampletype10a": comm("Titan Maw Deep Tissue Sample",
@@ -323,9 +316,6 @@ MINEABLE_IN_TABLE = ["Rhodplumsite", "Low Temp. Diamonds"]
 
 def _render_modal(table, size=(70, 24), press=()):
     """Boot the modal inside a real Textual app against the real stylesheet.
-
-    Rendered rather than queried, because a widget existing in the DOM is
-    exactly what let an off-screen layout survive review once already.
     """
     import asyncio
 
@@ -581,8 +571,6 @@ def test_the_gui_toggle_opens_then_closes_one_window(qapp):
 
     from PySide6.QtWidgets import QWidget
 
-    # A real QWidget, because SellDialog parents itself to whatever it is
-    # handed and Qt will not accept a plain object.
     class _Stub(QWidget):
         _core = _Core()
         _theme = "default"
@@ -664,8 +652,6 @@ def test_these_can_be_mined(name, category):
 
 
 @pytest.mark.parametrize("name,category", [
-    # Iridium is the single most valuable thing in a real captured market and
-    # cannot be mined — it is the reason the default tab exists.
     ("Iridium",        "$MARKET_category_metals;"),
     ("Steel",          "$MARKET_category_metals;"),
     ("Aluminium",      "$MARKET_category_metals;"),
@@ -693,7 +679,7 @@ def test_the_name_match_survives_every_spelling(spelling):
 
 def test_a_category_alone_is_enough_and_so_is_a_name_alone():
     """Sources differ in what they report: Spansh gives a plain category
-    string, the catalogue gives a canonical one, and some rows give neither."""
+    string, the catalog gives a canonical one, and some rows give neither."""
     from data.mining import is_mineable
     assert is_mineable(category="Minerals")
     assert is_mineable(category="minerals")
@@ -702,8 +688,8 @@ def test_a_category_alone_is_enough_and_so_is_a_name_alone():
 
 
 def test_the_sell_table_marks_each_row():
-    """Mineability rides on the row, so all four surfaces split the same way
-    rather than each re-deciding."""
+    """Mineability rides on the row, so all four surfaces split the same way.
+    """
     st = FakeState(market=market("X", "Y", {
         "painite": {"name_local": "Painite", "sell_price": 247663,
                     "category": "$MARKET_category_minerals;",
@@ -719,7 +705,7 @@ def test_the_sell_table_marks_each_row():
 
 
 def test_the_catalogue_rows_are_marked_too():
-    """Galactic mode reads the catalogue, which carries its own category."""
+    """Galactic mode reads the catalog, which carries its own category."""
     ledger = {
         "painite": {"name_localised": "Painite", "category": "minerals",
                     "mean_price": 247663},
@@ -735,7 +721,7 @@ def test_the_catalogue_rows_are_marked_too():
 @pytest.mark.parametrize("category", [
     "$MARKET_category_minerals;",   # Frontier, Market.json
     "$market_category_minerals;",
-    "minerals",                     # the catalogue's canonical form
+    "minerals",                     # the catalog's canonical form
     "Minerals",                     # Spansh, and Category_Localised
 ])
 def test_the_category_match_survives_frontiers_wrapper(category):
@@ -747,7 +733,7 @@ def test_the_category_match_survives_frontiers_wrapper(category):
 
 # ── Zebra striping ────────────────────────────────────────────────────────────
 #
-# Asserted on rendered colour, not on class names or stylesheet text.  A class
+# Asserted on rendered color, not on class names or stylesheet text.  A class
 # that is applied but paints nothing, a stripe that stops short of the row's
 # full width, or two panels that stripe out of phase all look exactly like
 # working code from the source.
@@ -762,7 +748,7 @@ THEMES = ["default", "default-green", "default-light"]
 
 
 def _tui_row_colours(theme: str, rows: int = 4):
-    """Background colours actually painted across each row's full width."""
+    """Background colors actually painted across each row's full width."""
     import asyncio
 
     from textual.app import App
@@ -817,7 +803,7 @@ def test_the_tui_stripe_covers_the_whole_row(theme):
     background the stripe comes out with a hole punched through it."""
     for n, row in enumerate(_tui_row_colours(theme)):
         assert len(set(row)) == 1, \
-            f"row {n} is painted in {len(set(row))} colours: {sorted(set(row))}"
+            f"row {n} is painted in {len(set(row))} colors: {sorted(set(row))}"
         assert len(row) > 20, f"row {n} is only {len(row)} columns wide"
 
 
@@ -825,7 +811,7 @@ def test_the_tui_stripe_covers_the_whole_row(theme):
     "core.palette", fromlist=["PALETTES"]).PALETTES))
 def test_the_stripe_survives_a_256_colour_terminal(theme):
     """The bug this replaced.  $title-bg is six points per channel above the
-    block fill, and a 256-colour terminal quantises both onto entry 16 — so
+    block fill, and a 256-colour terminal quantizes both onto entry 16 — so
     the stripe showed in the Qt window, which is always truecolor, and was
     invisible in the terminal.  Every palette must clear that threshold."""
     from rich.color import Color, ColorSystem
@@ -838,7 +824,7 @@ def test_the_stripe_survives_a_256_colour_terminal(theme):
         return Color.parse(value).downgrade(ColorSystem.EIGHT_BIT).number
 
     assert quantised(pal["$block-bg"]) != quantised(pal["$row-alt"]), (
-        f"{theme}: {pal['$block-bg']} and {pal['$row-alt']} both quantise to "
+        f"{theme}: {pal['$block-bg']} and {pal['$row-alt']} both quantize to "
         f"{quantised(pal['$row-alt'])} on a 256-colour terminal")
 
 
@@ -846,7 +832,7 @@ def test_the_stripe_survives_a_256_colour_terminal(theme):
     "core.palette", fromlist=["PALETTES"]).PALETTES))
 def test_the_stripe_is_subtle_not_loud(theme):
     """Just enough to separate the rows.  A stripe that reads as a highlight
-    would fight the accent colour the panel titles already use."""
+    would fight the accent color the panel titles already use."""
     from core.palette import palette_for
     pal = palette_for(theme)
     base = pal["$block-bg"].lstrip("#")
@@ -858,7 +844,7 @@ def test_the_stripe_is_subtle_not_loud(theme):
 
 
 def test_a_custom_theme_gets_a_stripe_without_declaring_one(tmp_path):
-    """Theme files state seven colours and know nothing about striping."""
+    """Theme files state seven colors and know nothing about striping."""
     from core.palette import load_custom_palette
     css = tmp_path / "x.css"
     css.write_text(":root {\n  --bg-deep: #000010;\n  --bg-mid: #101020;\n"
@@ -872,9 +858,7 @@ def test_a_custom_theme_gets_a_stripe_without_declaring_one(tmp_path):
 
 @pytest.mark.parametrize("theme", THEMES)
 def test_the_gui_rows_alternate(qapp, theme):
-    """Sampled from the rendered viewport.  Qt supplies its own alternate
-    colour when the stylesheet states none — a light grey, unreadable on
-    every dark palette here — and that failure is invisible in the source."""
+    """Sampled from the rendered viewport."""
     from PySide6.QtGui import QPixmap
 
     from core.palette import rgb
@@ -905,7 +889,7 @@ def test_the_gui_rows_alternate(qapp, theme):
 
 
 def test_both_front_ends_stripe_in_phase(qapp):
-    """Same table, same theme, same row: the same colour in both.  Out of
+    """Same table, same theme, same row: the same color in both.  Out of
     phase they would be two different-looking windows."""
     from PySide6.QtGui import QPixmap
 

@@ -1,7 +1,4 @@
-"""
-core/dossier/render_md.py — the dossier as Markdown files.
-
-The same pages as the HTML, one file each, in GitHub-flavoured Markdown:
+"""core/dossier/render_md.py — the dossier as Markdown files.
 
     md/index.md            what is here, with links
     md/commander.md

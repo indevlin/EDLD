@@ -1,16 +1,7 @@
-"""
-core/windows/career.py — the Session / Career window, tab by tab.
+"""core/windows/career.py — the Career / Session window, tab by tab.
 
 Session leads: it is the tab wanted at a glance mid-flight, where the
-lifetime figures change on a scale of weeks. Summary pulls the headline
-figures of every other tab into one place; it and Session are built from
-core.summary_model at two scopes. Combat, Explore, Exobio, Mining, Trade,
-Credits, Carrier and PPlay are lifetime activity from the journal_history
-scan plus the most recent in-game Statistics event.
-
-The Credits tab carries the journal-derived earnings and spending ledger:
-in-game Statistics fields like ``Trading.Goods_Sold`` sit at zero for many
-commanders after hundreds of tonnes sold; journal events are authoritative.
+lifetime figures change on a scale of weeks.
 """
 from __future__ import annotations
 
@@ -62,8 +53,6 @@ def _fmt_pledged(iso_ts) -> str:
     if days == 1:
         return f"{stamp}  (1 day)"
     return f"{stamp}  ({days} days)"
-
-
 
 
 # ── Summary tab ───────────────────────────────────────────────────────────
@@ -133,8 +122,7 @@ def _combat(core, cmb, bank, combat, finance) -> list:
         rows.append(R.kv("Rebuy costs",
                             _fmt_credits(bank.get("Spent_On_Insurance"))))
 
-    # Voucher status — issued vs redeemed.  Many bounties sit
-    # unclaimed for ages until you station-hop.
+    # Voucher status — issued vs redeemed.
     vouchers = finance.get("vouchers", {})
     bi = vouchers.get("bounty_issued",   0)
     br = vouchers.get("bounty_redeemed", 0)
@@ -198,7 +186,7 @@ def _explore(core, expl, carto, career) -> list:
 
 def _exobio(core, exo, exobio) -> list:
     rows = [
-        R.kv("Samples analysed",
+        R.kv("Samples analyzed",
                 _fmt(exo.get("Organic_Data") or exobio.get("sample_count"))),
         R.kv("Species encountered", _fmt(exo.get("Organic_Species_Encountered"))),
         R.kv("Genera encountered",  _fmt(exo.get("Organic_Genus_Encountered"))),
@@ -224,13 +212,13 @@ def _mining(core, mine) -> list:
     profit = mine.get("Mining_Profits", 0)
     rows = []
     if qty:
-        rows.append(R.kv("Tonnes refined", f"{qty:,} t"))
+        rows.append(R.kv("Tons refined", f"{qty:,} t"))
     if mats:
         rows.append(R.kv("Materials collected", _fmt(mats)))
     if profit:
         rows.append(R.kv("Mining profit", _fmt_credits(profit)))
         if qty:
-            rows.append(R.kv("Per tonne", _fmt_credits(profit / qty)))
+            rows.append(R.kv("Per ton", _fmt_credits(profit / qty)))
     if not rows:
         rows.append(R.text("No mining activity logged", "dim"))
     return rows
@@ -238,9 +226,7 @@ def _mining(core, mine) -> list:
 # ── Trade ─────────────────────────────────────────────────────────────────
 
 def _trade(core, trd, smg, finance) -> list:
-    # Journal-derived figures are authoritative.  Statistics.Trading.
-    # Goods_Sold sits at 0 for many commanders despite hundreds of
-    # tonnes sold — max() preserves whichever is higher.
+    # Journal-derived figures are authoritative. Statistics.Trading.
     ms = finance.get("market_sell", {})
     j_count   = ms.get("count",   0)
     j_revenue = ms.get("revenue", 0)
@@ -254,7 +240,7 @@ def _trade(core, trd, smg, finance) -> list:
 
     rows = []
     if markets:   rows.append(R.kv("Markets visited", _fmt(markets)))
-    if resources: rows.append(R.kv("Tonnes sold",     f"{resources:,} t"))
+    if resources: rows.append(R.kv("Tons sold",     f"{resources:,} t"))
     if j_revenue: rows.append(R.kv("Gross revenue",   _fmt_credits(j_revenue)))
     if market_profit:
         rows.append(R.kv("Net profit", _fmt_credits(market_profit)))
@@ -263,7 +249,7 @@ def _trade(core, trd, smg, finance) -> list:
     if avg:
         rows.append(R.kv("Average per trade", _fmt_credits(avg)))
     if resources and market_profit:
-        rows.append(R.kv("Profit per tonne",
+        rows.append(R.kv("Profit per ton",
                             _fmt_credits(market_profit / resources)))
 
     smg_profit  = smg.get("Black_Markets_Profits", 0)
@@ -284,11 +270,6 @@ def _trade(core, trd, smg, finance) -> list:
 def _credits(core, finance, carrier_scan, state) -> list:
     """Earnings & spending ledger + carrier-bank flow + voucher
     reconciliation.
-
-    No journaled-vs-actual reconciliation row — earnings and spending
-    from journals don't sum to net worth (pre-journal wealth and asset
-    values muddy the equation) and showing a Reconciliation section only
-    confused users.
     """
     f_in     = finance.get("in",  {}) or {}
     f_out    = finance.get("out", {}) or {}
@@ -428,23 +409,17 @@ def _carrier(core, carrier, fc_stat, state) -> list:
 # ── PowerPlay ─────────────────────────────────────────────────────────────
 
 def _pplay(core, pp) -> list:
-    """PowerPlay tab — scoped to the current pledge.
-
-    Merits earned under a former allegiance are not shown.  They bought
-    standing with a power the commander has since left and say nothing
-    about where they stand now, so journal_history clears its merit
-    accumulators at every pledge boundary and what arrives here belongs
-    to one allegiance.
-
-    Two measures coexist and are labelled separately because they count
-    different things: the server's TotalMerits resets every cycle, while
-    the journal tally runs from the pledge date.
+    """PowerPlay tab, current pledge only. Pledge total: server TotalMerits.
     """
-    live_merits = getattr(core.state, "pp_merits_total", None)
-    cycle_total = live_merits if live_merits else pp.get("total_merits", 0)
-    pp_power    = (getattr(core.state, "pp_power", None)
+    from core import weekly
+    state = core.state
+    pledge_total = (getattr(state, "pp_merits_total", None)
+                    or pp.get("total_merits", 0) or 0)
+    cm = getattr(state, "pp_cycle", None)
+    cycle_total = cm.cycle() if cm is not None else 0
+    pp_power    = (getattr(state, "pp_power", None)
                    or pp.get("power") or "")
-    pp_rank     = getattr(core.state, "pp_rank", None)
+    pp_rank     = getattr(state, "pp_rank", None)
 
     rows = []
     if pp_power:
@@ -454,13 +429,14 @@ def _pplay(core, pp) -> list:
             rows.append(R.kv("  Since", since))
     if pp_rank is not None:
         rows.append(R.kv("Rank", str(pp_rank)))
-    if cycle_total:
+    if pp_power:
         rows.append(R.kv("Merits this cycle", _fmt(cycle_total)))
+        rows.append(R.kv("Cycle resets", weekly.until_reset()))
+    if pledge_total:
+        rows.append(R.kv("Merits this pledge", _fmt(pledge_total)))
 
     by_act  = {a: m for a, m in (pp.get("by_activity", {}) or {}).items() if m}
-    pledge  = pp.get("pledge_merits", 0) or sum(by_act.values())
-    if pledge:
-        rows.append(R.kv("Merits this pledge", _fmt(pledge)))
+    pledge  = sum(by_act.values())     # journal tally: percentages only
 
     if by_act:
         rows.append(R.hdr("Merits by activity"))

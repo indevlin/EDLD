@@ -2,17 +2,17 @@
 
 **Short version:** EDLD is MIT. You can do essentially anything with it. The one
 obligation that needs care is Qt's LGPL, and it is met by publishing the source
-and shipping the licence texts.
+and shipping the license texts.
 
 ## EDLD itself — MIT
 
 Everything in this repository written for EDLD is under the
-[MIT licence](../LICENSE). Use it, fork it, sell it, embed it in something
+[MIT license](../LICENSE). Use it, fork it, sell it, embed it in something
 proprietary. Keep the copyright notice.
 
 ## Dependencies
 
-| Component | Licence | Bundled in binaries |
+| Component | License | Bundled in binaries |
 |---|---|---|
 | PySide6 / Qt | **LGPL v3** | yes |
 | Textual | MIT | yes |
@@ -34,12 +34,12 @@ proprietary. Keep the copyright notice.
 Only PySide6 constrains how EDLD is packaged. certifi is MPL 2.0, whose
 copyleft is file-level: it attaches to the covered files, not to a work that
 ships alongside them, and the bundle is included unmodified as data. It places
-no condition on EDLD's own licence.
+no condition on EDLD's own license.
 
 miniaudio, which plays the Radio tab, is MIT, and the C libraries compiled
 into it (miniaudio, dr_mp3, dr_flac, stb_vorbis) are public domain or MIT No
 Attribution. Bundling it places no condition on EDLD beyond carrying its
-licence text, which the build does. That is why it was chosen over the usual
+license text, which the build does. That is why it was chosen over the usual
 alternatives: libmpv and python-mpv are GPL unless built specifically as LGPL,
 VLC is LGPL, and both would need a player installed or bundled on every
 platform. QtMultimedia is LGPL like the rest of Qt, but it is desktop-only and
@@ -51,7 +51,7 @@ PyQt6 is GPL-or-commercial. Using it would force EDLD itself to be GPL, which
 conflicts with keeping the project permissive.
 
 PySide6 is Qt's own binding and is **LGPL v3**. The LGPL explicitly permits a
-work under any licence — MIT included — to use the library, subject to
+work under any license — MIT included — to use the library, subject to
 conditions that are straightforward for a project like this one.
 
 ## Meeting the LGPL
@@ -79,7 +79,7 @@ This is where a Python application is in an unusually comfortable position.
 "Relinking" for EDLD is not a link step at all — it is `pip install PySide6` and
 `python edld.py`. Since:
 
-- the complete source is public under the MIT licence,
+- the complete source is public under the MIT license,
 - the exact PyInstaller specification used for the official binaries is in
   `packaging/`, and
 - PySide6 is a standard package anyone can install, patch, or build from source,
@@ -129,23 +129,23 @@ it has none.
 
 ## Adding a dependency
 
-Before adding one, check its licence. Acceptable: MIT, BSD, Apache 2.0, ISC, and
+Before adding one, check its license. Acceptable: MIT, BSD, Apache 2.0, ISC, and
 similar permissive terms; or LGPL where the library is dynamically linked and the
 source stays public.
 
-Not acceptable: GPL or AGPL, which would force EDLD's own licence to change, and
+Not acceptable: GPL or AGPL, which would force EDLD's own license to change, and
 anything with a non-commercial or field-of-use restriction, which would stop it
 being open source at all.
 
 Record every addition in `THIRD-PARTY-NOTICES.md`.
 
-Licence texts do not need adding by hand. Permissive licences are not
-unconditional — MIT, BSD and the rest require the copyright and licence text to
+License texts do not need adding by hand. Permissive licenses are not
+unconditional — MIT, BSD and the rest require the copyright and license text to
 accompany every copy, Apache 2.0 its NOTICE file too — and a binary is a copy
-of every package inside it. The build copies each bundled package's licence
+of every package inside it. The build copies each bundled package's license
 files from its installed metadata into `licenses/third-party/`, following
 `requirements.txt` and everything it pulls in, and stops if one has none. A
-package whose wheel carries no licence file needs its text added to
+package whose wheel carries no license file needs its text added to
 `licenses/` by hand and an exemption in `packaging/build_common.py`, as Qt has.
 
 ## Elite Dangerous

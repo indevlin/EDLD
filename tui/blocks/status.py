@@ -143,12 +143,7 @@ class StatusBlock(TuiBlock):
 # ── Radio tab ─────────────────────────────────────────────────────────────────
 
 class RadioPanel(Vertical):
-    """Station list, readout and transport controls.
-
-    Polls the shared player twice a second rather than being called back from
-    its threads: the player's worker and audio threads never touch a widget,
-    so there is nothing here to marshal onto the app thread.
-    """
+    """Station list, readout and transport controls."""
 
     POLL_SECONDS = 0.5
 

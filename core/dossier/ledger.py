@@ -1,26 +1,8 @@
-"""
-core/dossier/ledger.py — what the dossier knows, kept from the journals.
+"""core/dossier/ledger.py — what the dossier knows, kept from the journals.
 
-The ledger reads every journal once and keeps what it learned. Each journal's
-read position is stored with the state, so a later run reads only what has
-been written since: the current journal's new lines, and any new files. That
-also means what the ledger knows outlives the journals. A ship's fitting is
-kept from the last time it was flown, and survives the journal that recorded
-it being deleted.
+The ledger reads every journal once and keeps what it learned.
 
-A stored ship cannot be outfitted or engineered, so its last ``Loadout`` stays
-true until it is flown again. Only these change a stored ship: a new
-``Loadout`` for its ShipID, a transfer, a sale, a rename. Everything is keyed
-on ShipID, never on name — names are reused (ONERARIUS was ShipID 16, sold,
-and is now ShipID 36).
-
-One journal folder can hold more than one commander. Only events between a
-``Commander``/``LoadGame`` for this commander's FID and the next game launch
-are applied. The FID is used for that and nothing else; it is never stored in
-the state or written to a document.
-
-The state is a plain JSON-able dict, so it can be persisted as it is. Ship and
-market ids are strings in it for that reason.
+The state is a plain JSON-able dict, so it can be persisted as it is.
 """
 
 from __future__ import annotations
@@ -35,10 +17,8 @@ from typing import Iterable, Optional
 #: version is discarded and the journals are read again from the start.
 STATE_VERSION = 1
 
-#: A visit to a ring hotspot ends if no refinement or other event has been
-#: seen for this long — the commander left without a journal line saying so.
-#: Gaps between consecutive events longer than this are not counted as time
-#: flown, either: the game was idle or not running.
+#: A visit to a ring hotspot ends if no refinement or other event has been seen
+#: for this long — the commander left without a journal line saying so.
 IDLE_GAP_S = 600
 
 #: A visit's refinement rate counts only when it is long enough to mean
@@ -96,9 +76,7 @@ def commodity_key(token: str) -> str:
 def journal_sort_key(path: Path) -> str:
     """Chronological order for journal file names, old style and new.
 
-    New: ``Journal.2026-10-14T205310.01.log``. Old (before 2022):
-    ``Journal.221231235959.01.log``, which sorts after every new name as a
-    plain string. Rewritten to the new form so the two interleave by date.
+    New: ``Journal.2026-10-14T205310.01.log``.
     """
     name = path.name
     m = re.match(r"Journal\.(\d{2})(\d{2})(\d{2})(\d{6})\.(\d+)\.log$", name)
@@ -153,8 +131,7 @@ class Ledger:
     def scan(self, journal_dir) -> int:
         """Apply whatever has been written since the last scan.
 
-        Returns the number of events applied. Only whole lines are read; a
-        line still being written is picked up next time.
+        Returns the number of events applied.
         """
         try:
             files = sorted(Path(journal_dir).glob("Journal*.log"),
@@ -185,12 +162,9 @@ class Ledger:
             end = data.rfind(b"\n")
             if end < 0:
                 continue
-            # A file is a new game launch: whoever was playing is unknown
-            # until its Commander line. The position within a file being
-            # resumed is restored from the state.
-            #
-            # What is kept is only whether the commander playing was this
-            # one — never an FID.
+            # A file is a new game launch: whoever was playing is unknown until
+            # its Commander line. The position within a file being resumed is
+            # restored from the state.
             if done == 0:
                 self._active_fid = None
             else:
@@ -212,8 +186,7 @@ class Ledger:
         ts = _epoch(m.group(1).decode("ascii", "replace"))
         event = m.group(2).decode("ascii")
         if event == "Fileheader":
-            # A game launch. Whatever this commander was doing has stopped,
-            # and who plays next is unknown until a Commander line.
+            # A game launch.
             self._stop_playing()
             self._active_fid = None
             return 1
@@ -650,8 +623,6 @@ class Ledger:
             roster.add(str(sid))
         if self.s["current_ship"]:
             roster.add(self.s["current_ship"])
-        # The list is complete: a ship not in it is no longer owned, however
-        # it went. A sale already noted keeps its own record.
         for key in list(self.s["roster"]["ids"]):
             if key not in roster:
                 ship = self._ship(key)
@@ -932,11 +903,6 @@ def _int_key(value: str):
 
 def hotspot_rates(spot: dict) -> tuple[Optional[float], Optional[float], int, int]:
     """(overall RPM, best visit RPM, visits counted, refinements) for a hotspot.
-
-    A visit's rate is its refinements over the time from the first to the
-    last of them — the intervals, so ``refined - 1`` of them — which is the
-    rate while actually mining rather than diluted by the flight in and out.
-    Short visits are left out of the rate; their refinements still count.
     """
     total_refined = sum(v.get("refined", 0) for v in spot.get("visits", []))
     intervals = 0

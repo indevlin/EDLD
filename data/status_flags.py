@@ -1,9 +1,4 @@
-"""
-data/status_flags.py — Elite Dangerous Status.json bit-flag constants.
-
-These constants map to the integer bit fields in Status.json `Flags` and
-`Flags2`, and to the `GuiFocus` integer values.  Used for vehicle/mode
-detection when polling Status.json.
+"""data/status_flags.py — Elite Dangerous Status.json bit-flag constants.
 
 Source: Frontier journal documentation (2026).
 """

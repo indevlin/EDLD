@@ -1,5 +1,4 @@
-"""
-core/server/firewall.py — is a firewall on this computer likely to block devices?
+"""core/server/firewall.py — is a firewall on this computer likely to block devices?
 
 The usual reason a phone on the same network cannot pair is not the network
 but this computer's own firewall, which lets connections out and drops new
@@ -9,10 +8,8 @@ which only sees a timeout.  So EDLD looks for an active firewall and says what
 it found, with the command that opens the port, rather than leave the
 commander to work out why a code that looked fine never pairs.
 
-Only what an ordinary user can see is checked: whether the service is active,
-and the rules file where it is readable.  Nothing is changed.  Linux only;
-Windows asks about the firewall itself the first time EDLD listens, and its
-side of this lives in docs/SERVER.md.
+Only what an ordinary user can see is checked: whether the service is active, and
+the rules file where it is readable.
 """
 
 from __future__ import annotations
@@ -64,11 +61,7 @@ def _nftables_verdict(port: int, conf: Path = NFTABLES_CONF) -> str | None:
 
 
 def _ufw_verdict(port: int, files=UFW_RULES) -> str | None:
-    """'allows', 'blocks', or None when ufw's rules cannot be read.
-
-    ufw keeps them root-readable only, so from an ordinary account this is
-    usually None — which is why an active ufw is a note, not a warning.
-    """
+    """'allows', 'blocks', or None when ufw's rules cannot be read."""
     texts = []
     for f in files:
         try:
@@ -85,11 +78,8 @@ def check(port: int, nft_conf: Path = NFTABLES_CONF,
           active: list[str] | None = None, ufw_rules=UFW_RULES) -> tuple[list[str], bool]:
     """What to tell the commander, and whether the port is *known* to be blocked.
 
-    The second value is what decides whether EDLD raises it in the Alerts pane
-    at every start.  A firewall whose rules cannot be read — ufw from an
-    ordinary account, nftables with its rules file locked down — gets its
-    advice shown where someone setting up pairing will look, but not pushed at
-    every launch, since EDLD cannot tell whether it was already followed.
+    The second value is what decides whether EDLD raises it in the Alerts pane at
+    every start.
     """
     return _advice(port, nft_conf, active, ufw_rules)
 

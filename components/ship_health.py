@@ -1,9 +1,6 @@
-"""
-components/ship_health.py — Per-module health and power priority tracking.
+"""components/ship_health.py — Per-module health and power priority tracking.
 
-Feeds the Ship Health window.  The intended user is a neutron hopper who
-needs to know, at a glance and without opening the in-game right panel,
-what wants repairing before the next set of jumps.
+Feeds the Ship Health window.
 
 Why this component exists
 -------------------------
@@ -21,24 +18,6 @@ State published on MonitorState
                                health is 0.0–1.0; priority is the raw
                                journal value (0-based)
     ship_hull_exact    float — hull integrity 0.0–1.0, full precision
-
-``state.ship_hull`` (int percent) and ``state.ship_shields`` stay owned by
-the commander and alerts components; the Ship Health window reads those for
-its hull and shield rows so there is one source of truth per figure.
-
-Priority numbering
-------------------
-The journal reports ``Priority`` 0-based while the in-game power
-distribution panel labels the same groups 1–5.  The raw value is stored
-here and the display layer adds one, so what the window shows matches what
-the game shows.
-
-Cosmetic modules
-----------------
-Paint jobs, decals, nameplates, ship kits, engine and weapon colours, and
-voice packs all report ``Priority: 1`` and ``Health: 1.0`` forever.  Left
-in, they would pad the priority-1 group with a dozen rows that can never
-need repair, so they are filtered out at parse time.
 """
 
 from pathlib import Path
@@ -59,14 +38,7 @@ _SCAN_JOURNALS = 6
 
 
 def _is_cosmetic(slot: str, item: str) -> bool:
-    """True for a Loadout entry that is decoration rather than equipment.
-
-    The item test was a prefix match, so anything whose id begins with the
-    ship rather than the item type slipped through —
-    ``mediumtransport01_shipkita_bumper2``, ``smallcombat01_nx_cockpit`` — and
-    those turned up in the module list with nothing to report.  Matching on
-    substrings catches them whatever the ship prefix.
-    """
+    """True for a Loadout entry that is decoration."""
     if (slot or "").lower().startswith(_COSMETIC_PREFIXES):
         return True
     i = (item or "").lower()
@@ -75,12 +47,7 @@ def _is_cosmetic(slot: str, item: str) -> bool:
 
 
 def _clean_module_token(token: str) -> str:
-    """Normalise a journal module token to a bare internal name.
-
-    Repair and AfmuRepairs events name modules as ``$int_engine_size7_..._name;``
-    while Loadout uses the bare ``int_engine_size7_...``.  Strip the wrapper
-    so the two can be matched.
-    """
+    """Normalize a journal module token to a bare internal name."""
     t = (token or "").strip()
     if t.startswith("$"):
         t = t[1:]
@@ -275,13 +242,7 @@ class ShipHealthPlugin(BasePlugin):
         self._changed()
 
     def _set_health(self, internal_name: str, health: float) -> None:
-        """Set health on every module matching an internal name.
-
-        Matching is by internal name rather than slot because the repair
-        events do not name a slot.  A ship carrying two identical modules —
-        twin AFM units, for instance — has both set, which is what the game
-        does anyway when repairing by module type at a station.
-        """
+        """Set health on every module matching an internal name."""
         if not internal_name:
             return
         for m in self.core.state.ship_modules:

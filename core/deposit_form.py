@@ -1,33 +1,11 @@
-"""
-core/deposit_form.py — Validating what a commander types about a deposit.
+"""core/deposit_form.py — Validating what a commander types about a deposit.
 
 The survey captures a deposit's position, commodity and refine count without
-being asked. Everything else — how much is left, how dense the seam is, how
-many rigs the site took — is on the HUD and in no journal event, so it has to
-be typed, and typed values reach a sheet other people read.
+being asked.
 
-That is why this is a module of its own with tests rather than a few
-``str.strip()`` calls in a dialog. A malformed row on a shared sheet is not a
-local mistake: it is a row somebody else fetches, fails to parse, and blames on
-their own install. The formats here are the ones Frontier's journal uses, so a
-hand-typed row and a captured one are indistinguishable downstream.
+Depletion is a date and nothing else.
 
-Everything is optional except the commodity on a new deposit, and an empty
-field means "leave it alone" rather than "set it to nothing" — a commander
-editing the amount should not silently blank the density they recorded last
-week.
-
-Depletion is a date and nothing else. Amount and density say what the site
-holds when it is full — they are corrected when they were wrong, not changed
-when the site empties — and "Depleted on" says when it was last worked out, so
-a site emptied last week can be recorded as such and the date already held can
-be seen and corrected. The date is what a refill estimate will be built on once
-the refill period is known.
-
-Notes are the one field where empty does mean nothing. The box always opens
-holding the current note, so a commander who clears it has removed the note on
-purpose; treating that as "leave it alone" would make a note impossible to
-withdraw.
+Notes are the one field where empty does mean nothing.
 """
 
 from __future__ import annotations
@@ -98,12 +76,10 @@ def _clean_int(raw, low: int, high: int, label: str,
 
 
 def clean(raw: dict, *, require_commodity: bool = False) -> Cleaned:
-    """Validate and normalise a form's contents.
+    """Validate and normalize a form's contents.
 
     Returns the values that should be written and the errors that should be
-    shown. A key absent from ``values`` is one to leave alone; only fields the
-    commander actually filled in are returned, so editing one thing cannot
-    blank another.
+    shown.
     """
     values: dict = {}
     errors: dict = {}

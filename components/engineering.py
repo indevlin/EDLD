@@ -1,8 +1,6 @@
-"""
-components/engineering.py — Combined engineering materials inventory.
+"""components/engineering.py — Combined engineering materials inventory.
 
-Tracks all seven engineering material categories across both the Horizons
-and Odyssey systems:
+Tracks all seven engineering material categories across both the Horizons and Odyssey systems:
 
   Horizons (ship-based engineering)
     Raw          — geological elements (Carbon, Vanadium, Polonium …)
@@ -16,8 +14,6 @@ and Odyssey systems:
     Data         — mission and intel data packages
 
 Horizons materials are sourced entirely from journal events.
-Odyssey materials are sourced from the ShipLocker journal event and
-ShipLocker.json (read on startup for an immediate display).
 
 State stored on MonitorState (all added via hasattr guard in on_load):
     materials_raw          dict  — {name_lower: {"count": int, "name_local": str}}
@@ -30,7 +26,7 @@ State stored on MonitorState (all added via hasattr guard in on_load):
                                      "data":        { … },
                                    }
 
-Dashboard block: engineering  (replaces the former 'materials' block)
+Dashboard block: engineering (replaces the former 'materials' block)
 """
 
 import json
@@ -202,9 +198,6 @@ def _parse_horizons_list(items: list) -> dict:
 def _parse_shiplocker(data: dict) -> dict:
     """Parse a ShipLocker event or ShipLocker.json into the engineering_locker
     structure: dict of group name → {name_lower: {"count": int, "name_local": str}}.
-
-    The structure deliberately mirrors the Horizons materials format so that
-    the block's _refresh_section() can handle all seven tabs identically.
     """
     result: dict[str, dict] = {}
     for group in ("Components", "Items", "Consumables", "Data"):

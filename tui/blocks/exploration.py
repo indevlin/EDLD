@@ -1,17 +1,4 @@
 """tui/blocks/exploration.py — Exploration + Exobiology window (Textual TUI).
-
-Shows the system the commander is currently in: honk / scan / map state, each
-body's current and max-if-mapped cartographic value, high-value-mappable
-highlights, and system totals — and, indented beneath any body carrying
-biological signals, that body's exobiology detail.
-
-The two used to be separate windows, which meant every body with bio signals
-was listed twice: once for its cartographic value and again for its flora.
-Nesting the biology under the body it belongs to removes the duplication and
-keeps a body's full story in one place.
-
-Location comes from the explo_sync component, cartographic data from
-core.explo_view and biological data from core.exobio_view.
 """
 from __future__ import annotations
 

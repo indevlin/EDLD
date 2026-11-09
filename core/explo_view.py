@@ -1,13 +1,4 @@
-"""
-core/explo_view.py — Exploration window view builder.
-
-Turns the stored facts for one system (from :mod:`core.bodies_db`) plus a
-commander's scan/map status into a structured view the TUI Exploration
-blocks render.  All cartographic values come from :mod:`core.explo_value`.
-
-The view is deliberately presentation-agnostic: a dict of plain values and
-flags, no widget or formatting concerns — the dashboard renders this data.
-"""
+"""core/explo_view.py — Exploration window view builder."""
 
 from __future__ import annotations
 
@@ -17,11 +8,6 @@ from core.bodies_db import BodyDB, get_db
 from core import explo_value as V
 from core.explo_ingest import EVENTS as _EXPLO_EVENTS
 
-# Journal events after which this window must repaint, because ingesting one
-# can change what build_system_view returns.  Declared here, beside the view
-# that reads the data, rather than in the component that dispatches — a repaint
-# list maintained at arm's length from the view drifts silently.
-# tests/test_repaint_events.py checks this set against what actually changes.
 REPAINT_EVENTS = frozenset(
     ("FSDJump", "Location", "CarrierJump", "FSSBodySignals", "SAASignalsFound",
      "ScanOrganic", "Disembark")
@@ -119,8 +105,6 @@ def build_system_view(
         landable = bool(p.get("landable"))
         first_disc = not was_d
         first_map  = not was_m
-        # Whether anyone had set foot here, where the scan said; before the
-        # game reported it, an undiscovered body is the best guess.
         was_f = p.get("was_footfalled")
         first_ff   = landable and (not was_f if was_f is not None else not was_d)
         if first_disc:

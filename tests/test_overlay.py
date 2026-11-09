@@ -1,13 +1,6 @@
-"""
-tests/test_overlay.py — Overlay geometry, content, and transport.
+"""tests/test_overlay.py — Overlay geometry, content, and transport.
 
-The renderer itself needs a display and PySide6 and is not testable here. What
-is testable is everything that decides *what* gets drawn and *where*, and the
-client's behaviour when the renderer is absent, slow, broken, or lying — which
-is where the bugs that matter live. A renderer that fails to start is a
-disappointment; a client that thinks it started is a hang.
-
-Two behaviours are asserted hardest:
+The renderer itself needs a display and PySide6 and is not testable here.
 
   * the overlay draws nothing unless the commander is in an SRV near a
     recorded deposit, because an overlay that is always on is wallpaper;
@@ -71,7 +64,7 @@ def test_a_degenerate_tape_places_nothing():
 
 @pytest.mark.parametrize("anchor,expected", [
     ("top-left",      (10, 40)),
-    ("top-centre",    (610, 40)),   # offset nudges a centred window
+    ("top-centre",    (610, 40)),   # offset nudges a centered window
     ("top-right",     (1190, 40)),
     ("bottom-left",   (10, 1040)),
     ("bottom-centre", (610, 1040)),
@@ -267,9 +260,6 @@ def _plugin(tmp_path, monkeypatch):
 
 def test_every_bound_widget_maps_to_a_real_config_key(tmp_path, monkeypatch):
     """A binding pointing at a key that does not exist saves into nothing.
-
-    The failure is invisible: the control moves, Apply succeeds, and the
-    setting is silently discarded on the next load.
     """
     from core.overlay import CFG_DEFAULTS as OV
     from core.sheets_publish import CFG_DEFAULTS as SH
@@ -298,7 +288,7 @@ def test_the_gui_discovery_call_takes_no_arguments(tmp_path, monkeypatch):
     returned None when handed no dialog, so the tab was never registered and
     the whole Survey page was invisible in GUI mode — while TUI, which has a
     different discovery call, showed it fine.  The earlier test asserted the
-    broken behaviour, because it was written from the same wrong idea as the
+    broken behavior, because it was written from the same wrong idea as the
     code.
     """
     p = _plugin(tmp_path, monkeypatch)
@@ -311,12 +301,7 @@ def test_the_gui_discovery_call_takes_no_arguments(tmp_path, monkeypatch):
 
 def test_the_component_registers_so_its_rows_are_ever_asked_for(tmp_path,
                                                                 monkeypatch):
-    """get_tab_rows() is only called for registered session providers.
-
-    Defining the method is not enough: core.session_providers() returns only
-    components that called register_session_provider(), so an unregistered one
-    renders nowhere in either front end no matter what it returns.
-    """
+    """get_tab_rows() is only called for registered session providers."""
     from core.activity import ActivityProviderMixin
 
     p = _plugin(tmp_path, monkeypatch)
@@ -340,11 +325,7 @@ def test_store_lines_survive_an_unreadable_store(tmp_path, monkeypatch):
 
 
 def test_the_survey_tab_no_longer_owns_the_overlay():
-    """Overlay settings moved to their own tab and component.
-
-    Leaving a second copy behind would give two pages writing the same config
-    keys, and whichever was opened last would appear to win.
-    """
+    """Overlay settings moved to their own tab and component."""
     src = (ROOT / "components" / "surface_mining.py").read_text(encoding="utf-8")
     for token in ("OVERLAY_DEFAULTS", "_overlay_cfg", "srv-ov-"):
         assert token not in src, f"{token} still in the Survey tab"

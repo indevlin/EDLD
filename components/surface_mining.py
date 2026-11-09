@@ -1,7 +1,4 @@
-"""
-components/surface_mining.py — Planetary surface mining survey.
-
-Records where surface deposits are, automatically, while you mine them.
+"""components/surface_mining.py — Planetary surface mining survey.
 
 The 4.4.1 surface mining feature added no journal events.  What it added was a
 new ``SAASignalsFound`` signal type — ``$PlanetaryMiningLocation_Name;``, which
@@ -9,11 +6,9 @@ says how many mining location signals a body has — and a set of commodities
 that come out of ``MiningRefined`` exactly as ring ore does.  Neither carries
 a position.
 
-So the survey is built from two joins:
-
   body census    A surface scan reports the mining location count for the body
                  before any of them has been visited.  ``components.mining``
-                 already recognises this token and discards it, correctly, so
+                 already recognizes this token and discards it, correctly, so
                  it does not appear in the hotspot table as "Human 3 hotspots".
                  Here it is the thing being counted.
 
@@ -21,9 +16,6 @@ So the survey is built from two joins:
                  with a live latitude is proof of a deposit underneath them.
                  The position comes from the Status.json ring in
                  :mod:`core.surface_survey`, matched on time.
-
-Nothing has to be pressed and nothing has to be set up.  A deposit you drove
-to and dug is recorded because you dug it.
 
 Tab title: Survey
 """
@@ -55,10 +47,7 @@ _CONFIRM_INTERVAL_S = 15.0
 #: arrival radius, so a deposit cannot be driven past unnoticed.
 _PROX_TICK_S = 0.5
 
-#: Older than this and a MiningRefined is history being replayed at startup
-#: rather than something that just happened. Generous, because the journal is
-#: written in batches and a live event can be many seconds old by the time it
-#: is read.
+#: Older than this and a MiningRefined is history being replayed at startup.
 _LIVE_MAX_LAG_S = 120.0
 
 #: Overlay redraw cadence. Status.json is rewritten twice a second and the SRV
@@ -66,8 +55,6 @@ _LIVE_MAX_LAG_S = 120.0
 #: below what is readable on a compass tape.
 _OVERLAY_TICK_S = 0.5
 
-#: A position older than this means the game has stopped writing Status.json:
-#: quit, alt-tabbed into a menu, or crashed. Bearings from it are fiction.
 _POSITION_STALE_S = 3.0
 
 
@@ -158,7 +145,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         # Overlay ownership moved to components/overlay.py.  This component
         # contributes a panel; it does not own a window.
 
-        # Proximity confirmation.  Driving within a few metres of a recorded
+        # Proximity confirmation.  Driving within a few meters of a recorded
         # deposit is evidence it is still there, which is the one thing about a
         # deposit that goes stale and that nobody will ever update by hand.
         self._prox = None
@@ -177,7 +164,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
                       f"{type(exc).__name__}: {exc}")
 
         # What each commodity is called, before anything is matched: the
-        # market catalogue and the store's own rows both pair the game's
+        # market catalog and the store's own rows both pair the game's
         # symbol with the name a commander sees and types. Then any deposit
         # recorded under a typed name, or twice at one site, is put right.
         self._learn_commodity_names()
@@ -185,6 +172,8 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             self._db.repair()
         except Exception as exc:
             self._log(f"survey store repair failed: {type(exc).__name__}: {exc}")
+
+        self._enrich_known_bodies()
 
         try:
             counts = self._db.counts()
@@ -194,7 +183,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         except Exception as exc:
             # The store failing to open must not be silent; the plugin carries
             # on so the rest of the dashboard is unaffected, but every write
-            # below will report its own failure rather than pretending.
+            # below will report its own failure.
             self._log(f"survey store unavailable: {type(exc).__name__}: {exc}")
 
     def _learn_commodity_names(self) -> None:
@@ -207,7 +196,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             for symbol, row in ledger.rows().items():
                 learned += learn_commodity_name(symbol, row.get("name_localised", ""))
         except Exception as exc:
-            self._log(f"commodity names from the catalogue unavailable: "
+            self._log(f"commodity names from the catalog unavailable: "
                       f"{type(exc).__name__}: {exc}")
         try:
             learned += self._db.learn_names()
@@ -258,13 +247,9 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
     # ── publishing ────────────────────────────────────────────────────────────
 
     def publish_now(self) -> str:
-        """Send everything pending to the configured sheet.  Returns a summary.
+        """Send everything pending to the configured sheet. Returns a summary.
 
-        Called when the commander leaves a body rather than per deposit.
-        Sheets allows roughly sixty writes a minute per user, and one real
-        session produced 608 refine events; a send per event would be rate
-        limited within the first minute of a rig run. Leaving a body is the
-        natural boundary — the survey of that body is finished.
+        Called when the commander leaves a body.
         """
         if not self._publisher:
             return "off"
@@ -295,12 +280,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         return self._publish_status
 
     def _remove_merged_from_sheet(self) -> None:
-        """Delete from the sheet the rows that were merged away here.
-
-        A merged deposit's survivor is re-published with the combined figures;
-        without this the sheet would keep the duplicate beside it for good.
-        A failure leaves the id queued for the next publish.
-        """
+        """Delete from the sheet the rows that were merged away here."""
         try:
             ids = self._db.pending_sheet_removals()
         except Exception as exc:
@@ -357,19 +337,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
                       f"{type(exc).__name__}: {exc}")
 
     def _enrich_body(self, system_address: int, body_id: int) -> None:
-        """Fill a body's facts from the exploration catalogue.
-
-        The survey only learns a planet's class, gravity, atmosphere and
-        volcanism from a ``Scan`` in the current session. A body scanned months
-        ago produces none, so its deposits were published with five of the
-        twenty-three columns empty — coordinates and a commodity, but nothing
-        telling a squadron whether the site is drivable.
-
-        EDLD already has all of it. ``explo.db`` holds 1074 planets with
-        exactly these columns, and it is the same data from the same scans; it
-        was simply never asked. Only blanks are filled, so a Scan seen live
-        still wins.
-        """
+        """Fill blank body columns from ``bodies_db.planet_facts``; set values are kept."""
         try:
             from core.bodies_db import get_db as _get_bodies
         except Exception:
@@ -377,7 +345,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         try:
             facts = _get_bodies().planet_facts(system_address, body_id)
         except Exception as exc:
-            self._log(f"body catalogue lookup failed: {type(exc).__name__}: {exc}")
+            self._log(f"body catalog lookup failed: {type(exc).__name__}: {exc}")
             return
         if not facts:
             return
@@ -389,9 +357,21 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             try:
                 self._db.upsert_body(system_address, body_id, **fields)
                 self._log(f"filled {', '.join(sorted(fields))} for body "
-                          f"{body_id} from the body catalogue")
+                          f"{body_id} from the body catalog")
             except Exception as exc:
                 self._log(f"body enrichment failed: {type(exc).__name__}: {exc}")
+
+    def _enrich_known_bodies(self) -> None:
+        """Run _enrich_body for every deposit body missing gravity or a system name."""
+        try:
+            todo = {(d["system_address"], d["body_id"])
+                    for d in self._db.all_deposits()
+                    if d.get("gravity") in (None, "") or not d.get("system_name")}
+        except Exception as exc:
+            self._log(f"body backfill unavailable: {type(exc).__name__}: {exc}")
+            return
+        for sa, bid in sorted(todo):
+            self._enrich_body(sa, bid)
 
     # ── body census ───────────────────────────────────────────────────────────
 
@@ -413,19 +393,6 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
                 hotspots.append(f"{nm}:{sig.get('Count', 0)}")
         if count <= 0 and not hotspots:
             return
-        # Deliberately does NOT change which body the commander is on.
-        #
-        # A surface scan is about a body you may be nowhere near — they are
-        # done from orbit, often several in a row. Adopting the scanned body as
-        # the current one meant that scanning two bodies back to back while
-        # parked in an SRV on the first filed every later refine against the
-        # second: three deposits landed on a body the commander had never
-        # approached, carrying the coordinates of the one they were standing
-        # on.
-        #
-        # Where the commander is comes from ApproachBody, Location, Touchdown
-        # and SupercruiseExit — events about the ship rather than about a
-        # telescope.
         scanned = str(event.get("BodyName", "") or "")
         self.fetch_body(int(sa), int(bid))
         try:
@@ -451,15 +418,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         if pos is None and ts is not None and (time.time() - ts) < _LIVE_MAX_LAG_S:
             # The journal is buffered: the game writes lines in batches, and
             # the gap between a refine happening and EDLD reading the line
-            # routinely exceeds the two-second match window. Every live refine
-            # was falling through this hole — 190 of them in one session —
-            # and, because only the replay branch logged anything, silently.
-            #
-            # The current position is the right answer anyway. Refining
-            # requires the SRV to be parked on the deposit, so where the
-            # commander is now IS where the refine happened; it is only stale
-            # once they have driven off, which the freshness check below
-            # covers.
+            # routinely exceeds the two-second match window.
             latest = POSITIONS.latest()
             if latest is not None and (time.time() - latest.ts) <= _POSITION_STALE_S:
                 pos, matched = latest, "latest"
@@ -487,11 +446,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
 
         if pos.body_name and self._body_name \
                 and pos.body_name != self._body_name:
-            # Status.json names the body underneath the commander. If the
-            # tracked identity disagrees with it, the id is stale or wrong and
-            # a deposit written now would carry the right coordinates under the
-            # wrong body — which is exactly the failure that put three of them
-            # on a body nobody had visited. Refuse rather than guess.
+            # Status.json names the body underneath the commander.
             if not self._body_mismatch_warned:
                 self._body_mismatch_warned = True
                 self._log(f"tracked body is {self._body_name!r} but the game "
@@ -548,12 +503,6 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             batch = [self._pending.pop(k) for k in ready]
         for p in batch:
             try:
-                # The system name comes from whatever event last told us
-                # where we were, not from the Scan — a body scanned in an
-                # earlier session has no Scan in this one, and its deposits
-                # were being published with an empty system column. A shared
-                # row that names the rock but not the system is one nobody
-                # else can use.
                 self._db.upsert_body(p["system_address"], p["body_id"],
                                      system_name=self._system_name or None,
                                      body_name=self._body_name or None,
@@ -589,14 +538,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         """Record the deposit the commander is parked on.
 
         Automatic capture creates a deposit from a MiningRefined, which is the
-        only event the game emits that implies one. Driving onto a deposit
-        emits nothing at all — across eighteen minutes of approaching and
-        parking on one, the journal produced a single ModuleInfo and nothing
-        else. So a deposit seen but not yet worked cannot be captured without
-        the commander saying so.
-
-        Position comes from Status.json, so the only thing asked for is what is
-        on screen and in no file: what it is, how much, how dense.
+        only event the game emits that implies one.
 
         Creates if there is nothing recorded nearby, annotates if there is.
         """
@@ -648,18 +590,10 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
 
     def mark_here(self, *, amount: str = "", density: str = "",
                   rigs: int | None = None) -> str:
-        """Record a judgement about the deposit the commander is standing on.
+        """Record a judgment about the deposit the commander is standing on.
 
         Automatic capture gets the position, the commodity and the fact that a
-        deposit exists. It cannot get how much is left or how dense the seam
-        is, because nothing in the journal says. Those are the commander's
-        assessment, and this is where they land.
-
-        Resolution is by position rather than by selection: standing on the
-        thing you are describing is both the natural way to do it and the only
-        way that needs no list to pick from. The deposit is matched with the
-        same proximity rule that records one in the first place, so it cannot
-        attach a judgement to a neighbour.
+        deposit exists.
         """
         pos = POSITIONS.latest()
         if pos is None or (time.time() - pos.ts) > _POSITION_STALE_S:
@@ -698,10 +632,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         """Form contents for the deposit underfoot, and a heading.
 
         Returns blanks and an "add" heading when there is nothing recorded
-        here, the stored values and an "edit" heading when there is. One call
-        answers both, so a front end needs one keybind and one window rather
-        than two of each — the commander does not know which they are doing
-        until EDLD has looked.
+        here, the stored values and an "edit" heading when there is.
         """
         from core.deposit_form import prefill
 
@@ -730,10 +661,6 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             return prefill(None), (f"New deposit at {pos.latitude:.5f}, "
                                    f"{pos.longitude:.5f}")
         name = near.get("commodity_display") or near.get("commodity", "")
-        # The depletion date lives in its own table, so it has to be fetched
-        # rather than read off the row — without it the field would show blank
-        # on a site already known to be worked out, and saving would silently
-        # re-stamp it with today.
         try:
             history = self._db.depletion_history(near["deposit_id"])
         except Exception:
@@ -745,10 +672,6 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
 
     def submit_form(self, raw: dict) -> str:
         """Apply a filled-in form to the deposit underfoot, adding if absent.
-
-        Both front ends call this rather than each assembling their own write,
-        so validation, the add-or-edit decision and the wording of the result
-        cannot drift between them.
         """
         from core.deposit_form import clean, describe
 
@@ -804,21 +727,55 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         self._log(f"{verb} {dep_id} from the deposit form")
         return f"{verb} {dep_id}"
 
+    # ── Any deposit, by id (Objectives → Deposits) ─────────────────────────────
+
+    def deposit_records(self) -> list[dict]:
+        """mining_db.all_deposits(); [] when the store cannot be read."""
+        try:
+            return self._db.all_deposits()
+        except Exception as exc:
+            self._log(f"could not list deposits: {type(exc).__name__}: {exc}")
+            return []
+
+    def form_for(self, dep_id: str) -> tuple[dict, str]:
+        """Form contents and heading for deposit ``dep_id``."""
+        from core.deposit_form import prefill
+        rec = self._db.deposit(dep_id)
+        if rec is None:
+            return prefill(None), f"{dep_id} is not in the store"
+        name = rec.get("commodity_display") or rec.get("commodity", "")
+        where = rec.get("body_name") or rec.get("system_name") or ""
+        return prefill(rec), f"Editing {name}, {where} ({dep_id})"
+
+    def submit_form_for(self, dep_id: str, raw: dict) -> str:
+        """submit_form() for deposit ``dep_id``. Commodity is not editable."""
+        from core.deposit_form import clean, describe
+        if self._db.deposit(dep_id) is None:
+            return f"{dep_id} is not in the store"
+        raw = {k: v for k, v in raw.items() if k != "commodity"}
+        cleaned = clean(raw)
+        if cleaned.errors:
+            return describe(cleaned.errors)
+        values = {k: v for k, v in cleaned.values.items()
+                  if k not in ("commodity", "commodity_display")}
+        if not values:
+            return "nothing to change"
+        try:
+            changed = self._db.annotate_deposit(dep_id, **values)
+        except Exception as exc:
+            msg = f"could not save: {type(exc).__name__}: {exc}"
+            self._log(msg)
+            return msg
+        if not changed:
+            return "nothing to change"
+        self._log(f"updated {dep_id} from the Deposits table")
+        gq = getattr(self._core, "gui_queue", None)
+        if gq:
+            gq.put(("plugin_refresh", "surface_mining"))
+        return f"updated {dep_id}"
+
     def delete_here(self) -> str:
-        """Remove the deposit underfoot, locally and from the shared sheet.
-
-        Restricted to being at the site, like every other action here, and for
-        a stronger reason than convenience: a deposit that reached the sheet is
-        something other commanders will fly to, and being able to remove one
-        from a list would make a stray click somebody else's wasted trip.
-        Standing on it is the closest thing to proof the commander knows what
-        they are removing.
-
-        This is for a row that should never have existed — a wrong commodity, a
-        position filed under the wrong body. A site that is merely empty should
-        be given a depletion date instead: that is information the next commander
-        wants, and deleting it invites them to rediscover it.
-        """
+        """Remove the deposit underfoot, locally and from the shared sheet."""
         pos = POSITIONS.latest()
         if pos is None or (time.time() - pos.ts) > _POSITION_STALE_S:
             return "no live position — is the game running?"
@@ -852,13 +809,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         return f"deleted {name}{shared}"
 
     def flag_here(self, is_test: bool) -> str:
-        """Mark the deposit underfoot as test data, or clear the mark.
-
-        Per deposit, because the config switch flags everything recorded from
-        now on and cannot reach the one row that was a mistake. Flagged rows
-        stay in the local store and are held back from the sheet, so this is
-        how a bad row is retired without deleting evidence.
-        """
+        """Mark the deposit underfoot as test data, or clear the mark."""
         pos = POSITIONS.latest()
         if pos is None or (time.time() - pos.ts) > _POSITION_STALE_S:
             return "no live position — is the game running?"
@@ -881,11 +832,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         return f"{name} marked as {'test' if is_test else 'live'} data"
 
     def mark_depleted_here(self) -> str:
-        """Stamp today as the day the deposit underfoot was worked out.
-
-        Not a delete, and not a change of amount: the date is the whole record
-        of depletion, and the amount stays what the site holds when full.
-        """
+        """Stamp today as the day the deposit underfoot was worked out."""
         pos = POSITIONS.latest()
         if pos is None or (time.time() - pos.ts) > _POSITION_STALE_S:
             return "no live position — is the game running?"
@@ -924,12 +871,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         return max(1, min(9, n))
 
     def overlay_panel(self, panel_id: str, ctx):
-        """Bearings to deposits already found on this body.
-
-        Returning None is this component's relevance test and the whole of what
-        `auto` consults: outside an SRV, or with nothing recorded within range,
-        there is nothing worth covering the game for.
-        """
+        """Bearings to deposits already found on this body."""
         if panel_id != "survey_compass" or not ctx.in_srv:
             return None
         if ctx.latitude is None or ctx.longitude is None or not ctx.body_radius:
@@ -1019,12 +961,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
                    body_id: int | None = None) -> str:
         """Pull this body's known deposits down from the shared sheet.
 
-        Runs on arrival rather than on a schedule, because that is when the
-        answer is worth having and when a stale one costs nothing: a deposit
-        recorded last week is still where it was.
-
-        Once per body per session. Arriving, leaving and coming back should not
-        spend three requests to learn the same thing.
+        Once per body per session.
         """
         if not (self._publisher and self._fetch_enabled):
             return ""
@@ -1064,13 +1001,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
     def _tick(self) -> None:
         """Flush pending deposits, then confirm anything driven onto.
 
-        The flush has to be on a clock. It used to run only at the end of
-        _on_refined, and a run of refines collapses into one pending entry that
-        is not ready to write until _CONFIRM_INTERVAL_S has passed — so a
-        commander who mined four tonnes and stopped left the deposit sitting in
-        memory with nothing left to trigger the write. Four refines, no log
-        line, no row, because the code had succeeded right up to the last step
-        and then had no reason to run again.
+        The flush has to be on a clock.
         """
         self._flush_pending()
         if self._prox is not None and self._prox_enabled:
@@ -1085,11 +1016,6 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
 
     def check_proximity(self) -> list[str]:
         """Confirm any deposit the commander has just driven onto.
-
-        Runs on its own tick rather than off the overlay's, because a
-        commander with the overlay switched off should still have their survey
-        stay current — tying data collection to a display would make the data
-        depend on whether anyone was looking at it.
 
         Returns the deposit ids confirmed, for tests.
         """
@@ -1120,7 +1046,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         for dep_id in arrived:
             try:
                 # A visit confirms the deposit is still there; it says nothing
-                # about how much is left, which is a judgement and stays with
+                # about how much is left, which is a judgment and stays with
                 # the commander.  annotate_deposit with no fields would be a
                 # no-op, so the timestamp is moved explicitly.
                 self._db.touch_deposit(dep_id)
@@ -1135,8 +1061,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
     def preferences_action(self, action_id: str, values: dict | None = None):
         """Handle a button from this component's preferences tab.
 
-        Shared by both front ends so the Test button means the same thing in
-        each. Returns None for ids that are not ours, so the screen can keep
+        Returns None for ids that are not ours, so the screen can keep
         looking.
         """
         values = values or {}
@@ -1200,10 +1125,9 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
 
 
     def gui_preferences_tab(self):
-        # Called with no arguments by gui/preferences.py _extra_tabs() purely to
-        # discover the tab; the builder it returns is what receives the dialog.
-        # Returning None here when handed no dialog — which is what this used to
-        # do — meant the tab was never registered at all.
+        # Called with no arguments by gui/preferences.py _extra_tabs() purely
+        # to discover the tab; the builder it returns is what receives the
+        # dialog.
         def _build(dlg):
             from PySide6.QtWidgets import (
                 QLabel, QVBoxLayout, QFormLayout, QWidget, QPushButton,
@@ -1330,12 +1254,9 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             result.setProperty("role", "dim")
 
             def _test() -> None:
-                # Same code path as the TUI button.  Two implementations of
+                # Same code path as the TUI button. Two implementations of
                 # "test the connection" would eventually disagree about what
                 # counts as success.
-                # Tests what is in the boxes now, not what was loaded at open:
-                # a Test button that checks the saved value tells you nothing
-                # about the credentials you just typed in.
                 pending = getattr(dlg, "_pending", {})
                 live = {**sheet_cfg,
                         "Enabled": True,

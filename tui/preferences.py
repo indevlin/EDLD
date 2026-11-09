@@ -1,5 +1,4 @@
-"""
-tui/preferences.py — TUI preferences screen for EDLD.
+"""tui/preferences.py — TUI preferences screen for EDLD.
 
 The six pages EDLD draws itself:
   General       — journal folder, UTC, display toggles, inactivity alerts
@@ -12,13 +11,9 @@ The six pages EDLD draws itself:
 and after them the components' own, in alphabetical order.
 
 The pages are picked from a column down the left, as in the desktop window's
-Options. A row of tabs had grown wider than the screen with sixteen of them.
-Up and Down move through the column, Enter or a click opens a page, and
-Ctrl+PgDown and Ctrl+PgUp move between pages from anywhere on the screen.
+Options.
 
 Changes are collected in a pending dict and written to config.toml on Apply.
-Settings marked ⚠ require a restart; the screen restarts the process via
-core.restart_process() when Apply is confirmed.
 """
 from __future__ import annotations
 from pathlib import Path
@@ -134,19 +129,9 @@ class PreferencesScreen(ModalScreen):
         self._cfg     = core.cfg
         self._pending: dict[tuple[str, str], object] = {}
         self._restart_required = False
-        # What each control held when the screen opened. Textual posts a
-        # Changed message for every Input and Select as it mounts, carrying the
-        # value it was built with; recording those as edits put every setting
-        # on the page into _pending, so Apply wrote all of them — into the
-        # active profile, where they then shadowed the global values — and,
-        # with Theme among them, restarted EDLD whether or not anything had
-        # been touched. The first value seen for a key while the screen is
-        # still settling is its baseline, and only a value that differs from
-        # the baseline is a change.
+        # What each control held when the screen opened.
         self._baseline: dict[tuple[str, str], object] = {}
         self._settled = False
-        # Pre-compute plugin-injected tabs before compose() runs so that
-        # the compose generator is pure widget-yielding with no plugin I/O.
         self._cached_bindings = None
         # The components' pages in the order a commander reads the column,
         # not the order their modules happen to load in; the desktop window
@@ -309,11 +294,6 @@ class PreferencesScreen(ModalScreen):
                             theme_opts.append((f"Custom: {stem}", tid))
                         current_theme = ui.get("Theme", "default")
                         select_opts   = [(lbl, val) for lbl, val in theme_opts]
-                        # Guard: if the stored theme value does not exist in the
-                        # options list (e.g. a custom theme file that has been
-                        # removed, or a typo in config.toml), fall back to
-                        # "default" rather than letting Textual raise
-                        # InvalidSelectValueError and crash the preferences screen.
                         valid_values = {val for _, val in select_opts}
                         sel_val = current_theme if current_theme in valid_values else "default"
                         yield Select(
@@ -457,7 +437,7 @@ class PreferencesScreen(ModalScreen):
 
                         yield Label("RAVEN COLONIAL", classes="pref-section")
                         yield Label(
-                            "Sync colonisation project supply needs and\n"
+                            "Sync colonization project supply needs and\n"
                             "deliveries to ravencolonial.com.  Leave blank\n"
                             "to disable (local tracking still works).",
                             classes="pref-note",
@@ -728,23 +708,12 @@ class PreferencesScreen(ModalScreen):
 
     def _component_action(self, bid: str) -> None:
         """Route a button from a component-injected tab back to its component.
-
-        The dispatch above names every button this screen builds itself, and an
-        injected tab could therefore draw a button that did nothing at all —
-        the same shape of gap that left injected settings unsaved. A component
-        handles its own button by implementing preferences_action(id) and
-        returning a short status string; if it also yielded a Label with the id
-        f"{bid}-result", the string lands there.
         """
         for plugin in self._core._plugins.values():
             fn = getattr(plugin, "preferences_action", None)
             if not callable(fn):
                 continue
             try:
-                # Values are gathered live from the widgets, not from the
-                # pending-change map: a field the commander has typed into but
-                # not saved is exactly the one an action like "record what I am
-                # standing on" needs, and nothing has been applied yet.
                 try:
                     result = fn(bid, self._widget_values())
                 except TypeError:
@@ -762,13 +731,7 @@ class PreferencesScreen(ModalScreen):
     # ── Component-injected preference tabs ────────────────────────────────────
 
     def _extra_tabs(self) -> list[tuple[str, str, callable]]:
-        """Ask loaded components if they want to inject a preferences tab.
-
-        A component may expose a tui_preferences_tab() method returning
-        (tab_id: str, tab_label: str, composer: callable) or None.
-        Only called for components that implement the method — invisible to all
-        other code.
-        """
+        """Ask loaded components if they want to inject a preferences tab."""
         result = []
         for plugin in self._core._plugins.values():
             fn = getattr(plugin, "tui_preferences_tab", None)
@@ -804,11 +767,7 @@ class PreferencesScreen(ModalScreen):
     def _plugin_bindings(self) -> dict:
         """Widget id to (section, key, type), declared by the components.
 
-        The hardcoded maps below cover the tabs this screen builds itself.  A
-        component that injects a tab knows its own widget ids and its own
-        config keys, and having to also register them here meant the injection
-        hook only half worked: a plugin could draw a tab whose controls silently
-        did nothing on save.
+        The hardcoded maps below cover the tabs this screen builds itself.
         """
         if self._cached_bindings is None:
             merged: dict = {}

@@ -1,12 +1,6 @@
-"""
-tests/test_settings_spec_tabs.py — every component that describes its
+"""tests/test_settings_spec_tabs.py — every component that describes its
 settings once (core/settings_spec.py) gets the same Options tab in both
 front ends, saved to the same keys.
-
-For each: the desktop page is built and every setting it draws is recorded
-under the component's section; the terminal page is composed and every
-widget id it draws is one its bindings save. A setting drawn but not saved —
-or saved but not drawn — is the drift the spec exists to prevent.
 """
 from __future__ import annotations
 
