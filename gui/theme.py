@@ -423,4 +423,6 @@ def classes_to_props(classes: str) -> dict[str, str]:
         props["role"] = "dim"
     if "highlight" in parts:
         props["role"] = "highlight"
+    if "section-hdr" in parts:
+        props["role"] = "section"
     return props

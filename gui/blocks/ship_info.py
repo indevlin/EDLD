@@ -25,37 +25,26 @@ class ShipInfoBlock(GuiBlock):
     BLOCK_TITLE = "SHIP"
 
     def _build_body(self, layout) -> None:
-        # One header line naming the vessel.  The focus of this window is the
-        # ship, not its condition, so the identity is the whole heading.
-        self._hdr1 = self.text("", "section-hdr")
-        layout.addWidget(self._hdr1)
-
-        self._tabs = QTabWidget()
-        self._tabs.setDocumentMode(True)
-
-        # Cargo leads: it changes constantly and is checked far more often
-        # than a module list that only moves when something takes damage.
-        cargo_page = QWidget()
-        cargo_page_layout = QVBoxLayout(cargo_page)
-        cargo_page_layout.setContentsMargins(0, 0, 0, 0)
-
-        # The price-source label lives on the title bar, right-aligned, the
-        # same place the TUI puts it.
+        # One line: the vessel (accent) left, the price source right.
+        self._hdr1 = self.text("", "section-hdr", wrap=False)
         self._price_src = QLabel()
         self._price_src.setTextFormat(Qt.RichText)
         self._price_src.setProperty("role", "dim")
         self._price_src.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
-        title_bar = self._title.parentWidget()
-        # Rebuild the title row so the source label sits beside the title.
         hdr = QWidget()
         hl = QHBoxLayout(hdr)
         hl.setContentsMargins(0, 0, 8, 0)
         hl.setSpacing(8)
-        self._title.setParent(None)
-        hl.addWidget(self._title, 1)
-        hl.addWidget(self._price_src, 0)
-        outer = self.layout()
-        outer.insertWidget(0, hdr)
+        hl.addWidget(self._hdr1, 1, Qt.AlignVCenter)
+        hl.addWidget(self._price_src, 0, Qt.AlignVCenter)
+        layout.addWidget(hdr)
+
+        self._tabs = QTabWidget()
+        self._tabs.setDocumentMode(True)
+
+        cargo_page = QWidget()
+        cargo_page_layout = QVBoxLayout(cargo_page)
+        cargo_page_layout.setContentsMargins(0, 0, 0, 0)
 
         # Two tabs: Cargo is what the hold contains, Colonization is what a
         # construction depot still needs.  Same activity from opposite ends.
