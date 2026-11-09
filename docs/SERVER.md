@@ -505,7 +505,7 @@ header update within a few seconds of the game starting or stopping.
 
 ```json
 {"id":"cargo","title":"Cargo","group":"vessel","order":30,
- "rows":[{"label":"Commodity","value":"","kind":"head","cells":["Tonnes","Price","Value"]},
+ "rows":[{"label":"Commodity","value":"","kind":"head","cells":["Tons","Price","Value"]},
          {"label":"","value":"","kind":"rule"},
          {"label":"Platinum","value":"120 t · 200K cr · 24.0M cr","kind":"cells",
           "cells":["120 t","200K cr","24.0M cr"]},

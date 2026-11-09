@@ -198,7 +198,7 @@ def test_the_headings_sit_over_the_columns_they_name():
     totals = cargo_totals_cols("79/1024 t", 38_200_000)
 
     assert len(heading) == len(row) == len(totals)
-    for label, cell in zip(("Tonnes", "Price", "Value"),
+    for label, cell in zip(("Tons", "Price", "Value"),
                            ("79 t", "484K cr", "38.2M cr")):
         assert heading.index(label) + len(label) == row.index(cell) + len(cell), \
             f"'{label}' does not end where '{cell}' does:\n{heading}\n{row}"

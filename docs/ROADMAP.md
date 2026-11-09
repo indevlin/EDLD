@@ -1,6 +1,6 @@
 # EDLD Roadmap
 
-Last updated: 20261105
+Last updated: 20261108
 
 ---
 
@@ -10,15 +10,29 @@ Last updated: 20261105
 `com.indevlin.edam`, with this release: AdMob's banner, the consent message
 where the law asks for one, and a one-time purchase that removes the ads.
 
-**Fast start-up** (in development) — the journal index, the career scan's
-checkpoint, the window opening before the history is read, and the last
-session shown while the journals load: an everyday start in about two
-seconds instead of nine, no longer growing with the history
-([Start-up](STARTUP.md)).
-
 ---
 
 ## Recently shipped
+
+**The Mining window and ring hotspots** (20261108) — Ring Hotspots, read from
+every ring the Detailed Surface Scanner has mapped, and Surface Sites, each a
+filterable table edited in place, in a window of its own and a section of
+EDCARS and EDAM. Hotspots are shared on the survey sheet, whose layout v4
+renames Deposits to Surface Sites. See [SURFACE_SURVEY.md](SURFACE_SURVEY.md).
+
+**Every mission on the board** (20261108) — the Missions tab shows each kind of
+mission in a table of its own, rebuilt from the journals at every login, with
+the ore a mining mission needs that is already in the hold or on your own
+carrier.
+
+**Uploads when things happen** (20261108) — EDSM, EDAstro and Inara receive
+events at every dock and undock, jump, ship or vehicle change, death and
+loadout change.
+
+**Fast start-up** (20261105) — the journal index, the career scan's
+checkpoint, the window opening before the history is read, and the last
+session shown while the journals load: an everyday start in about two seconds
+instead of nine, no longer growing with the history ([Start-up](STARTUP.md)).
 
 **EDCARS consoles** (20261105) — EDCARS drawn as ORDER, an Imperial fleet
 console; REBEL, a Rebel ops board; or ROGUE, an independent freighter's

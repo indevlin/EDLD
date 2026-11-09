@@ -91,7 +91,14 @@ class MiningBlock(TuiBlock):
             return
         self._shown[name] = rows
         scroll.remove_children()
-        widgets = self.render_rows(rows)
+        # Labels padded to one width (NBSP) so columns line up when the rows
+        # are wider than the window and scroll sideways.
+        n = max((len(r[1]) for r in rows if r[0] in ("table", "cells")), default=0) + 2
+        padded = [(r[0], r[1].ljust(n).replace(" ", "\u00a0")) + tuple(r[2:])
+                  if r[0] in ("table", "cells") else r for r in rows]
+        widgets = self.render_rows(padded)
+        for w in widgets:
+            w.add_class("mining-row")
         if widgets:
             scroll.mount(*widgets)
 

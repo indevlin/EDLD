@@ -1,6 +1,6 @@
 # EDLD Privacy Policy
 
-Effective 2 November 2026.
+Effective 8 November 2026.
 
 EDLD, the Elite Dangerous Live Dashboard, is published by Indevlin, LLC
 (“Indevlin”, “we”, “us”). This policy covers EDLD on Windows, macOS and Linux,
@@ -28,13 +28,13 @@ Options or `config.toml`.
 | Service | Turned on by | What is sent |
 |---|---|---|
 | **Frontier Companion API** (`companion.orerve.net`, `auth.frontierstore.net`) | Signing in with your Frontier account from EDLD | EDLD asks Frontier for your profile, fleet, market, shipyard, fleet carrier and community goals, using a token issued to you. The token is kept in your commander’s data folder |
-| **EDDN** — Elite Dangerous Data Network | `[EDDN] Enabled` | Game data other tools rely on: markets, outfitting, shipyards, systems, bodies and signals you visit or scan, with your commander name as the uploader ID, which EDDN anonymises before passing it on. Nothing from your inventory, wallet or missions |
+| **EDDN** — Elite Dangerous Data Network | `[EDDN] Enabled` | Game data other tools rely on: markets, outfitting, shipyards, systems, bodies and signals you visit or scan, with your commander name as the uploader ID, which EDDN anonymizes before passing it on. Nothing from your inventory, wallet or missions |
 | **EDSM** — Elite Dangerous Star Map | `[EDSM] Enabled`, commander name and API key | Your journal — travel, scans, ranks, materials, missions and the rest EDSM accepts — under your EDSM account. EDLD also asks EDSM where it last saw you |
 | **EDAstro** | `[EDAstro] Enabled` | Exploration events — scans, signals, codex entries — and, with `UploadCarrierEvents`, your fleet carrier’s movements |
 | **Inara** | `[Inara] Enabled`, commander name and API key | Your commander’s activity, under your Inara account: ranks and engineer ranks, reputation, credits, ships and their loadouts, cargo and materials, missions, docking and jumps, deaths, and community goals |
 | **Raven Colonial** | `[Colonisation] ApiKey` | Construction progress for colonization projects you contribute to |
 | **Discord** | `[Discord] WebhookURL` | Messages to your own channel: the startup notice (commander, location, ship, credits, cargo, fuel, PowerPlay, carrier), alerts, and the quarter-hour summaries, at the levels set under `[LogLevels]` |
-| **Google Sheets** (your own sheet’s Apps Script) | `[SurfaceSurvey] Enabled`, URL and token | Surface deposits you record — system, body, commodity, position, amount, density, notes — and the reporter name you choose. EDLD also reads back what others have recorded. See [SURFACE_SURVEY.md](https://github.com/indevlin/EDLD/blob/main/docs/SURFACE_SURVEY.md) |
+| **Google Sheets** (your own sheet’s Apps Script) | `[SurfaceSurvey] Enabled`, URL and token | Surface deposits you record — system, body, commodity, position, amount, density, notes — ring hotspots you map — system, body, ring, ring type, reserve level, commodity, overlap and note — and the reporter name you choose. EDLD also reads back what others have recorded. See [SURFACE_SURVEY.md](https://github.com/indevlin/EDLD/blob/main/docs/SURFACE_SURVEY.md) |
 | **DuckDNS** | `[Server] DuckDNSDomain` and token | Your public IP address, to keep your DuckDNS name pointing at it |
 | **Your router** (NAT-PMP / UPnP) | `[Server] PortMapping` | A request, on your own network, to forward the server’s port. Removed when EDLD exits |
 

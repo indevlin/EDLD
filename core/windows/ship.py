@@ -76,7 +76,7 @@ def _cells(name, count, price, line):
 
 def _table():
     from core.ui_helpers import _CARGO_PRICE_W, _CARGO_QTY_W, _CARGO_VALUE_W
-    return R.table("Commodity", (("Tonnes", _CARGO_QTY_W), ("Price", _CARGO_PRICE_W),
+    return R.table("Commodity", (("Tons", _CARGO_QTY_W), ("Price", _CARGO_PRICE_W),
                                  ("Value", _CARGO_VALUE_W)))
 
 

@@ -144,7 +144,7 @@ populated from the full journal archive and kept current during play.
 | `planet_signals`  | per-planet detected biological / geological signal genera          |
 | `flora`           | per-planet genus / species / color                                 |
 | `flora_status`    | per-commander sample count / logged / waypoints                     |
-| `non_bodies`      | belts, clusters, barycentres                                        |
+| `non_bodies`      | belts, clusters, barycenters                                        |
 
 ### Population
 

@@ -583,7 +583,7 @@ def cargo_cols(count: int, unit_price: int, line_value: int) -> str:
 
 
 #: Column headings, in the same three widths as the rows beneath them.
-_CARGO_HEADINGS = ("Tonnes", "Price", "Value")
+_CARGO_HEADINGS = ("Tons", "Price", "Value")
 
 
 def cargo_header_cols() -> str:

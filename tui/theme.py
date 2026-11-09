@@ -221,6 +221,9 @@ DepositScreen, HotspotScreen {
 #hotspot-dialog .key { width: 30%; }
 #hotspot-fields { height: auto; }
 .mining-footer { height: 1; }
+#hotspots-scroll, #sites-scroll { overflow-x: auto; }
+.mining-row { width: auto; min-width: 100%; }
+.mining-row Label { width: auto; }
 
 #deposit-dialog {
     width: 76;

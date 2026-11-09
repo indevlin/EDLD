@@ -88,7 +88,7 @@ flagging it as test data and recording the right one.
 ## The Mining window
 
 The **Mining** window (its own section in EDCARS, `Ctrl+6`; in the Dashboard,
-choose it for a center position in Options → Display) has two tabs, each a
+choose it for a large position in Options → Display) has two tabs, each a
 table with a filter box that matches any column.
 
 **Surface Sites** lists every deposit in the local survey store, the same

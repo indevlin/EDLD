@@ -42,7 +42,7 @@ def test_cargo_is_a_table_with_limpets_last_and_totals():
     }, cargo_mean_prices={"platinum": 200_000, "gold": 50_000, "drones": 100})
     rows = _panels(core)["cargo"]["rows"]
     head = next(r for r in rows if r["kind"] == "head")
-    assert head["label"] == "Commodity" and head["cells"] == ["Tonnes", "Price", "Value"]
+    assert head["label"] == "Commodity" and head["cells"] == ["Tons", "Price", "Value"]
     cells = [r for r in rows if r["kind"] == "cells"]
     assert [r["label"] for r in cells] == ["⚠ Gold", "Platinum", "Limpet", "Totals"]
     assert cells[1]["cells"] == ["120 t", "200K cr", "24.0M cr"]

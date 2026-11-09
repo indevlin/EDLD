@@ -77,10 +77,10 @@ BLOCK_CLASS = {
     "navigation":   PANEL,
     "ship_info":    PANEL,
     "career":       PANEL,
+    "mining":       PANEL,
     # Center column: three equal windows, freely interchangeable.
     "commander":    CENTER,
     "objectives":   CENTER,
-    "mining":       CENTER,
     "status":       CENTER,
 }
 

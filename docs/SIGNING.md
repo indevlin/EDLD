@@ -44,7 +44,7 @@ re-sign it. Never check a digest against a manifest whose signature you have
 not verified.
 
 The Windows and macOS binaries may also carry a platform code signature
-(Authenticode, and Apple notarisation), which your operating system checks by
+(Authenticode, and Apple notarization), which your operating system checks by
 itself. The signature here is independent of that and can be verified on any
 platform.
 

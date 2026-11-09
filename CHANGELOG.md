@@ -4,31 +4,14 @@ Last updated: 20261108
 
 ---
 
-## 20261108-dev — added, unreleased
-
-### Fixed: Merits this cycle could exceed Merits this pledge
-
-The cycle figure was a tally of every `PowerplayMerits` gain the journals held
-since the weekly reset, while the pledge figure was the server's own running
-total. The game writes `PowerplayMerits` again, with the same `TotalMerits`,
-when it repeats itself after a relog, and the tally counted each repeat as a
-fresh gain; the server's total also takes small corrections the tally never
-saw. Over a few sessions the cycle drifted above the pledge it is part of. A
-cycle is now the server's total now, less its total before the last reset
-(Thursday 07:00 UTC), rebuilt from the journals at login, so it can never be
-larger than the pledge. The PowerPlay tab also says when the cycle resets.
-
-### Added: the weekly reset is tracked
-
-EDLD now knows the start and end of the current PowerPlay week. The merits
-cycle uses it, and the Career PowerPlay tab and the Summary show the time
-left until the reset.
+## Released in 20261108
 
 ### Added: the Mining window, with Ring Hotspots and Surface Sites
 
 Mining is a window of its own, and a section of its own on the EDCARS rail
 (`Ctrl+6`; Career and Alerts move to `Ctrl+7` and `Ctrl+8`). In the Dashboard
-it has no slot by default: choose it for a center slot in Options → Display.
+it has no slot by default: choose it for a large slot in Options → Display,
+where its tables, wider than the slot, scroll sideways.
 It has two tabs, each a table with a filter box that matches any column.
 
 Surface Sites lists every deposit in the local survey store with the shared
@@ -56,15 +39,6 @@ every row and column where it was, and adds a Ring Hotspots tab; ED Dashboard
 keeps taking deposits, and EDLD holds its hotspots back and says the sheet
 needs Upgrade, in the log and in Test connection.
 
-### Fixed: deposits recorded by hand had no gravity or system name
-
-Body facts were filled from the exploration catalog only for deposits created
-from the form, and only once. A deposit recorded before its body was scanned,
-or captured from the journal, kept a blank gravity and an empty system name,
-which the shared sheet showed as blank cells without saying why. EDLD now
-fills missing body facts at startup for every deposit; a body that was never
-scanned still shows a blank.
-
 ### Added: colonization sites can be cleared, and clear themselves
 
 Each site in the Colonization tab has a Stop tracking row that clears it, on
@@ -80,6 +54,18 @@ mission asks for with the tons in your ship's hold, on your own fleet carrier
 and both together, and turns green once that covers what the mission still
 needs. A squadron carrier's hold is not counted.
 
+### Added: Settings on the EDCARS rail
+
+The last pill on the EDCARS rail is Settings, as on EDAM. It opens Options,
+the same as `Ctrl+O` or File → Options…, over the section showing, and is
+drawn by all four consoles.
+
+### Added: the weekly reset is tracked
+
+EDLD now knows the start and end of the current PowerPlay week. The merits
+cycle uses it, and the Career PowerPlay tab and the Summary show the time
+left until the reset.
+
 ### Changed: uploads to EDSM, EDAstro and Inara go out at more moments
 
 The collected events are now sent at every dock and undock (stations, fleet
@@ -88,6 +74,70 @@ on a carrier jump, at a ship purchase or swap, when an SRV or fighter
 launches, docks or is destroyed, at death, and whenever the loadout changes.
 Before, they waited for the next jump, dock or login, so a session that ended
 in space sat unsent until the next start. docs/CONFIGURATION.md lists them.
+
+### Changed: Career / Session, not Session / Career
+
+The window and its EDCARS section are titled Career / Session, matching the
+order of the tabs.
+
+### Changed: Set Home System is a row, not a button
+
+The Commander window's Set Home System button took a full-width strip, and
+more on the phone. The Home System row is now the control: press or tap it
+to search, on every front end and in EDAM. It reads "Set…" until a home is
+chosen.
+
+### Changed: US English throughout
+
+Every label, message, guide and log line now uses US spelling: Colonization,
+Center, color, and Tons over the cargo manifest. Configuration keys and
+journal field names are unchanged, so existing config files keep working.
+
+### Changed: the privacy policy names ring hotspots
+
+docs/PRIVACY.md, effective 8 November 2026, lists ring hotspots among what the
+survey sheet receives when it is turned on. Nothing else EDLD sends changed.
+
+### Changed: the Missions tab shows every mission, a table for each kind
+
+Massacres come first, by source faction, under MASSACRE SOURCE FACTION with
+KILLS, MISSIONS and REWARD columns and a Totals row; MISSIONS is missions done
+of missions held, two digits each (`01 / 05`), and a faction turns green when
+all of its missions are ready. The two summary lines above the table ("Active
+1/20", the redirected count) are gone: the table says the same, and "Active
+1/20" sat in the Kills column, where it read as a kill count. Every other
+kind follows in a table of its own — DELIVERY COMMODITY with tons delivered of
+tons asked for (`1120 / 2890`), COURIER DESTINATION, PASSENGER DESTINATION,
+ASSASSINATION TARGET, DONATION FACTION and the rest — each with the time it
+has left, READY once it can be turned in, and its reward.
+
+Kills made are not shown. Counting them was tried a second time for this
+release and dropped again for the reason it was dropped the first time: the figure fell
+behind the mission screen (10 of 45 against the game's 12). The journal writes
+a `Bounty` for only about seven in ten of the kills the game credits, and the
+rest leave no trace in it at all; docs/MISSION_BOOTSTRAP.md has the numbers.
+A redirect is exact, so the stack reports those.
+
+### Fixed: Merits this cycle could exceed Merits this pledge
+
+The cycle figure was a tally of every `PowerplayMerits` gain the journals held
+since the weekly reset, while the pledge figure was the server's own running
+total. The game writes `PowerplayMerits` again, with the same `TotalMerits`,
+when it repeats itself after a relog, and the tally counted each repeat as a
+fresh gain; the server's total also takes small corrections the tally never
+saw. Over a few sessions the cycle drifted above the pledge it is part of. A
+cycle is now the server's total now, less its total before the last reset
+(Thursday 07:00 UTC), rebuilt from the journals at login, so it can never be
+larger than the pledge. The PowerPlay tab also says when the cycle resets.
+
+### Fixed: deposits recorded by hand had no gravity or system name
+
+Body facts were filled from the exploration catalog only for deposits created
+from the form, and only once. A deposit recorded before its body was scanned,
+or captured from the journal, kept a blank gravity and an empty system name,
+which the shared sheet showed as blank cells without saying why. EDLD now
+fills missing body facts at startup for every deposit; a body that was never
+scanned still shows a blank.
 
 ### Fixed: integrations sent some data wrongly, or said nothing
 
@@ -103,50 +153,12 @@ carrier no longer resent its market. EDAstro logged failures but not
 successes, so a working upload looked the same as no upload at all; it now
 logs each batch sent.
 
-### Changed: Career / Session, not Session / Career
-
-The window and its EDCARS section are titled Career / Session, matching the
-order of the tabs.
-
 ### Fixed: the Ship window's vessel line lost its color and its place
 
 The vessel's name, ident and type were drawn in the plain value color on a
 line of their own under the price source, because the style for a section
 heading had no counterpart on the desktop. The vessel line is in the accent
 again, with the price source on the same line at its right.
-
-### Changed: Set Home System is a row, not a button
-
-The Commander window's Set Home System button took a full-width strip, more
-again on the phone. The Home System row is now the control: press or tap it
-to search, on every front end and in EDAM. It reads "Set…" until a home is
-chosen.
-
-### Changed: US English throughout
-
-Every label, message, guide and log line now uses US spelling: Colonization,
-Center, color. Configuration keys and journal field names are unchanged, so
-existing config files keep working.
-
-### Changed: the Missions tab shows every mission, a table for each kind
-
-Massacres come first, by source faction, under MASSACRE SOURCE FACTION with
-KILLS, MISSIONS and REWARD columns and a Totals row; MISSIONS is missions done
-of missions held, two digits each (`01 / 05`), and a faction turns green when
-all of its missions are ready. The two summary lines above the table ("Active
-1/20", the redirected count) are gone: the table says the same, and "Active
-1/20" sat in the Kills column, where it read as a kill count. Every other
-kind follows in a table of its own — DELIVERY COMMODITY with tons delivered of
-tons asked for (`1120 / 2890`), COURIER DESTINATION, PASSENGER DESTINATION,
-ASSASSINATION TARGET, DONATION FACTION and the rest — each with the time it
-has left, READY once it can be turned in, and its reward.
-
-Kills made are not shown. Counting them was tried a second time today and
-dropped again for the reason it was dropped the first time: the figure fell
-behind the mission screen (10 of 45 against the game's 12). The journal writes
-a `Bounty` for only about seven in ten of the kills the game credits, and the
-rest leave no trace in it at all; docs/MISSION_BOOTSTRAP.md has the numbers.
-A redirect is exact, so the stack reports those.
 
 ### Fixed: missions from an earlier session vanished from the Missions tab
 
@@ -184,21 +196,9 @@ complete", and a turned-in mission stayed on the stack with its reward still
 counted. It looked right after every restart, because the login snapshot
 rebuilt the stack from scratch, which is why it went unnoticed. Each event now
 has one arm doing both jobs. A redirect made while EDLD was closed is now
-picked up at login, so the stack's MISSIONS count is right too. The journal backfill
-for the stack's details also swallowed any failure (`except: pass`); it now
+picked up at login, so the stack's MISSIONS count is right too. The journal
+backfill for the stack's details also swallowed any failure (`except: pass`); it now
 logs it.
-
-### Added: Settings on the EDCARS rail
-
-The last pill on the EDCARS rail is Settings, as on EDAM. It opens Options,
-the same as `Ctrl+O` or File → Options…, over the section showing, and is
-drawn by all four consoles.
-
-### Fixed: the Sheets template was a version behind
-
-`sheets/Mining_Dashboard.xlsx` still said 20261105 after the version moved to
-20261106, which two tests caught (the generated sheet script is checked
-against it). It is rebuilt.
 
 ---
 
