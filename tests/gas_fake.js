@@ -57,12 +57,15 @@ function makeSheet(ss, name, rows) {
     getName: () => sheet._name,
     setName: (n) => { sheet._name = n; return sheet; },
     getParent: () => ss,
+    getIndex: () => sheets.indexOf(sheet) + 1,
     hideSheet: () => { sheet._hidden = true; return sheet; },
     getLastRow: () => { let n = rows.length; while (n && !rows[n - 1].some(v => v !== '' && v !== null)) n--; return n; },
     getLastColumn: () => rows.reduce((m, r) => { let n = r.length; while (n && (r[n - 1] === '' || r[n - 1] === null)) n--; return Math.max(m, n); }, 0),
     getMaxRows: () => Math.max(1000, rows.length),
     getMaxColumns: () => 26,
     _frozen: 0,
+    _filter: null,
+    getFilter: () => sheet._filter,
     setFrozenRows: (n) => { sheet._frozen = n; return sheet; },
     deleteRow: (r) => { rows.splice(r - 1, 1); },
     copyTo: (dest) => dest._add('Copy of ' + sheet._name, JSON.parse(JSON.stringify(rows))),
@@ -84,6 +87,7 @@ function makeSheet(ss, name, rows) {
         setValue: (v) => { put(r, col, v); return range; },
         setFormula: (f) => { put(r, col, f); return range; },
         setFormulas: (fs2) => range.setValues(fs2),
+        createFilter: () => { sheet._filter = { range: [r, col, nr, nc] }; return sheet._filter; },
         clearContent: () => { for (let i = 0; i < nr; i++) for (let j = 0; j < nc; j++) if (rows[r - 1 + i] && rows[r - 1 + i][col - 1 + j] !== undefined) rows[r - 1 + i][col - 1 + j] = ''; return range; },
       });
       return range;

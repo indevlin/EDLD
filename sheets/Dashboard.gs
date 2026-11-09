@@ -68,7 +68,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
  * Sheets-only formulas. Keep each one a plain template literal with no ${}:
  * build_dashboard.py parses them out of this file by regex.
  *
- * The FILTER picks Deposits columns by letter, so it depends on COLUMNS in
+ * The FILTER picks Surface Sites columns by letter, so it depends on COLUMNS in
  * Code.gs; tests/test_sheets_dashboard.py checks each letter against it. The
  * rank list in the SORT is AMOUNT_LEVELS from core/mining_db.py, lowest first,
  * and is checked too.
@@ -89,11 +89,13 @@ const FORMULAS = {
     IFERROR(
       LET(
         dep, FILTER(
-          {Deposits!B2:B, Deposits!D2:D, Deposits!G2:G, Deposits!K2:K, Deposits!L2:L,
-           Deposits!Q2:Q, Deposits!P2:P, Deposits!R2:R, Deposits!X2:X, Deposits!Y2:Y},
-          (Dashboard!$A$5="") + (Deposits!B2:B=Dashboard!$A$5) > 0,
-          (Dashboard!$B$5="") + (Deposits!L2:L=Dashboard!$B$5) > 0,
-          Deposits!W2:W <> 1
+          {'Surface Sites'!B2:B, 'Surface Sites'!D2:D, 'Surface Sites'!G2:G,
+           'Surface Sites'!K2:K, 'Surface Sites'!L2:L, 'Surface Sites'!Q2:Q,
+           'Surface Sites'!P2:P, 'Surface Sites'!R2:R, 'Surface Sites'!X2:X,
+           'Surface Sites'!Y2:Y},
+          (Dashboard!$A$5="") + ('Surface Sites'!B2:B=Dashboard!$A$5) > 0,
+          (Dashboard!$B$5="") + ('Surface Sites'!L2:L=Dashboard!$B$5) > 0,
+          'Surface Sites'!W2:W <> 1
         ),
         sortkey, INDEX(dep, 0, Queries!$N$1),
         IF(
@@ -110,8 +112,8 @@ const FORMULAS = {
     )
   }
 )`,
-  'Queries!A1': `=IFERROR(SORT(UNIQUE(FILTER(Deposits!B2:B, Deposits!B2:B<>"", Deposits!W2:W<>1))), "")`,
-  'Queries!B1': `=IFERROR(SORT(UNIQUE(FILTER(Deposits!L2:L, Deposits!L2:L<>"", Deposits!W2:W<>1))), "")`
+  'Queries!A1': `=IFERROR(SORT(UNIQUE(FILTER('Surface Sites'!B2:B, 'Surface Sites'!B2:B<>"", 'Surface Sites'!W2:W<>1))), "")`,
+  'Queries!B1': `=IFERROR(SORT(UNIQUE(FILTER('Surface Sites'!L2:L, 'Surface Sites'!L2:L<>"", 'Surface Sites'!W2:W<>1))), "")`
 };
 
 // ------------------------------------------------------------------ triggers & menu
@@ -178,6 +180,8 @@ function applyTheme() {
   const set = ss.getSheetByName(ED.SETTINGS);
   const thm = ss.getSheetByName(ED.THEMES);
   if (dash) styleDashboard_(dash, t);
+  const hot = ss.getSheetByName(HOTSPOT_SHEET_NAME);
+  if (hot) styleHotspots_(hot, t);
   if (set) styleSettings_(set, t);
   if (thm) styleThemes_(thm, t);
 }
@@ -373,6 +377,27 @@ function styleDashboard_(sh, t) {
   bands.forEach(([p, bg]) => rules.push(mk(all,
     `=AND($A${r0}<>"",$I${r0}="",MOD(ROW(),2)=${p})`, bg, c['Text'])));
   sh.setConditionalFormatRules(rules);   // replaces all CF rules on Dashboard
+}
+
+// ------------------------------------------------------------------ Ring Hotspots
+
+/** Header in the accent, banded rows, a basic filter over the table. */
+function styleHotspots_(sh, t) {
+  const c = t.c, n = HOTSPOT_COLUMNS.length, maxR = sh.getMaxRows();
+  sh.setTabColor(c['Accent']);
+  sh.getRange(1, 1, maxR, n).setBackground(c['Background']).setFontColor(c['Text'])
+    .setFontFamily(t.bodyFont);
+  sh.getRange(1, 1, 1, n).setBackground(c['Accent']).setFontColor(c['Accent Text'])
+    .setFontWeight('bold');
+  sh.setFrozenRows(1);
+  const body = sh.getRange(2, 1, Math.max(1, maxR - 1), n);
+  sh.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=MOD(ROW(),2)=0')
+      .setBackground(c['Panel']).setRanges([body]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=MOD(ROW(),2)=1')
+      .setBackground(c['Panel Alt']).setRanges([body]).build()
+  ]);
+  if (!sh.getFilter()) sh.getRange(1, 1, Math.max(2, sh.getLastRow()), n).createFilter();
 }
 
 // ------------------------------------------------------------------ Settings

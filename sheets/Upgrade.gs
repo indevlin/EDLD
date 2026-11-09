@@ -15,8 +15,9 @@
  *
  * Rules for a step:
  *   - Safe to run twice. It is re-run if the one after it fails.
- *   - Deposits is only ever added to. No column is moved or removed, because
- *     every EDLD writing to the sheet addresses columns by position.
+ *   - Surface Sites (Deposits before v4) and Ring Hotspots are only ever
+ *     added to. No column is moved or removed: every EDLD writing to the
+ *     sheet addresses columns by position.
  *   - Settings values are the owner's. A step may add a row, never rewrite one.
  *   - A tab that exists keeps what is in it. Missing dashboard tabs are
  *     built (Template.gs), so a blank spreadsheet, a receiver-only sheet and
@@ -55,6 +56,18 @@ var SHEET_MIGRATIONS = [
     run: function (ss) {
       if (rebuildDashboard_(ss)) applyTheme();
     }
+  },
+  {
+    to: 4,
+    name: 'Deposits renamed Surface Sites; Ring Hotspots tab',
+    run: function (ss) {
+      _sheet();                 // Code.gs: renames Deposits in place
+      var made = !ss.getSheetByName(HOTSPOT_SHEET_NAME);
+      _hotspotSheet();
+      rebuildDashboard_(ss);
+      applyTheme();
+      return made ? 'added Ring Hotspots' : 'Ring Hotspots present';
+    }
   }
 ];
 
@@ -90,19 +103,21 @@ function upgradeSheet() {
 }
 
 /**
- * A hidden copy of Deposits, named for when it was taken. Nothing is deleted:
+ * A hidden copy of Surface Sites (or Deposits), named for when it was taken.
+ * Nothing is deleted:
  * a backup is only worth having if it is still there when somebody notices
  * they need it, and they can remove old ones themselves. Returns its name,
  * or '' when there were no rows to protect.
  */
 function backupDeposits_(ss) {
-  var deps = ss.getSheetByName(SHEET_NAME);
+  var deps = _findSurfaceSheet(ss);
   if (!deps || deps.getLastRow() < 2) return '';
   var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(),
                                    'yyyy-MM-dd HHmm');
-  var name = SHEET_NAME + ' backup ' + stamp;
+  var base = deps.getName();
+  var name = base + ' backup ' + stamp;
   var n = 2;
-  while (ss.getSheetByName(name)) name = SHEET_NAME + ' backup ' + stamp + ' (' + (n++) + ')';
+  while (ss.getSheetByName(name)) name = base + ' backup ' + stamp + ' (' + (n++) + ')';
   var copy = deps.copyTo(ss);
   copy.setName(name);
   copy.hideSheet();

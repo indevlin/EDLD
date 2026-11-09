@@ -27,6 +27,7 @@ from tui.sell_modal    import SellModal
 from tui.blocks.career import CareerBlock
 from tui.blocks.ship_info   import ShipInfoBlock
 from tui.blocks.objectives  import ObjectivesBlock
+from tui.blocks.mining      import MiningBlock
 from tui.blocks.status      import StatusBlock
 from tui.blocks.navigation import NavigationBlock
 from tui.blocks.commander     import CommanderBlock
@@ -85,7 +86,8 @@ _PLUGIN_TO_BLOCK: dict[str, str] = {
     "ship_health":   "block-ship",
     "assets":        "block-commander",
     "colonisation":  "block-objectives",
-    "surface_mining": "block-objectives",
+    "surface_mining": "block-mining",
+    "ring_hotspots": "block-mining",
     "career":        "block-career",
     "navigation":    "block-nav",
     "status":       "block-status",
@@ -104,6 +106,7 @@ _BLOCK_CLASSES = {
     "career":       CareerBlock,
     "ship_info":    ShipInfoBlock,
     "objectives":   ObjectivesBlock,
+    "mining":       MiningBlock,
     "exploration":  ExplorationBlock,
 }
 
@@ -363,10 +366,10 @@ class EdldTui(App):
 
     def action_push_survey(self) -> None:
         """Send everything pending to the shared sheet, now."""
-        plugin = self._core._plugins.get("surface_mining")
-        if plugin is None or not hasattr(plugin, "publish_now"):
-            return
-        self.notify(plugin.publish_now(), title="Survey")
+        from core.survey_push import push_all
+        msg = push_all(self._core)
+        if msg:
+            self.notify(msg, title="Survey")
 
     def action_sell_table(self) -> None:
         """Open the sell table, or close it if it is already open.

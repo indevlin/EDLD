@@ -12,7 +12,7 @@
                  in the header as "tools"
     missions     missions.missions                          Objectives
     colonization colonisation.colonisation                  Objectives
-    survey       survey.deposits (filter: true)             Objectives
+    mining       mining.hotspots, mining.sites (filter)     Mining
     session      session.session                            Career / Session
     career       career.summary, .combat, … .powerplay      Career / Session
 """
@@ -46,7 +46,7 @@ def _safe(fault, name, fn, *a):
 def panels(core, fault=lambda name, exc: None) -> list[dict]:
     """Every window's panels, in the desktop's tab order."""
     from core import route_view as RV
-    from core.windows import career, commander, crew, exploration, objectives, ship
+    from core.windows import career, commander, crew, exploration, mining, objectives, ship
     out: list[dict] = []
 
     t = _safe(fault, "cargo", ship.cargo, core)
@@ -88,9 +88,10 @@ def panels(core, fault=lambda name, exc: None) -> list[dict]:
     t = _safe(fault, "colonisation", objectives.colonisation, core)
     if t is not None:
         out.append(panel("colonisation.colonisation", t.title, "colonisation", t, 1600))
-    t = _safe(fault, "survey", objectives.deposits, core)
-    if t is not None:
-        out.append(panel("survey.deposits", t.title, "survey", t, 1700, filter=True))
+    for order, fn in ((1700, mining.hotspots), (1701, mining.surface_sites)):
+        t = _safe(fault, "mining", fn, core, "", False)
+        if t is not None:
+            out.append(panel(f"mining.{t.id}", t.title, "mining", t, order, filter=True))
 
     order = 300
     for t in _safe(fault, "career", career.tabs, core) or []:

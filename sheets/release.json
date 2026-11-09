@@ -1,6 +1,6 @@
 {
   "version": "20261108",
-  "sheet_version": 3,
+  "sheet_version": 4,
   "sheet_steps": [
     {
       "to": 1,
@@ -13,13 +13,17 @@
     {
       "to": 3,
       "name": "Dashboard shows a filter that matches a single deposit"
+    },
+    {
+      "to": 4,
+      "name": "Deposits renamed Surface Sites; Ring Hotspots tab"
     }
   ],
   "min_loader": 2,
   "bundle": {
     "file": "edld_sheet.js",
-    "sha256": "b837dde524aa2ce0428124e536245148c0e748c328bad21fd0fb2270f6c4685d",
-    "bytes": 55623
+    "sha256": "ac2f393b6228944f58f7f82a1bc1ffc390cfbdd0e02902224439433aad7058f8",
+    "bytes": 63626
   },
   "loader": {
     "version": 2,

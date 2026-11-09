@@ -83,6 +83,7 @@ TuiBlock > TabbedContent  { height: 1fr; }
 .status-active { color: $amber; }
 .dim           { color: $fg;    }
 .highlight     { color: $amber; }
+.subnote       { padding-left: 3; color: $dim; }
 
 .section-hdr {
     color: $accent;
@@ -205,9 +206,21 @@ PreferencesScreen {
    label column at 45% — fine inside #prefs-outer, and a chasm in a modal that
    had no container rule at all and so filled the terminal.  A fixed, centered
    box keeps the labels next to their controls at any width. */
-DepositScreen {
+DepositScreen, HotspotScreen {
     align: center middle;
 }
+
+#hotspot-dialog {
+    width: 76;
+    height: auto;
+    max-height: 90%;
+    padding: 1;
+    background: $block-bg;
+    border: solid $accent;
+}
+#hotspot-dialog .key { width: 30%; }
+#hotspot-fields { height: auto; }
+.mining-footer { height: 1; }
 
 #deposit-dialog {
     width: 76;
@@ -555,6 +568,7 @@ BLOCK_DOM_ID = {
     "career":       "block-career",
     "ship_info":    "block-ship",
     "objectives":   "block-objectives",
+    "mining":       "block-mining",
     "exploration":  "block-exploration",
     # Not a slot of the layout: the Helm panel along the foot (tui/blocks/helm.py).
     "helm":         "block-helm",

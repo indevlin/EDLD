@@ -63,7 +63,8 @@ def _cells_sheet(res: dict, tab: str) -> dict:
 # ── a blank spreadsheet ───────────────────────────────────────────────────────
 
 def test_a_blank_spreadsheet_gets_every_tab_in_order(blank):
-    assert blank["order"] == ["Dashboard", "Settings", "Deposits", "Themes", "Queries"]
+    assert blank["order"] == ["Dashboard", "Settings", "Surface Sites", "Ring Hotspots",
+                              "Themes", "Queries"]
     assert blank["sheets"]["Themes"]["hidden"] and blank["sheets"]["Queries"]["hidden"]
     assert not blank["sheets"]["Dashboard"]["hidden"]
     assert blank["docProps"]["EDLD_SHEET_VERSION"] == str(LAYOUT)
@@ -92,8 +93,14 @@ def test_the_dashboard_says_what_the_xlsx_says(blank):
 
 
 def test_the_deposits_header_is_the_xlsx_header(blank):
-    assert blank["sheets"]["Deposits"]["rows"][0] == COLUMNS
-    assert [c.value for c in XLSX["Deposits"][1]] == COLUMNS
+    assert blank["sheets"]["Surface Sites"]["rows"][0] == COLUMNS
+    assert [c.value for c in XLSX["Surface Sites"][1]] == COLUMNS
+
+
+def test_the_ring_hotspots_header_is_the_xlsx_header(blank):
+    from core.sheets_publish import HOTSPOT_COLUMNS
+    assert blank["sheets"]["Ring Hotspots"]["rows"][0] == list(HOTSPOT_COLUMNS)
+    assert [c.value for c in XLSX["Ring Hotspots"][1]] == list(HOTSPOT_COLUMNS)
 
 
 # ── what is left alone ────────────────────────────────────────────────────────

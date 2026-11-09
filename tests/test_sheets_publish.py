@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from core.sheets_publish import (
-    COLUMNS, SheetsPublisher, publisher_from_config, row_from_deposit,
+    COLUMNS, HOTSPOT_COLUMNS, SheetsPublisher, publisher_from_config, row_from_deposit,
     safe_endpoint,
 )
 
@@ -177,7 +177,8 @@ def test_safe_endpoint_keeps_only_the_host():
 
 
 def test_test_connection_sends_a_ping_and_reports_the_answer():
-    opener, sent = _responder({"ok": True, "pong": True, "columns": len(COLUMNS)})
+    opener, sent = _responder({"ok": True, "pong": True, "columns": len(COLUMNS),
+                               "hotspot_columns": len(HOTSPOT_COLUMNS)})
     res = SheetsPublisher(URL, "tok", opener=opener).test_connection()
     assert res.ok and sent["body"]["ping"] is True
     assert "deposits" not in sent["body"]

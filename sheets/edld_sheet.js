@@ -262,7 +262,39 @@ function _token() {
 }
 
 /** Sheet tab that deposits are written to. Created if absent. */
-var SHEET_NAME = 'Deposits';
+var SHEET_NAME = 'Surface Sites';
+
+/** The tab's name before layout v4; renamed to SHEET_NAME by _sheet(). */
+var LEGACY_SHEET_NAME = 'Deposits';
+
+/** Sheet tab that ring hotspots are written to. Created if absent. */
+var HOTSPOT_SHEET_NAME = 'Ring Hotspots';
+
+/**
+ * Hotspot column order: a contract with HOTSPOT_COLUMNS in
+ * core/sheets_publish.py. Append only.
+ */
+var HOTSPOT_COLUMNS = [
+  'hotspot_id',
+  'system',
+  'system_address',
+  'body',
+  'ring',
+  'ring_type',
+  'reserve_level',
+  'commodity',
+  'overlap',
+  'note',
+  'count',
+  'reported_by',
+  'is_test',
+  'first_seen',
+  'last_confirmed',
+  'overlap_updated'
+];
+
+/** Hotspot fields a report fills where blank. */
+var HOTSPOT_FILLED = ['system_address', 'ring_type', 'reserve_level', 'count'];
 
 /**
  * Column order. This is a contract with core/sheets_publish.py — the client
@@ -347,6 +379,7 @@ function doPost(e) {
       // behind rather than only that something is.
       return _json({
         ok: true, pong: true, columns: COLUMNS.length,
+        hotspot_columns: HOTSPOT_COLUMNS.length,
         version: typeof EDLD_VERSION === 'undefined' ? '' : EDLD_VERSION,
         sheet_version: Number(PropertiesService.getDocumentProperties()
                                 .getProperty('EDLD_SHEET_VERSION') || 0)
@@ -369,6 +402,13 @@ function doPost(e) {
     // they are removing.
     if (body.delete) {
       return _json(_remove(body.delete));
+    }
+
+    if (body.fetch_hotspots) {
+      return _json(_readHotspots(body.fetch_hotspots));
+    }
+    if (body.hotspots) {
+      return _json(_writeHotspots(body.hotspots));
     }
 
     var deposits = body.deposits;
@@ -638,6 +678,11 @@ function _cell(v) {
 function _sheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    // Layout v4 renamed Deposits; formulas that point at it follow the rename.
+    var legacy = ss.getSheetByName(LEGACY_SHEET_NAME);
+    if (legacy) { legacy.setName(SHEET_NAME); sheet = legacy; }
+  }
   if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
 
   // A sheet created before a column was added keeps its old header, and the
@@ -661,6 +706,135 @@ function _sheet() {
     // even though the stored value is fine.
     var latCol = COLUMNS.indexOf('latitude') + 1;
     sheet.getRange(2, latCol, sheet.getMaxRows() - 1, 2).setNumberFormat('0.000000');
+  }
+  return sheet;
+}
+
+/** The surface sites tab, or the legacy Deposits tab; null if neither. */
+function _findSurfaceSheet(ss) {
+  return ss.getSheetByName(SHEET_NAME) || ss.getSheetByName(LEGACY_SHEET_NAME);
+}
+
+// ── Ring hotspots ────────────────────────────────────────────────────────────
+
+/** Hotspots in one system, by system name (case-blind) or system_address. */
+function _readHotspots(query) {
+  var sheet = _hotspotSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, kind: 'hotspots', hotspots: [] };
+  var wantName = String(query.system || '').toLowerCase();
+  var wantAddr = String(query.system_address || '');
+  if (!wantName && !wantAddr) return { ok: false, error: 'system or system_address required' };
+  var sysCol = HOTSPOT_COLUMNS.indexOf('system');
+  var addrCol = HOTSPOT_COLUMNS.indexOf('system_address');
+  var testCol = HOTSPOT_COLUMNS.indexOf('is_test');
+  var values = sheet.getRange(2, 1, lastRow - 1, HOTSPOT_COLUMNS.length).getValues();
+  var out = [];
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var byName = wantName && String(row[sysCol]).toLowerCase() === wantName;
+    var byAddr = wantAddr && String(row[addrCol]) === wantAddr;
+    if (!byName && !byAddr) continue;
+    if (String(row[testCol]) === '1') continue;
+    var h = {};
+    for (var c = 0; c < HOTSPOT_COLUMNS.length; c++) h[HOTSPOT_COLUMNS[c]] = row[c];
+    out.push(h);
+  }
+  return { ok: true, kind: 'hotspots', hotspots: out };
+}
+
+/**
+ * Hotspots by hotspot_id. New ids append; on an existing row blanks in
+ * HOTSPOT_FILLED are filled, last_confirmed keeps the later value, and
+ * overlap and note are replaced together when overlap_updated is newer.
+ */
+function _writeHotspots(hotspots) {
+  var lock = LockService.getDocumentLock();
+  if (!lock.tryLock(30000)) return { ok: false, error: 'sheet busy, try again' };
+  try {
+    var sheet = _hotspotSheet();
+    var lastRow = sheet.getLastRow();
+    var index = {};
+    if (lastRow > 1) {
+      var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        var id = String(ids[i][0] || '').trim();
+        if (id) index[id] = i + 2;
+      }
+    }
+    var added = 0, updated = 0, unchanged = 0, appends = [];
+    for (var n = 0; n < hotspots.length; n++) {
+      var h = hotspots[n];
+      var hid = String(h.hotspot_id || '').trim();
+      if (!hid) continue;
+      var row = index[hid];
+      if (!row) {
+        appends.push(HOTSPOT_COLUMNS.map(function (k) {
+          var v = h[k];
+          return (v === null || v === undefined) ? '' : _cell(v);
+        }));
+        index[hid] = -1;
+        added++;
+        continue;
+      }
+      if (row < 0) { unchanged++; continue; }
+      if (_updateHotspot(sheet, row, h)) updated++; else unchanged++;
+    }
+    if (appends.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, appends.length, HOTSPOT_COLUMNS.length)
+           .setValues(appends);
+    }
+    return { ok: true, kind: 'hotspots', added: added, updated: updated, unchanged: unchanged };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function _updateHotspot(sheet, row, h) {
+  var current = sheet.getRange(row, 1, 1, HOTSPOT_COLUMNS.length).getValues()[0];
+  var col = function (k) { return HOTSPOT_COLUMNS.indexOf(k); };
+  var set = function (k, v) {
+    sheet.getRange(row, col(k) + 1).setValue(_cell(v));
+    current[col(k)] = v;
+  };
+  var changed = false;
+  HOTSPOT_FILLED.forEach(function (k) {
+    var v = h[k];
+    if (v === null || v === undefined || v === '') return;
+    if (current[col(k)] === '' || current[col(k)] === null) { set(k, v); changed = true; }
+  });
+  var seen = String(h.last_confirmed || '');
+  if (seen && seen > String(current[col('last_confirmed')] || '')) {
+    set('last_confirmed', seen);
+    changed = true;
+  }
+  var stamp = String(h.overlap_updated || '');
+  if (stamp && stamp > String(current[col('overlap_updated')] || '')) {
+    set('overlap', String(h.overlap || ''));
+    set('note', String(h.note || ''));
+    set('overlap_updated', stamp);
+    changed = true;
+  }
+  return changed;
+}
+
+function _hotspotSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(HOTSPOT_SHEET_NAME);
+  if (!sheet) {
+    var sites = _findSurfaceSheet(ss);   // placed right after Surface Sites
+    sheet = sites ? ss.insertSheet(HOTSPOT_SHEET_NAME, sites.getIndex())
+                  : ss.insertSheet(HOTSPOT_SHEET_NAME);
+  }
+  var have = sheet.getLastColumn();
+  if (have > 0 && have < HOTSPOT_COLUMNS.length) {
+    sheet.getRange(1, have + 1, 1, HOTSPOT_COLUMNS.length - have)
+         .setValues([HOTSPOT_COLUMNS.slice(have)]).setFontWeight('bold');
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, HOTSPOT_COLUMNS.length).setValues([HOTSPOT_COLUMNS])
+         .setFontWeight('bold');
+    sheet.setFrozenRows(1);
   }
   return sheet;
 }
@@ -742,7 +916,7 @@ const HEX = /^#[0-9a-f]{6}$/i;
  * Sheets-only formulas. Keep each one a plain template literal with no ${}:
  * build_dashboard.py parses them out of this file by regex.
  *
- * The FILTER picks Deposits columns by letter, so it depends on COLUMNS in
+ * The FILTER picks Surface Sites columns by letter, so it depends on COLUMNS in
  * Code.gs; tests/test_sheets_dashboard.py checks each letter against it. The
  * rank list in the SORT is AMOUNT_LEVELS from core/mining_db.py, lowest first,
  * and is checked too.
@@ -763,11 +937,13 @@ const FORMULAS = {
     IFERROR(
       LET(
         dep, FILTER(
-          {Deposits!B2:B, Deposits!D2:D, Deposits!G2:G, Deposits!K2:K, Deposits!L2:L,
-           Deposits!Q2:Q, Deposits!P2:P, Deposits!R2:R, Deposits!X2:X, Deposits!Y2:Y},
-          (Dashboard!$A$5="") + (Deposits!B2:B=Dashboard!$A$5) > 0,
-          (Dashboard!$B$5="") + (Deposits!L2:L=Dashboard!$B$5) > 0,
-          Deposits!W2:W <> 1
+          {'Surface Sites'!B2:B, 'Surface Sites'!D2:D, 'Surface Sites'!G2:G,
+           'Surface Sites'!K2:K, 'Surface Sites'!L2:L, 'Surface Sites'!Q2:Q,
+           'Surface Sites'!P2:P, 'Surface Sites'!R2:R, 'Surface Sites'!X2:X,
+           'Surface Sites'!Y2:Y},
+          (Dashboard!$A$5="") + ('Surface Sites'!B2:B=Dashboard!$A$5) > 0,
+          (Dashboard!$B$5="") + ('Surface Sites'!L2:L=Dashboard!$B$5) > 0,
+          'Surface Sites'!W2:W <> 1
         ),
         sortkey, INDEX(dep, 0, Queries!$N$1),
         IF(
@@ -784,8 +960,8 @@ const FORMULAS = {
     )
   }
 )`,
-  'Queries!A1': `=IFERROR(SORT(UNIQUE(FILTER(Deposits!B2:B, Deposits!B2:B<>"", Deposits!W2:W<>1))), "")`,
-  'Queries!B1': `=IFERROR(SORT(UNIQUE(FILTER(Deposits!L2:L, Deposits!L2:L<>"", Deposits!W2:W<>1))), "")`
+  'Queries!A1': `=IFERROR(SORT(UNIQUE(FILTER('Surface Sites'!B2:B, 'Surface Sites'!B2:B<>"", 'Surface Sites'!W2:W<>1))), "")`,
+  'Queries!B1': `=IFERROR(SORT(UNIQUE(FILTER('Surface Sites'!L2:L, 'Surface Sites'!L2:L<>"", 'Surface Sites'!W2:W<>1))), "")`
 };
 
 // ------------------------------------------------------------------ triggers & menu
@@ -852,6 +1028,8 @@ function applyTheme() {
   const set = ss.getSheetByName(ED.SETTINGS);
   const thm = ss.getSheetByName(ED.THEMES);
   if (dash) styleDashboard_(dash, t);
+  const hot = ss.getSheetByName(HOTSPOT_SHEET_NAME);
+  if (hot) styleHotspots_(hot, t);
   if (set) styleSettings_(set, t);
   if (thm) styleThemes_(thm, t);
 }
@@ -1049,6 +1227,27 @@ function styleDashboard_(sh, t) {
   sh.setConditionalFormatRules(rules);   // replaces all CF rules on Dashboard
 }
 
+// ------------------------------------------------------------------ Ring Hotspots
+
+/** Header in the accent, banded rows, a basic filter over the table. */
+function styleHotspots_(sh, t) {
+  const c = t.c, n = HOTSPOT_COLUMNS.length, maxR = sh.getMaxRows();
+  sh.setTabColor(c['Accent']);
+  sh.getRange(1, 1, maxR, n).setBackground(c['Background']).setFontColor(c['Text'])
+    .setFontFamily(t.bodyFont);
+  sh.getRange(1, 1, 1, n).setBackground(c['Accent']).setFontColor(c['Accent Text'])
+    .setFontWeight('bold');
+  sh.setFrozenRows(1);
+  const body = sh.getRange(2, 1, Math.max(1, maxR - 1), n);
+  sh.setConditionalFormatRules([
+    SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=MOD(ROW(),2)=0')
+      .setBackground(c['Panel']).setRanges([body]).build(),
+    SpreadsheetApp.newConditionalFormatRule().whenFormulaSatisfied('=MOD(ROW(),2)=1')
+      .setBackground(c['Panel Alt']).setRanges([body]).build()
+  ]);
+  if (!sh.getFilter()) sh.getRange(1, 1, Math.max(2, sh.getLastRow()), n).createFilter();
+}
+
 // ------------------------------------------------------------------ Settings
 
 function styleSettings_(sh, t) {
@@ -1120,7 +1319,7 @@ function styleThemes_(sh, t) {
  * Bundled with Code.gs, Dashboard.gs and Upgrade.gs into edld_sheet.js. A
  * sheet made by pasting Loader.gs into a blank spreadsheet has nothing but
  * Google's empty first tab, and a sheet set up years ago may have only
- * Deposits. Both should end up where a sheet started from
+ * Deposits (Surface Sites since layout v4). Both should end up where a sheet started from
  * Mining_Dashboard.xlsx does, without anybody importing a file.
  *
  * The content — labels, placeholders, presets, fonts, notes, formulas — is
@@ -1151,7 +1350,8 @@ function texts_(rows) { return rows.map(row => row.map(text_)); }
 
 /**
  * Create whichever of Themes, Settings, Queries and Dashboard are missing.
- * Returns the names created. Deposits is Code.gs's own (_sheet()).
+ * Returns the names created. Surface Sites and Ring Hotspots are Code.gs's
+ * own (_sheet(), _hotspotSheet()).
  */
 function ensureTemplate_(ss) {
   const made = [];
@@ -1162,6 +1362,7 @@ function ensureTemplate_(ss) {
   if (!has(ED.THEMES)) { buildThemes_(ss); made.push(ED.THEMES); }
   if (!has(ED.SETTINGS)) { buildSettings_(ss); made.push(ED.SETTINGS); }
   _sheet();
+  _hotspotSheet();
   if (!has(ED.QUERIES)) { ss.insertSheet(ED.QUERIES).hideSheet(); made.push(ED.QUERIES); }
   if (!has(ED.DASH)) { buildDashboardTab_(ss); made.push(ED.DASH); }
   if (made.length) dropBlankDefaultTab_(ss);
@@ -1314,8 +1515,9 @@ function buildDashboardTab_(ss) {
  *
  * Rules for a step:
  *   - Safe to run twice. It is re-run if the one after it fails.
- *   - Deposits is only ever added to. No column is moved or removed, because
- *     every EDLD writing to the sheet addresses columns by position.
+ *   - Surface Sites (Deposits before v4) and Ring Hotspots are only ever
+ *     added to. No column is moved or removed: every EDLD writing to the
+ *     sheet addresses columns by position.
  *   - Settings values are the owner's. A step may add a row, never rewrite one.
  *   - A tab that exists keeps what is in it. Missing dashboard tabs are
  *     built (Template.gs), so a blank spreadsheet, a receiver-only sheet and
@@ -1354,6 +1556,18 @@ var SHEET_MIGRATIONS = [
     run: function (ss) {
       if (rebuildDashboard_(ss)) applyTheme();
     }
+  },
+  {
+    to: 4,
+    name: 'Deposits renamed Surface Sites; Ring Hotspots tab',
+    run: function (ss) {
+      _sheet();                 // Code.gs: renames Deposits in place
+      var made = !ss.getSheetByName(HOTSPOT_SHEET_NAME);
+      _hotspotSheet();
+      rebuildDashboard_(ss);
+      applyTheme();
+      return made ? 'added Ring Hotspots' : 'Ring Hotspots present';
+    }
   }
 ];
 
@@ -1389,19 +1603,21 @@ function upgradeSheet() {
 }
 
 /**
- * A hidden copy of Deposits, named for when it was taken. Nothing is deleted:
+ * A hidden copy of Surface Sites (or Deposits), named for when it was taken.
+ * Nothing is deleted:
  * a backup is only worth having if it is still there when somebody notices
  * they need it, and they can remove old ones themselves. Returns its name,
  * or '' when there were no rows to protect.
  */
 function backupDeposits_(ss) {
-  var deps = ss.getSheetByName(SHEET_NAME);
+  var deps = _findSurfaceSheet(ss);
   if (!deps || deps.getLastRow() < 2) return '';
   var stamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(),
                                    'yyyy-MM-dd HHmm');
-  var name = SHEET_NAME + ' backup ' + stamp;
+  var base = deps.getName();
+  var name = base + ' backup ' + stamp;
   var n = 2;
-  while (ss.getSheetByName(name)) name = SHEET_NAME + ' backup ' + stamp + ' (' + (n++) + ')';
+  while (ss.getSheetByName(name)) name = base + ' backup ' + stamp + ' (' + (n++) + ')';
   var copy = deps.copyTo(ss);
   copy.setName(name);
   copy.hideSheet();

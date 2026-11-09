@@ -24,14 +24,37 @@ EDLD now knows the start and end of the current PowerPlay week. The merits
 cycle uses it, and the Career PowerPlay tab and the Summary show the time
 left until the reset.
 
-### Added: Objectives → Deposits, the survey sheet in the app
+### Added: the Mining window, with Ring Hotspots and Surface Sites
 
-The Objectives window has a Deposits tab listing every deposit in the local
-survey store with the shared sheet's columns, and a filter box that matches
-any of them, notes included. On the desktop and in EDCARS a double-click edits
-a cell in place, and Edit… opens the deposit form for the selected row; in the
-terminal dashboard a row opens the form. EDAM shows the same table and filter,
-read-only.
+Mining is a window of its own, and a section of its own on the EDCARS rail
+(`Ctrl+6`; Career and Alerts move to `Ctrl+7` and `Ctrl+8`). In the Dashboard
+it has no slot by default: choose it for a center slot in Options → Display.
+It has two tabs, each a table with a filter box that matches any column.
+
+Surface Sites lists every deposit in the local survey store with the shared
+sheet's columns. Ring Hotspots lists every ring hotspot: system, body, ring,
+ring type, reserve level, commodity, overlap and note. A hotspot is recorded
+when the Detailed Surface Scanner maps a ring, one row per commodity, with the
+ring type and reserve level taken from the planet's scan whichever comes
+first, and the journals are read once at startup so rings mapped before this
+release are listed too. Overlap says what shares the hotspot's location — a
+resource extraction site, low, high, hazardous or unrated, or another hotspot
+named in Note. Add hotspot… records one no scan did.
+
+Every row ends in an Edit button that opens the form for that row; on the
+desktop and in EDCARS a double-click edits a cell in place. In the terminal
+dashboard each row ends in Edit ›, and a row opens the form. EDAM shows both
+tables and their filters, read-only.
+
+### Added: Ring Hotspots on the shared survey sheet
+
+Hotspots are published to the sheet when you dock, jump or leave a body, and
+on Ctrl+G, and arriving in a system fetches the sheet's hotspots for it once a
+session. Sheet layout v4 renames the Deposits tab to Surface Sites, keeping
+every row and column where it was, and adds a Ring Hotspots tab; ED Dashboard
+→ Upgrade does both, with the usual backup first. Until a sheet is upgraded it
+keeps taking deposits, and EDLD holds its hotspots back and says the sheet
+needs Upgrade, in the log and in Test connection.
 
 ### Fixed: deposits recorded by hand had no gravity or system name
 
@@ -84,6 +107,13 @@ logs each batch sent.
 
 The window and its EDCARS section are titled Career / Session, matching the
 order of the tabs.
+
+### Fixed: the Ship window's vessel line lost its color and its place
+
+The vessel's name, ident and type were drawn in the plain value color on a
+line of their own under the price source, because the style for a section
+heading had no counterpart on the desktop. The vessel line is in the accent
+again, with the price source on the same line at its right.
 
 ### Changed: Set Home System is a row, not a button
 

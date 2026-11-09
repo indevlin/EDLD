@@ -314,7 +314,7 @@ function edldUpgrade() {
              sheetTo + ':' + (rel.sheet_steps || []).filter(function (st) {
                return st.to > sheetHave; }).map(function (st) {
                return '\n  • ' + st.name; }).join('') +
-             '\n\nDeposits is copied to a hidden backup tab first' : '') +
+             '\n\nSurface Sites is copied to a hidden backup tab first' : '') +
             '. Your deposits, settings, URL and token are kept.' +
             (sheetTo < sheetHave
               ? '\n\nThis sheet\'s layout (v' + sheetHave + ') is newer than this code ' +
@@ -359,7 +359,7 @@ function edldUpgrade() {
   } catch (err) {
     ui.alert('Upgrade', 'The upgrade stopped part way.\n\n' + err.message +
              '\n\nRun Upgrade again: finished steps are recorded and are not ' +
-             'repeated. Deposits are untouched.', ui.ButtonSet.OK);
+             'repeated. Surface Sites and Ring Hotspots are untouched.', ui.ButtonSet.OK);
     return;
   } finally {
     lock.releaseLock();
@@ -370,7 +370,7 @@ function edldUpgrade() {
     lines.push('', 'Sheet layout v' + done.from + ' → v' + done.to + ':');
     done.steps.forEach(function (s) { lines.push('  • ' + s); });
   }
-  if (done.backup) lines.push('', 'Backup of Deposits: hidden tab "' + done.backup + '".');
+  if (done.backup) lines.push('', 'Backup of Surface Sites: hidden tab "' + done.backup + '".');
   if (!installed) {
     lines.push('', 'One last manual step, only this once: Deploy > Manage ' +
                'deployments > edit (pencil) > Version: New version > Deploy. ' +

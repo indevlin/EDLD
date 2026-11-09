@@ -46,7 +46,39 @@ function _token() {
 }
 
 /** Sheet tab that deposits are written to. Created if absent. */
-var SHEET_NAME = 'Deposits';
+var SHEET_NAME = 'Surface Sites';
+
+/** The tab's name before layout v4; renamed to SHEET_NAME by _sheet(). */
+var LEGACY_SHEET_NAME = 'Deposits';
+
+/** Sheet tab that ring hotspots are written to. Created if absent. */
+var HOTSPOT_SHEET_NAME = 'Ring Hotspots';
+
+/**
+ * Hotspot column order: a contract with HOTSPOT_COLUMNS in
+ * core/sheets_publish.py. Append only.
+ */
+var HOTSPOT_COLUMNS = [
+  'hotspot_id',
+  'system',
+  'system_address',
+  'body',
+  'ring',
+  'ring_type',
+  'reserve_level',
+  'commodity',
+  'overlap',
+  'note',
+  'count',
+  'reported_by',
+  'is_test',
+  'first_seen',
+  'last_confirmed',
+  'overlap_updated'
+];
+
+/** Hotspot fields a report fills where blank. */
+var HOTSPOT_FILLED = ['system_address', 'ring_type', 'reserve_level', 'count'];
 
 /**
  * Column order. This is a contract with core/sheets_publish.py — the client
@@ -131,6 +163,7 @@ function doPost(e) {
       // behind rather than only that something is.
       return _json({
         ok: true, pong: true, columns: COLUMNS.length,
+        hotspot_columns: HOTSPOT_COLUMNS.length,
         version: typeof EDLD_VERSION === 'undefined' ? '' : EDLD_VERSION,
         sheet_version: Number(PropertiesService.getDocumentProperties()
                                 .getProperty('EDLD_SHEET_VERSION') || 0)
@@ -153,6 +186,13 @@ function doPost(e) {
     // they are removing.
     if (body.delete) {
       return _json(_remove(body.delete));
+    }
+
+    if (body.fetch_hotspots) {
+      return _json(_readHotspots(body.fetch_hotspots));
+    }
+    if (body.hotspots) {
+      return _json(_writeHotspots(body.hotspots));
     }
 
     var deposits = body.deposits;
@@ -422,6 +462,11 @@ function _cell(v) {
 function _sheet() {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(SHEET_NAME);
+  if (!sheet) {
+    // Layout v4 renamed Deposits; formulas that point at it follow the rename.
+    var legacy = ss.getSheetByName(LEGACY_SHEET_NAME);
+    if (legacy) { legacy.setName(SHEET_NAME); sheet = legacy; }
+  }
   if (!sheet) sheet = ss.insertSheet(SHEET_NAME);
 
   // A sheet created before a column was added keeps its old header, and the
@@ -445,6 +490,135 @@ function _sheet() {
     // even though the stored value is fine.
     var latCol = COLUMNS.indexOf('latitude') + 1;
     sheet.getRange(2, latCol, sheet.getMaxRows() - 1, 2).setNumberFormat('0.000000');
+  }
+  return sheet;
+}
+
+/** The surface sites tab, or the legacy Deposits tab; null if neither. */
+function _findSurfaceSheet(ss) {
+  return ss.getSheetByName(SHEET_NAME) || ss.getSheetByName(LEGACY_SHEET_NAME);
+}
+
+// ── Ring hotspots ────────────────────────────────────────────────────────────
+
+/** Hotspots in one system, by system name (case-blind) or system_address. */
+function _readHotspots(query) {
+  var sheet = _hotspotSheet();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 2) return { ok: true, kind: 'hotspots', hotspots: [] };
+  var wantName = String(query.system || '').toLowerCase();
+  var wantAddr = String(query.system_address || '');
+  if (!wantName && !wantAddr) return { ok: false, error: 'system or system_address required' };
+  var sysCol = HOTSPOT_COLUMNS.indexOf('system');
+  var addrCol = HOTSPOT_COLUMNS.indexOf('system_address');
+  var testCol = HOTSPOT_COLUMNS.indexOf('is_test');
+  var values = sheet.getRange(2, 1, lastRow - 1, HOTSPOT_COLUMNS.length).getValues();
+  var out = [];
+  for (var i = 0; i < values.length; i++) {
+    var row = values[i];
+    var byName = wantName && String(row[sysCol]).toLowerCase() === wantName;
+    var byAddr = wantAddr && String(row[addrCol]) === wantAddr;
+    if (!byName && !byAddr) continue;
+    if (String(row[testCol]) === '1') continue;
+    var h = {};
+    for (var c = 0; c < HOTSPOT_COLUMNS.length; c++) h[HOTSPOT_COLUMNS[c]] = row[c];
+    out.push(h);
+  }
+  return { ok: true, kind: 'hotspots', hotspots: out };
+}
+
+/**
+ * Hotspots by hotspot_id. New ids append; on an existing row blanks in
+ * HOTSPOT_FILLED are filled, last_confirmed keeps the later value, and
+ * overlap and note are replaced together when overlap_updated is newer.
+ */
+function _writeHotspots(hotspots) {
+  var lock = LockService.getDocumentLock();
+  if (!lock.tryLock(30000)) return { ok: false, error: 'sheet busy, try again' };
+  try {
+    var sheet = _hotspotSheet();
+    var lastRow = sheet.getLastRow();
+    var index = {};
+    if (lastRow > 1) {
+      var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();
+      for (var i = 0; i < ids.length; i++) {
+        var id = String(ids[i][0] || '').trim();
+        if (id) index[id] = i + 2;
+      }
+    }
+    var added = 0, updated = 0, unchanged = 0, appends = [];
+    for (var n = 0; n < hotspots.length; n++) {
+      var h = hotspots[n];
+      var hid = String(h.hotspot_id || '').trim();
+      if (!hid) continue;
+      var row = index[hid];
+      if (!row) {
+        appends.push(HOTSPOT_COLUMNS.map(function (k) {
+          var v = h[k];
+          return (v === null || v === undefined) ? '' : _cell(v);
+        }));
+        index[hid] = -1;
+        added++;
+        continue;
+      }
+      if (row < 0) { unchanged++; continue; }
+      if (_updateHotspot(sheet, row, h)) updated++; else unchanged++;
+    }
+    if (appends.length) {
+      sheet.getRange(sheet.getLastRow() + 1, 1, appends.length, HOTSPOT_COLUMNS.length)
+           .setValues(appends);
+    }
+    return { ok: true, kind: 'hotspots', added: added, updated: updated, unchanged: unchanged };
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function _updateHotspot(sheet, row, h) {
+  var current = sheet.getRange(row, 1, 1, HOTSPOT_COLUMNS.length).getValues()[0];
+  var col = function (k) { return HOTSPOT_COLUMNS.indexOf(k); };
+  var set = function (k, v) {
+    sheet.getRange(row, col(k) + 1).setValue(_cell(v));
+    current[col(k)] = v;
+  };
+  var changed = false;
+  HOTSPOT_FILLED.forEach(function (k) {
+    var v = h[k];
+    if (v === null || v === undefined || v === '') return;
+    if (current[col(k)] === '' || current[col(k)] === null) { set(k, v); changed = true; }
+  });
+  var seen = String(h.last_confirmed || '');
+  if (seen && seen > String(current[col('last_confirmed')] || '')) {
+    set('last_confirmed', seen);
+    changed = true;
+  }
+  var stamp = String(h.overlap_updated || '');
+  if (stamp && stamp > String(current[col('overlap_updated')] || '')) {
+    set('overlap', String(h.overlap || ''));
+    set('note', String(h.note || ''));
+    set('overlap_updated', stamp);
+    changed = true;
+  }
+  return changed;
+}
+
+function _hotspotSheet() {
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getSheetByName(HOTSPOT_SHEET_NAME);
+  if (!sheet) {
+    var sites = _findSurfaceSheet(ss);   // placed right after Surface Sites
+    sheet = sites ? ss.insertSheet(HOTSPOT_SHEET_NAME, sites.getIndex())
+                  : ss.insertSheet(HOTSPOT_SHEET_NAME);
+  }
+  var have = sheet.getLastColumn();
+  if (have > 0 && have < HOTSPOT_COLUMNS.length) {
+    sheet.getRange(1, have + 1, 1, HOTSPOT_COLUMNS.length - have)
+         .setValues([HOTSPOT_COLUMNS.slice(have)]).setFontWeight('bold');
+  }
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, HOTSPOT_COLUMNS.length).setValues([HOTSPOT_COLUMNS])
+         .setFontWeight('bold');
+    sheet.setFrozenRows(1);
   }
   return sheet;
 }

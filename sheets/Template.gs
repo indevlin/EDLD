@@ -4,7 +4,7 @@
  * Bundled with Code.gs, Dashboard.gs and Upgrade.gs into edld_sheet.js. A
  * sheet made by pasting Loader.gs into a blank spreadsheet has nothing but
  * Google's empty first tab, and a sheet set up years ago may have only
- * Deposits. Both should end up where a sheet started from
+ * Deposits (Surface Sites since layout v4). Both should end up where a sheet started from
  * Mining_Dashboard.xlsx does, without anybody importing a file.
  *
  * The content — labels, placeholders, presets, fonts, notes, formulas — is
@@ -35,7 +35,8 @@ function texts_(rows) { return rows.map(row => row.map(text_)); }
 
 /**
  * Create whichever of Themes, Settings, Queries and Dashboard are missing.
- * Returns the names created. Deposits is Code.gs's own (_sheet()).
+ * Returns the names created. Surface Sites and Ring Hotspots are Code.gs's
+ * own (_sheet(), _hotspotSheet()).
  */
 function ensureTemplate_(ss) {
   const made = [];
@@ -46,6 +47,7 @@ function ensureTemplate_(ss) {
   if (!has(ED.THEMES)) { buildThemes_(ss); made.push(ED.THEMES); }
   if (!has(ED.SETTINGS)) { buildSettings_(ss); made.push(ED.SETTINGS); }
   _sheet();
+  _hotspotSheet();
   if (!has(ED.QUERIES)) { ss.insertSheet(ED.QUERIES).hideSheet(); made.push(ED.QUERIES); }
   if (!has(ED.DASH)) { buildDashboardTab_(ss); made.push(ED.DASH); }
   if (made.length) dropBlankDefaultTab_(ss);

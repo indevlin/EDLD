@@ -70,6 +70,30 @@ COLUMNS = (
 )
 
 
+#: Must match HOTSPOT_COLUMNS in sheets/Code.gs, in the same order.
+HOTSPOT_COLUMNS = (
+    "hotspot_id",
+    "system",
+    "system_address",
+    "body",
+    "ring",
+    "ring_type",
+    "reserve_level",
+    "commodity",
+    "overlap",
+    "note",
+    "count",
+    "reported_by",
+    "is_test",
+    "first_seen",
+    "last_confirmed",
+    "overlap_updated",
+)
+
+#: Sheet layout version that stores ring hotspots.
+HOTSPOT_SHEET_VERSION = 4
+
+
 _TIMEOUT_S = 30
 
 _USER_AGENT = (
@@ -151,6 +175,11 @@ class PublishResult:
     sheet_version: int = 0
     #: A line to show instead of the publish counts, for a successful ping.
     info: str = ""
+    hotspots: list[dict] = field(default_factory=list)
+    #: Hotspot columns the sheet stores (ping); 0 for a sheet without them.
+    hotspot_columns: int = 0
+    #: The request kind the script answered ("hotspots"), "" for deposits.
+    kind: str = ""
 
     @property
     def accounted(self) -> int:
@@ -222,6 +251,28 @@ def row_from_deposit(
         "notes_updated": dep.get("notes_updated", "") or "",
         # When amount or density was last corrected by hand.
         "assessment_updated": dep.get("assessment_updated", "") or "",
+    }
+
+
+def row_from_hotspot(h: dict, reporter: str = "") -> dict:
+    """A hotspot store row as the sheet's hotspot columns."""
+    return {
+        "hotspot_id": h.get("hotspot_id", ""),
+        "system": h.get("system_name", "") or "",
+        "system_address": h.get("system_address"),
+        "body": h.get("body_name", "") or "",
+        "ring": h.get("ring", "") or "",
+        "ring_type": h.get("ring_type", "") or "",
+        "reserve_level": h.get("reserve_level", "") or "",
+        "commodity": h.get("commodity_display") or h.get("commodity", ""),
+        "overlap": h.get("overlap", "") or "",
+        "note": h.get("note", "") or "",
+        "count": h.get("count"),
+        "reported_by": h.get("reported_by") or reporter,
+        "is_test": int(h.get("is_test", 0) or 0),
+        "first_seen": h.get("first_seen", ""),
+        "last_confirmed": h.get("last_confirmed", ""),
+        "overlap_updated": h.get("overlap_updated", "") or "",
     }
 
 
@@ -422,13 +473,21 @@ class SheetsPublisher:
         except (TypeError, ValueError):
             sheet_version = 0
 
+        try:
+            hotspot_columns = int(data.get("hotspot_columns", 0) or 0)
+        except (TypeError, ValueError):
+            hotspot_columns = 0
+
         return PublishResult(
             ok=True,
             added=added,
             updated=updated,
             unchanged=unchanged,
             deposits=list(data.get("deposits") or []),
+            hotspots=list(data.get("hotspots") or []),
             columns=columns,
+            hotspot_columns=hotspot_columns,
+            kind=str(data.get("kind", "") or ""),
             version=str(data.get("version", "") or ""),
             sheet_version=sheet_version,
         )
@@ -460,9 +519,13 @@ class SheetsPublisher:
                 f"sheet from before the Upgrade menu needs sheets/Loader.gs "
                 f"pasted in once — see sheets/README.md"
             )
+        elif result.ok and result.columns and result.hotspot_columns < len(HOTSPOT_COLUMNS):
+            result.ok = False
+            result.error = (
+                "the sheet is out of date — it has no Ring Hotspots tab "
+                "(layout v4). In the sheet, run ED Dashboard > Upgrade")
         elif result.ok:
-            # Which release the sheet runs, where it says; a script from
-            # before the loader reports neither and is simply "reachable".
+            # Which release the sheet runs, where it says.
             result.info = "sheet reachable" + (
                 f" — EDLD {result.version}, layout v{result.sheet_version}"
                 if result.version else "")
@@ -492,6 +555,43 @@ class SheetsPublisher:
         if not result.ok:
             return [], result.error
         return list(result.deposits), ""
+
+    def fetch_hotspots(self, system_address: int | None = None,
+                       system: str = "") -> tuple[list[dict], str]:
+        """Every hotspot the sheet holds for one system: ``(rows, error)``.
+        A sheet without hotspots answers with no rows."""
+        with self._lock:
+            result = self._post({"token": self._token,
+                                 "fetch_hotspots": {"system_address": system_address,
+                                                    "system": system}})
+        if not result.ok:
+            return [], result.error
+        return list(result.hotspots), ""
+
+    def publish_hotspots(self, hotspots: Iterable[dict],
+                         reporter: str = "") -> PublishResult:
+        """Send one batch of hotspots. ``sent_ids`` is set only when the
+        script answers as a hotspot receiver and accounts for every row."""
+        rows = [row_from_hotspot(h, reporter) for h in hotspots]
+        rows = [r for r in rows if r["hotspot_id"]]
+        if not rows:
+            return PublishResult(ok=True, kind="hotspots")
+        with self._lock:
+            result = self._post({"token": self._token, "hotspots": rows})
+        if result.ok and result.kind != "hotspots":
+            result.ok = False
+            result.error = ("the sheet has no Ring Hotspots tab — in the sheet, "
+                            "run ED Dashboard > Upgrade")
+        elif result.ok and result.accounted != len(rows):
+            result.ok = False
+            result.error = (f"sheet accounted for {result.accounted} of {len(rows)} "
+                            f"hotspot(s); left pending for retry")
+        if not result.ok:
+            self._log(f"{len(rows)} hotspot(s) not published — {result.error}")
+            return result
+        result.sent_ids = [r["hotspot_id"] for r in rows]
+        self._log("hotspots " + result.summary())
+        return result
 
     def delete(self, deposit_id: str) -> PublishResult:
         """Remove one deposit from the sheet."""

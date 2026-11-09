@@ -50,6 +50,7 @@ from gui.blocks.exploration  import ExplorationBlock
 from gui.blocks.navigation   import NavigationBlock
 from gui.blocks.ship_info    import ShipInfoBlock
 from gui.blocks.objectives   import ObjectivesBlock
+from gui.blocks.mining       import MiningBlock
 from gui.blocks.status       import StatusBlock
 from gui.blocks.helm         import HelmBlock
 
@@ -103,7 +104,8 @@ _PLUGIN_TO_BLOCK: dict[str, str] = {
     "session_stats": "block-career",
     "ship_info":     "block-ship",
     "objectives":    "block-objectives",
-    "surface_mining": "block-objectives",
+    "surface_mining": "block-mining",
+    "ring_hotspots": "block-mining",
     "status":        "block-status",
     "automation":    "block-helm",
 }
@@ -115,6 +117,7 @@ _BLOCK_CLASSES = {
     "career":       CareerBlock,
     "ship_info":    ShipInfoBlock,
     "objectives":   ObjectivesBlock,
+    "mining":       MiningBlock,
     "status":       StatusBlock,
     "exploration":  ExplorationBlock,
     "helm":         HelmBlock,
@@ -128,6 +131,7 @@ BLOCK_ID = {
     "career":       "block-career",
     "ship_info":     "block-ship",
     "objectives":    "block-objectives",
+    "mining":        "block-mining",
     "status":        "block-status",
     "exploration":  "block-exploration",
     "helm":         "block-helm",
@@ -497,10 +501,10 @@ class EdldWindow(QMainWindow):
 
     def action_push_survey(self) -> None:
         """Send everything pending to the shared sheet, now."""
-        plugin = self._core._plugins.get("surface_mining")
-        if plugin is None or not hasattr(plugin, "publish_now"):
-            return
-        self.statusBar().showMessage(plugin.publish_now(), 8000)
+        from core.survey_push import push_all
+        msg = push_all(self._core)
+        if msg:
+            self.statusBar().showMessage(msg, 8000)
 
     def action_toggle_ksw(self) -> None:
         """Toggle session management if the component is loaded."""

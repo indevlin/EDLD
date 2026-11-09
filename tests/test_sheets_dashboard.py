@@ -54,6 +54,10 @@ def _field(letter: str) -> str:
     return _code_gs_columns()[n - 1]
 
 
+#: The surface sites tab as the formulas reference it.
+SITES = r"'Surface Sites'!"
+
+
 def _condition_field(formula: str, pattern: str) -> str:
     m = re.search(pattern, formula)
     assert m, f"no condition matching {pattern!r}"
@@ -64,30 +68,38 @@ def _condition_field(formula: str, pattern: str) -> str:
 
 def test_template_deposits_header_is_code_gs_columns():
     assert tuple(_literal(BUILD, "DEPOSIT_COLUMNS")) == _code_gs_columns(), (
-        "the template's Deposits header must be COLUMNS from Code.gs, in order")
+        "the template's Surface Sites header must be COLUMNS from Code.gs, in order")
+
+
+def test_template_hotspot_header_is_code_gs_hotspot_columns():
+    from core.sheets_publish import HOTSPOT_COLUMNS
+    code = (SHEETS / "Code.gs").read_text(encoding="utf-8")
+    m = re.search(r"var HOTSPOT_COLUMNS = \[(.*?)\]", code, re.S)
+    assert tuple(re.findall(r"'(\w+)'", m.group(1))) == HOTSPOT_COLUMNS
+    assert tuple(_literal(BUILD, "HOTSPOT_COLUMNS")) == HOTSPOT_COLUMNS
 
 
 def test_dashboard_filter_shows_the_intended_fields():
     formula = _formulas()["Dashboard!A7"]
     shown = re.search(r"FILTER\(\s*\{(.*?)\}", formula, re.S)
     assert shown, "FILTER column list not found"
-    letters = re.findall(r"Deposits!([A-Z]+)2:\1\b", shown.group(1))
+    letters = re.findall(SITES + r"([A-Z]+)2:\1\b", shown.group(1))
     assert tuple(_field(x) for x in letters) == DASHBOARD_FIELDS
 
 
 def test_dashboard_filter_conditions_test_the_intended_fields():
     formula = _formulas()["Dashboard!A7"]
-    assert _condition_field(formula, r"\(Deposits!([A-Z]+)2:\1=Dashboard!\$A\$5\)") == "system"
-    assert _condition_field(formula, r"\(Deposits!([A-Z]+)2:\1=Dashboard!\$B\$5\)") == "commodity"
-    assert _condition_field(formula, r"Deposits!([A-Z]+)2:\1 <> 1") == "is_test"
+    assert _condition_field(formula, r"\(" + SITES + r"([A-Z]+)2:\1=Dashboard!\$A\$5\)") == "system"
+    assert _condition_field(formula, r"\(" + SITES + r"([A-Z]+)2:\1=Dashboard!\$B\$5\)") == "commodity"
+    assert _condition_field(formula, SITES + r"([A-Z]+)2:\1 <> 1") == "is_test"
 
 
 def test_dropdown_lists_read_system_and_commodity_without_test_rows():
     f = _formulas()
     for key, field in (("Queries!A1", "system"), ("Queries!B1", "commodity")):
-        m = re.search(r"FILTER\(Deposits!([A-Z]+)2:\1,", f[key])
+        m = re.search(r"FILTER\(" + SITES + r"([A-Z]+)2:\1,", f[key])
         assert m and _field(m.group(1)) == field, key
-        assert _condition_field(f[key], r"Deposits!([A-Z]+)2:\1<>1") == "is_test", key
+        assert _condition_field(f[key], SITES + r"([A-Z]+)2:\1<>1") == "is_test", key
 
 
 def test_both_files_list_the_same_table_columns():

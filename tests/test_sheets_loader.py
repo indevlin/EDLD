@@ -176,7 +176,9 @@ def _legacy():
 
 
 def test_an_old_sheet_keeps_every_deposit():
-    rows = _legacy()["sheets"]["Deposits"]["rows"]
+    sheets = _legacy()["sheets"]
+    assert "Deposits" not in sheets and "Ring Hotspots" in sheets
+    rows = sheets["Surface Sites"]["rows"]
     assert rows[0] == COLUMNS
     assert [r[0] for r in rows[1:]] == ["abc123def456", "fed000000001"]
     assert rows[1][COLUMNS.index("reported_by")] == "CMDR A"
@@ -185,7 +187,7 @@ def test_an_old_sheet_keeps_every_deposit():
 
 def test_an_old_sheets_depletion_moves_out_of_the_amount():
     res = _legacy()
-    row = res["sheets"]["Deposits"]["rows"][1]
+    row = res["sheets"]["Surface Sites"]["rows"][1]
     assert row[COLUMNS.index("amount")] == ""
     assert row[COLUMNS.index("depleted_on")] == "2026-09-10"
     fetched = res["results"][2]["deposits"][0]
@@ -233,8 +235,8 @@ def test_a_receiver_only_sheet_gains_the_dashboard_and_keeps_its_deposits():
     res = _run([{"call": "edldUpgrade"}],
                sheets={"Deposits": copy.deepcopy(LEGACY_DEPOSITS)},
                ui=["YES", {"button": "OK", "text": TOKEN}])
-    assert res["order"][:3] == ["Dashboard", "Settings", "Deposits"]
-    rows = res["sheets"]["Deposits"]["rows"]
+    assert res["order"][:3] == ["Dashboard", "Settings", "Surface Sites"]
+    rows = res["sheets"]["Surface Sites"]["rows"]
     assert rows[0] == COLUMNS
     assert [r[0] for r in rows[1:]] == ["abc123def456", "fed000000001"]
 
@@ -436,3 +438,35 @@ def test_the_bundle_check_fails_after_a_version_bump(tmp_path):
                          capture_output=True, text=True)
     assert out.returncode == 1
     assert "stale" in out.stdout and "build_bundle.py" in out.stdout
+
+
+def test_an_old_sheet_gains_ring_hotspots_and_its_formulas_follow_the_rename():
+    hot = {"hotspot_id": "h00000000001", "system": "Borann", "body": "Borann A 2",
+           "ring": "A", "commodity": "Low Temperature Diamonds"}
+    res = _run([{"call": "edldUpgrade"},
+                {"post": {"token": TOKEN, "hotspots": [hot]}},
+                {"post": {"token": TOKEN, "fetch_hotspots": {"system": "Borann"}}}],
+               sheets=copy.deepcopy(LEGACY_SHEETS),
+               ui=["YES", {"button": "OK", "text": TOKEN}])
+    assert res["order"].index("Ring Hotspots") == res["order"].index("Surface Sites") + 1
+    assert res["results"][1]["kind"] == "hotspots" and res["results"][1]["added"] == 1
+    assert res["results"][2]["hotspots"][0]["hotspot_id"] == "h00000000001"
+    dash = res["sheets"]["Dashboard"]["rows"][6][0]
+    assert "'Surface Sites'!" in dash and "Deposits!" not in dash
+    assert "Deposits renamed Surface Sites; Ring Hotspots tab" in res["alerts"][-1]
+
+
+def test_a_v3_sheet_backs_up_deposits_then_renames_it():
+    first = _install()
+    newer = BUNDLE + "\n// T2\n"
+    v3 = dict(first["docProps"], EDLD_SHEET_VERSION="3")
+    res = _run([{"call": "edldUpgrade"}], bundle=newer,
+               release=_release(version="T2", bundle=newer),
+               sheets={"Deposits": copy.deepcopy(LEGACY_DEPOSITS)},
+               script_props=first["scriptProps"], doc_props=v3, ui=["YES"])
+    names = res["order"]
+    assert "Deposits" not in names and "Surface Sites" in names and "Ring Hotspots" in names
+    assert any(n.startswith("Deposits backup") for n in names)
+    assert res["docProps"]["EDLD_SHEET_VERSION"] == "4"
+    rows = res["sheets"]["Surface Sites"]["rows"]
+    assert [r[0] for r in rows[1:]] == ["abc123def456", "fed000000001"]

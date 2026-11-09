@@ -85,19 +85,34 @@ deposit's identity, and altering it would leave the id pointing at something
 else on every sheet that already has the row. A wrong commodity is retired by
 flagging it as test data and recording the right one.
 
-## The Deposits tab
+## The Mining window
 
-Objectives → **Deposits** lists every deposit in the local survey store, the
-same columns as the shared sheet: system, body, gravity, mining site, commodity,
-amount, density, rigs, depleted on and notes. The filter box matches any of
-them, notes included.
+The **Mining** window (its own section in EDCARS, `Ctrl+6`; in the Dashboard,
+choose it for a center position in Options → Display) has two tabs, each a
+table with a filter box that matches any column.
 
-On the desktop and in EDCARS the table sorts on any column; double-click a
-cell to change it in place (amount and density offer the game's levels), or
-select a row and press **Edit…** for the whole form. In the terminal dashboard
-a row opens the same form as Ctrl+D, for that deposit. Either way the change is
-stamped and published like any other correction, and the commodity stays as
-recorded. EDAM shows the tab, filter included, but edits nothing.
+**Surface Sites** lists every deposit in the local survey store, the same
+columns as the shared sheet: system, body, gravity, mining site, commodity,
+amount, density, rigs, depleted on and notes.
+
+**Ring Hotspots** lists every ring hotspot: system, body, ring, ring type,
+reserve level, commodity, overlap and note. A hotspot is recorded when the
+Detailed Surface Scanner maps a ring (`SAASignalsFound`), one row per commodity;
+the ring type and the reserve level come from the planet's scan, whichever
+arrives first. Journals from before EDLD knew about hotspots are read once at
+startup, so rings you mapped long ago are listed too. Overlap is what shares
+the hotspot's location — a resource extraction site (`Resource [LOW]`,
+`[HIGH]`, `[HAZ]`, or `[BLANK]` for an unrated one) or another hotspot
+(`Hotspot [NOTE]`, with that hotspot's commodity in Note). **Add hotspot…**
+records one no scan did.
+
+On the desktop and in EDCARS the tables sort on any column. Every row ends in an
+**Edit** button that opens the whole form for that row; double-click a cell to
+change it in place (choices offer the game's levels). In the terminal dashboard
+each row ends in **Edit ›**, and a row opens the same form. A change is stamped
+and published like any other correction; what identifies a row — the commodity
+of a site, and the system, body, ring and commodity of a hotspot — stays as
+recorded. EDAM shows both tables, filters included, but edits nothing.
 
 Gravity and the system name come from the exploration catalog. EDLD fills them
 at startup for any deposit missing them, so a body scanned after the deposit was
@@ -141,7 +156,9 @@ a squadron leader has to hand out. Setup is in
 [`sheets/README.md`](../sheets/README.md). The sheet's owner pastes one file,
 `sheets/Loader.gs`, once; after that the sheet installs and upgrades its own
 code and layout from its **ED Dashboard → Upgrade…** menu, keeping its data,
-URL and token.
+URL and token. The sheet has a **Surface Sites** tab (called Deposits before
+layout v4) and a **Ring Hotspots** tab; Upgrade renames the first and adds the
+second.
 
 It reads as well as writes. Arriving at a body, EDLD asks the sheet what is
 known about it and merges the answer in, so the in-game compass can point at
@@ -159,6 +176,9 @@ Some rules worth knowing:
 - **Duplicate checking happens in the sheet**, not in EDLD. Only the sheet knows
   what is in the sheet, and several commanders writing to one of them cannot see
   each other's local stores.
+- **Hotspots come down by system.** Arriving in a system fetches the sheet's
+  hotspots for it, once per session. A newer overlap and note replace yours;
+  otherwise they only fill what yours leaves blank.
 - **Imported rows are never sent back up.** Otherwise every commander
   re-publishes every other commander's finds and the sheet spends its write
   quota echoing itself.
@@ -166,7 +186,8 @@ Some rules worth knowing:
   fills fields yours does not have — except an amount or density somebody
   corrected more recently than yours, and a newer note.
 - **Depletion dates merge by date.** The latest wins, whoever sent it.
-- **Deposits publish when you leave a body**, or on **Ctrl+G**. Sheets allows
+- **Deposits publish when you leave a body**, hotspots when you dock, jump or
+  leave a body, and both on **Ctrl+G**. Sheets allows
   roughly sixty writes a minute and one real session produced 608 refine events.
 - **Nothing is marked published until the sheet confirms it.** A transport
   error, an error page, a bad token or a partial write all leave the rows
@@ -223,4 +244,5 @@ confirmation. All but the last three are on the **Survey** tab in Options.
 
 `<data>/data/mining.db` — shared across commanders, because a deposit is in the
 same place whoever finds it. On Linux that is
-`~/.local/share/EDLD/data/mining.db`.
+`~/.local/share/EDLD/data/mining.db`. Ring hotspots are beside it, in
+`ring_hotspots.db`.

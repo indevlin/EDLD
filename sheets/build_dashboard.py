@@ -45,6 +45,13 @@ DEPOSIT_COLUMNS = [
     'depleted_on', 'notes', 'notes_updated', 'assessment_updated',
 ]
 
+# Positional contract with Code.gs HOTSPOT_COLUMNS and core/sheets_publish.py.
+HOTSPOT_COLUMNS = [
+    'hotspot_id', 'system', 'system_address', 'body', 'ring', 'ring_type',
+    'reserve_level', 'commodity', 'overlap', 'note', 'count', 'reported_by',
+    'is_test', 'first_seen', 'last_confirmed', 'overlap_updated',
+]
+
 # Dashboard table columns, in the order the FILTER in Dashboard.gs emits them.
 # Must match ED.HEADERS in Dashboard.gs.
 HEADERS = ['System', 'Body', 'Gravity', 'Mining Site', 'Commodity',
@@ -378,7 +385,7 @@ def build_settings(wb, version):
 
 
 def build_deposits(wb):
-    dp = wb.create_sheet('Deposits')
+    dp = wb.create_sheet('Surface Sites')
     for c, name in enumerate(DEPOSIT_COLUMNS, 1):
         dp.cell(1, c, name).font = Font(name='Arial', bold=True)
     lat = DEPOSIT_COLUMNS.index('latitude') + 1
@@ -387,6 +394,17 @@ def build_deposits(wb):
             dp.cell(r, c).number_format = '0.000000'
     dp.freeze_panes = 'A2'
     dp.sheet_state = 'hidden'
+
+
+def build_hotspots(wb):
+    hs = wb.create_sheet('Ring Hotspots')
+    for c, name in enumerate(HOTSPOT_COLUMNS, 1):
+        cell = hs.cell(1, c, name)
+        cell.font = Font(name='Arial', bold=True, color=h(C['Accent Text']))
+        cell.fill = fill(C['Accent'])
+    hs.freeze_panes = 'A2'
+    hs.auto_filter.ref = f'A1:{get_column_letter(len(HOTSPOT_COLUMNS))}1'
+    hs.sheet_properties.tabColor = h(C['Accent'])
 
 
 def build_queries(wb, formulas):
@@ -459,6 +477,7 @@ def main():
     build_dashboard(wb, formulas)
     build_settings(wb, args.version)
     build_deposits(wb)
+    build_hotspots(wb)
     build_queries(wb, formulas)
     build_themes(wb)
 

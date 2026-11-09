@@ -74,7 +74,8 @@ def test_every_window_has_a_place():
 
 def test_the_agreed_sections_in_order():
     assert [s.id for s in H.SECTIONS] == [
-        "command", "helm", "fleet", "exploration", "objectives", "career", "alerts"]
+        "command", "helm", "fleet", "exploration", "objectives", "mining", "career",
+        "alerts"]
     assert H.section("helm").label == "Helm"
     command = H.section("command")
     assert {p.window for p in command.parts} == {"commander", "ship_info", "status"}

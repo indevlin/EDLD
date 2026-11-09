@@ -10,8 +10,8 @@ Everything here is off until you turn it on.
 | File | What it is |
 |---|---|
 | `Loader.gs` | **The one file you paste into the sheet.** Installs and upgrades everything else from the sheet's own menu. |
-| `Mining_Dashboard.xlsx` | Optional starting spreadsheet: a themed, filterable, sortable dashboard over `Deposits`. |
-| `Code.gs` | Source: the receiver, which accepts deposits from EDLD and writes the `Deposits` tab. |
+| `Mining_Dashboard.xlsx` | Optional starting spreadsheet: a themed, filterable, sortable dashboard over `Surface Sites`, and an empty `Ring Hotspots` tab. |
+| `Code.gs` | Source: the receiver, which accepts deposits and ring hotspots from EDLD and writes the `Surface Sites` and `Ring Hotspots` tabs. |
 | `Dashboard.gs` | Source: the dashboard's theme, click-to-sort and formula repair. |
 | `Template.gs` | Source: builds the Dashboard, Settings, Queries and Themes tabs a sheet does not have. |
 | `Upgrade.gs` | Source: the sheet's upgrade steps, run by Upgrade after new code is installed. |
@@ -37,8 +37,8 @@ want them to stop.
 ## Setting it up
 
 **1. Make or open the spreadsheet.** Any Google Sheet — a new, blank one is
-the usual start. Installing builds everything: the Dashboard, Settings and
-Deposits tabs, and the hidden Queries and Themes tabs behind them, and removes
+the usual start. Installing builds everything: the Dashboard, Settings,
+Surface Sites and Ring Hotspots tabs, and the hidden Queries and Themes tabs behind them, and removes
 Google's empty `Sheet1`. An existing sheet keeps its tabs and gains only the
 ones it is missing. See [The dashboard](#the-dashboard) below.
 
@@ -121,6 +121,23 @@ To revoke someone, run **ED Dashboard → Set sheet token…** and give the new
 token to everyone but the person you are removing. It takes effect on the next
 request — no redeploy — and everyone keeps the same URL.
 
+## Layout v4: Surface Sites and Ring Hotspots
+
+Layout v4 renames the `Deposits` tab to **Surface Sites** and adds **Ring
+Hotspots**. The rename keeps every row and column where it was, and the
+dashboard's formulas follow it. Until Upgrade has run, a sheet keeps taking
+deposits as before; EDLD holds its hotspots back, logs "the sheet has no Ring
+Hotspots tab — run ED Dashboard > Upgrade", and Test connection says the same.
+They are sent at the first write after the upgrade.
+
+Ring Hotspots columns, in order: `hotspot_id`, `system`, `system_address`,
+`body`, `ring`, `ring_type`, `reserve_level`, `commodity`, `overlap`, `note`,
+`count`, `reported_by`, `is_test`, `first_seen`, `last_confirmed`,
+`overlap_updated`. A hotspot is matched on `hotspot_id`, worked out from the
+system, ring and commodity. A later report fills blank `ring_type`,
+`reserve_level`, `count` and `system_address`; `overlap` and `note` change
+together, only for a newer `overlap_updated`.
+
 ## Duplicates
 
 The script matches on `deposit_id`, the first column. EDLD works out which
@@ -167,14 +184,16 @@ picked another — tells you what it will change, and on your say-so:
 
 1. fetches the sheet code from beside that release's manifest and checks its
    SHA-256 against the manifest — a mismatch installs nothing;
-2. copies `Deposits` to a hidden tab named `Deposits backup <date>`;
+2. copies `Surface Sites` to a hidden tab named `Surface Sites backup <date>`
+   (`Deposits backup <date>` on a sheet from before layout v4);
 3. installs the code and runs the sheet's upgrade steps — new columns, the
    dashboard's formulas and layout, tidying data an older version wrote —
    recording each as it completes, so an interrupted upgrade resumes where it
    stopped;
 4. re-applies the theme.
 
-Deposits are only ever added to, your Settings values are left as they are,
+Surface Sites and Ring Hotspots are only ever added to, your Settings values
+are left as they are,
 and the URL and token do not change. A dashboard tab the sheet does not have is
 built; one it has is never rewritten. The release line in Settings!D1 follows
 each upgrade unless you have replaced it with your own text. EDLD's own writes wait while it runs.
@@ -291,8 +310,9 @@ The dashboard is a read side for people who open the sheet rather than run
 EDLD. Installing builds it (`Template.gs`), and `Mining_Dashboard.xlsx` is the
 same thing as a file; both come from the constants in `build_dashboard.py`, and
 `tests/test_sheets_template.py` checks the two say the same thing cell for
-cell. Either way it is a template, not a copy of anybody's data: `Deposits`
-holds only its header row, and Settings holds placeholders.
+cell. Either way it is a template, not a copy of anybody's data: `Surface
+Sites` and `Ring Hotspots` hold only their header rows, and Settings holds
+placeholders.
 
 **Settings.** Put your squadron's name in B1 and the maintaining commander in
 B2; the dashboard title and subtitle come from those. Leave B1 blank and the
@@ -300,7 +320,7 @@ title falls back to "CMDR *name*'s Mining Data". D1 carries the template version
 
 **Filtering.** Pick a System, a Commodity, or both in A5:B5. The table appears
 at row 7 once either is set, and is empty until then. Both lists are built from
-whatever is in `Deposits`, so they fill themselves as commanders publish.
+whatever is in `Surface Sites`, so they fill themselves as commanders publish.
 Deposits flagged `is_test` are left out, as they are from EDLD's own reads.
 
 **Sorting.** Sort By and Order (E5:F5) sort the table; the header of the sorted
@@ -378,7 +398,8 @@ verify job, `scripts/build_local.sh`, and the tests.
 A change that needs the sheet itself changed — a column, a tab, a layout —
 is a new entry at the end of `SHEET_MIGRATIONS` in `Upgrade.gs`, with the next
 `to:` number. The rules for a step are at the top of that file; the short
-version is that it must be safe to run twice and may only add to `Deposits`.
+version is that it must be safe to run twice and may only add to `Surface Sites`
+and `Ring Hotspots`.
 `tests/test_sheets_loader.py` runs the loader, the bundle and an old sheet
 through a full upgrade under Node, with `tests/gas_fake.js` standing in for
 Google's services.

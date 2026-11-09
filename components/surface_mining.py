@@ -727,7 +727,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
         self._log(f"{verb} {dep_id} from the deposit form")
         return f"{verb} {dep_id}"
 
-    # ── Any deposit, by id (Objectives → Deposits) ─────────────────────────────
+    # ── Any deposit, by id (Mining → Surface Sites) ─────────────────────────────
 
     def deposit_records(self) -> list[dict]:
         """mining_db.all_deposits(); [] when the store cannot be read."""
@@ -768,7 +768,7 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             return msg
         if not changed:
             return "nothing to change"
-        self._log(f"updated {dep_id} from the Deposits table")
+        self._log(f"updated {dep_id} from the Surface Sites table")
         gq = getattr(self._core, "gui_queue", None)
         if gq:
             gq.put(("plugin_refresh", "surface_mining"))
@@ -1121,7 +1121,18 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             ("Bodies",    str(counts["bodies"])),
             ("Surveyed",  str(counts["surveyed"])),
             ("Unpublished", str(counts["pending"])),
-        ]
+        ] + self._hotspot_lines()
+
+    @staticmethod
+    def _hotspot_lines() -> list[tuple[str, str]]:
+        """Ring hotspot store counts; [] when unavailable."""
+        try:
+            from core.ring_hotspots import get_db
+            c = get_db().counts()
+        except Exception:
+            return []
+        return [("Ring hotspots", str(c["hotspots"])),
+                ("Hotspots unpublished", str(c["pending"]))]
 
 
     def gui_preferences_tab(self):
@@ -1276,8 +1287,9 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
             lay.addLayout(row)
 
             note = QLabel("Deposits are recorded automatically while you mine "
-                          "them. Overlay display is configured on the Overlay "
-                          "tab.")
+                          "them, and ring hotspots when you map a ring. Both are "
+                          "listed in the Mining window. Overlay display is "
+                          "configured on the Overlay tab.")
             note.setWordWrap(True)
             note.setProperty("role", "dim")
             lay.addWidget(note)
@@ -1374,7 +1386,8 @@ class SurfaceMiningPlugin(BasePlugin, ActivityProviderMixin):
                 yield Label("", id="btn-srv-test-result", classes="pref-note")
 
             yield Label("Deposits are recorded automatically while you mine "
-                        "them. Overlay display is configured on the Overlay "
-                        "tab.", classes="pref-note")
+                        "them, and ring hotspots when you map a ring. Both are "
+                        "listed in the Mining window. Overlay display is "
+                        "configured on the Overlay tab.", classes="pref-note")
 
         return ("pref-tab-survey", "Survey", _compose)

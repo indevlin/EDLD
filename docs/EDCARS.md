@@ -79,9 +79,10 @@ strip until you open the Alerts section.
 | Helm | `Ctrl+2` | The Helm panel: the game's controls and EDLD's automation, as buttons |
 | Fleet | `Ctrl+3` | Ships, stored modules, the fleet carrier and the squadron carrier |
 | Exploration | `Ctrl+4` | Exploration / Exobiology beside Navigation |
-| Objectives | `Ctrl+5` | Missions, colonization and surface deposits |
-| Career | `Ctrl+6` | Career / Session |
-| Alerts | `Ctrl+7` | The alert feed, with its Clear button |
+| Objectives | `Ctrl+5` | Missions and colonization |
+| Mining | `Ctrl+6` | Ring Hotspots and Surface Sites, each a filterable table |
+| Career | `Ctrl+7` | Career / Session |
+| Alerts | `Ctrl+8` | The alert feed, with its Clear button |
 
 Under the sections, the last pill on the rail is **Settings**, as on EDAM. It
 is not a section: it opens Options (`Ctrl+O`, or **File → Options…**) over
@@ -162,7 +163,7 @@ Opening the section, or clearing the alerts, settles the pill.
 ## Consoles
 
 EDCARS can be drawn as four consoles. The layout is the same in all of them —
-the band and the strip of facts, the rail of seven sections, the same windows
+the band and the strip of facts, the rail of eight sections, the same windows
 framed in the same places, the radio along the foot, the same shortcuts and
 the same alerts. What differs is how the band, the pills and the frames are
 drawn, and the faces the chrome is set in. **Options → Appearance →

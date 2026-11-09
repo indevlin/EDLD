@@ -532,7 +532,8 @@ the desktop's tab order.
 | `crew` | `crew.crew`: the NPC crew and fighter | Crew / SLF |
 | `exploration` | `exploration.system`: the current system, its bodies and their biology | Exploration |
 | `navigation` | `navigation.route`: the followed route and the next legs | Navigation |
-| `missions`, `colonisation`, `survey` | `missions.missions`, `colonisation.colonisation`, `survey.deposits` | Objectives |
+| `missions`, `colonisation` | `missions.missions`, `colonisation.colonisation` | Objectives |
+| `mining` | `mining.hotspots`, `mining.sites` (both `filter`) | Mining |
 | `session`, `career` | `session.session`, `career.summary` … `career.powerplay` | Career / Session |
 
 A client should show a group it does not recognize rather than drop it: EDAM
@@ -571,11 +572,11 @@ A panel may also carry:
   `"row": true` is not drawn as a button: a row naming it in its own
   `action` runs it when tapped;
 * `filter` — `true` when the client should offer a text filter over the
-  rows (`survey.deposits`). A filter keeps the `cells` rows whose label or
+  rows (`mining.hotspots`, `mining.sites`). A filter keeps the `cells` rows whose label or
   cells contain the text, each with the `line` rows under it.
 
 A row may carry `action`, the id of one of its panel's actions, or an id the
-desktop handles itself (`edit:<deposit>` on `survey.deposits`, which a client
+desktop handles itself (`edit:<id>` on the `mining` panels, which a client
 that edits nothing ignores).
 
 ### Commands

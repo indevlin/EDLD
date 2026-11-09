@@ -218,50 +218,6 @@ def missions(core, now: datetime | None = None) -> Tab:
     return Tab("missions", "Missions", rows)
 
 
-DEPOSIT_HEADINGS = ("BODY", "G", "SITE", "COMMODITY", "AMOUNT", "DENSITY", "RIGS", "DEPLETED")
-
-
-def deposit_cells(d: dict) -> list[str]:
-    """One deposit as the Deposits table's cells (after the body label)."""
-    g = d.get("gravity")
-    return [f"{float(g):.2f}" if g not in (None, "") else "",
-            "" if d.get("signal_no") in (None, "") else f"#{d['signal_no']}",
-            d.get("commodity_display") or d.get("commodity", ""),
-            d.get("amount", "") or "",
-            d.get("density_observed", "") or d.get("density_claimed", "") or "",
-            "" if d.get("rigs") in (None, "") else str(d["rigs"]),
-            (d.get("depleted_on") or "")[:10]]
-
-
-def deposits(core, query: str = "") -> Tab:
-    """Surface survey deposits, as the shared sheet's dashboard lists them. Row
-    action edit:<deposit id>.
-    """
-    plugin = (getattr(core, "_plugins", None) or {}).get("surface_mining")
-    records = plugin.deposit_records() if plugin is not None else []
-    q = (query or "").strip().lower()
-    rows: list = []
-    for d in records:
-        body = d.get("body_name") or d.get("system_name") or f"Body {d.get('body_id')}"
-        cells = deposit_cells(d)
-        notes = (d.get("notes") or "").strip()
-        if q and q not in " ".join([body, d.get("system_name") or "", notes] + cells).lower():
-            continue
-        label = body + ("  (test)" if d.get("is_test") else "")
-        rows.append(R.cells(label, cells, "val dim" if cells[-1] else "val",
-                            action=f"edit:{d['deposit_id']}"))
-        if notes:
-            rows.append(R.text(f"   {notes.splitlines()[0][:120]}", "dim"))
-    if not rows:
-        text = ("No deposits match" if q and records else
-                "No surface deposits recorded")
-        return Tab("deposits", "Deposits", [R.text(text, "dim")])
-    widths = [max(len(h), *(len(r[2][i]) for r in rows if r[0] == "cells"))
-              for i, h in enumerate(DEPOSIT_HEADINGS[1:])]
-    return Tab("deposits", "Deposits",
-               [R.table(DEPOSIT_HEADINGS[0], tuple(zip(DEPOSIT_HEADINGS[1:], widths)))] + rows)
-
-
 def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None = None) -> Tab:
     """Sites by system. ``expanded`` (market id → bool) and ``expanded_sys``
     (system → bool) are the interface's own collapse state; a group not in

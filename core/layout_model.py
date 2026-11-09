@@ -80,6 +80,7 @@ BLOCK_CLASS = {
     # Center column: three equal windows, freely interchangeable.
     "commander":    CENTER,
     "objectives":   CENTER,
+    "mining":       CENTER,
     "status":       CENTER,
 }
 
@@ -89,6 +90,7 @@ BLOCK_DISPLAY = {
     "ship_info":    "Ship",
     "career":       "Career / Session",
     "objectives":   "Objectives",
+    "mining":       "Mining",
     "commander":    "Commander",
     "status":       "Crew / Alerts",
 }

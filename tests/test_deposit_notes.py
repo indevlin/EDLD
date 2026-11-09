@@ -17,7 +17,7 @@ if str(ROOT) not in sys.path:
 from core import mining_db
 from core.deposit_form import FIELDS, clean, prefill
 from core.mining_db import MAX_NOTES_CHARS, MiningDB, clean_notes
-from core.sheets_publish import COLUMNS, SheetsPublisher, row_from_deposit
+from core.sheets_publish import COLUMNS, HOTSPOT_COLUMNS, SheetsPublisher, row_from_deposit
 
 SA, BODY = 1234, 7
 
@@ -277,7 +277,8 @@ def test_clean_notes_is_what_the_store_uses_for_imports():
 
 def _ping(columns: int):
     def opener(url, data, timeout):
-        return json.dumps({"ok": True, "pong": True, "columns": columns})
+        return json.dumps({"ok": True, "pong": True, "columns": columns,
+                           "hotspot_columns": len(HOTSPOT_COLUMNS)})
     return SheetsPublisher("https://script.google.com/macros/s/X/exec", "t",
                            opener=opener).test_connection()
 
@@ -300,6 +301,7 @@ def test_an_out_of_date_sheet_is_told_to_upgrade_itself():
 def test_a_passing_test_names_the_release_the_sheet_runs():
     def opener(url, data, timeout):
         return json.dumps({"ok": True, "pong": True, "columns": len(COLUMNS),
+                           "hotspot_columns": len(HOTSPOT_COLUMNS),
                            "version": "20261001", "sheet_version": 1})
     res = SheetsPublisher("https://script.google.com/macros/s/X/exec", "t",
                           opener=opener).test_connection()

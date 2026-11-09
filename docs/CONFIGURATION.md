@@ -89,10 +89,11 @@ same class:
 | Class | Slots | Windows |
 |-------|-------|---------|
 | Large | `A1`, `A2`, `C1`, `C2` | Exploration / Exobiology, Navigation, Ship, Career / Session |
-| Center | `B1`, `B2`, `B3` | Commander, Crew / Alerts, Objectives |
+| Center | `B1`, `B2`, `B3` | Commander, Crew / Alerts, Objectives, Mining |
 
-There are seven windows and seven slots, so every window is on screen at
-once; rearranging swaps two windows rather than hiding one.
+There are eight windows and seven slots. Mining has no slot by default; choose
+it for a center slot to show it in place of the window that was there. EDCARS
+gives it a section of its own.
 
 Left and right columns mirror each other — two large windows apiece — and the
 center column is three equal windows. Any window may occupy any slot of its

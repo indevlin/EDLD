@@ -74,10 +74,13 @@ function makeSheet(rows) {
   };
 }
 const sheets = {};
-if (spec.initial) sheets.Deposits = makeSheet(spec.initial);
+const named = (n, sh) => { sh.getIndex = () => Object.keys(sheets).indexOf(n) + 1; sh.setName = (m) => { delete sheets[n]; sheets[m] = named(m, sh); return sh; };
+                           return sh; };
+if (spec.initial) sheets[spec.tab || 'Surface Sites'] = named(spec.tab || 'Surface Sites', makeSheet(spec.initial));
+if (spec.hotspots) sheets['Ring Hotspots'] = named('Ring Hotspots', makeSheet(spec.hotspots));
 globalThis.SpreadsheetApp = { getActiveSpreadsheet: () => ({
   getSheetByName: (n) => sheets[n] || null,
-  insertSheet: (n) => (sheets[n] = makeSheet()),
+  insertSheet: (n) => (sheets[n] = named(n, makeSheet())),
 }) };
 globalThis.LockService = { getDocumentLock: () => ({ tryLock: () => true, releaseLock: () => {} }) };
 globalThis.ContentService = { createTextOutput: (t) => ({ setMimeType: () => JSON.parse(t) }) };
@@ -88,12 +91,16 @@ globalThis.Session = { getScriptTimeZone: () => 'UTC' };
 
 const replies = spec.posts.map(body =>
   doPost({ postData: { contents: JSON.stringify(Object.assign({ token: 'tok' }, body)) } }));
-process.stdout.write(JSON.stringify({ replies, rows: sheets.Deposits ? sheets.Deposits.rows : [], raw, columns: COLUMNS }));
+const site = sheets['Surface Sites'];
+const hot = sheets['Ring Hotspots'];
+process.stdout.write(JSON.stringify({ replies, rows: site ? site.rows : [], raw, columns: COLUMNS,
+  tabs: Object.keys(sheets), hotspot_rows: hot ? hot.rows : [], hotspot_columns: HOTSPOT_COLUMNS }));
 """
 
 
-def _run(posts, initial=None) -> dict:
-    spec = {"code": str(CODE_GS), "posts": posts, "initial": initial}
+def _run(posts, initial=None, tab=None, hotspots=None) -> dict:
+    spec = {"code": str(CODE_GS), "posts": posts, "initial": initial, "tab": tab,
+            "hotspots": hotspots}
     out = subprocess.run([NODE, "-e", _HARNESS], input=json.dumps(spec),
                          capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
@@ -228,3 +235,58 @@ def test_a_sheet_from_before_the_new_columns_gains_them():
 def test_the_ping_reports_every_column():
     res = _run([{"ping": True}])
     assert res["replies"][0]["columns"] == len(res["columns"])
+
+
+# ── Surface Sites rename, ring hotspots ───────────────────────────────────────
+
+def test_a_deposits_tab_is_renamed_surface_sites_and_keeps_its_rows():
+    head = ["deposit_id", "system"]
+    res = _run(_write(_dep(deposit_id="new000000000")),
+               initial=[head, ["old000000000", "Igbonii"]], tab="Deposits")
+    assert "Deposits" not in res["tabs"] and "Surface Sites" in res["tabs"]
+    assert [r[0] for r in res["rows"][1:]] == ["old000000000", "new000000000"]
+
+
+def _hot(**kw) -> dict:
+    h = {"hotspot_id": "h00000000001", "system": "Borann", "system_address": 5,
+         "body": "Borann A 2", "ring": "A", "ring_type": "", "reserve_level": "Pristine",
+         "commodity": "Low Temperature Diamonds", "count": 1,
+         "last_confirmed": "2026-11-01T00:00:00Z"}
+    h.update(kw)
+    return h
+
+
+def _hcell(res: dict, field: str, row: int = 2):
+    return res["hotspot_rows"][row - 1][res["hotspot_columns"].index(field)]
+
+
+def test_hotspots_append_then_fill_blanks_and_take_newer_overlap():
+    res = _run([
+        {"hotspots": [_hot()]},
+        {"hotspots": [_hot(ring_type="Icy", reserve_level="Low", overlap="Resource [HAZ]",
+                           overlap_updated="2026-11-02T00:00:00Z")]},
+        {"hotspots": [_hot(overlap="Resource [LOW]", overlap_updated="2026-11-01T00:00:00Z")]},
+    ])
+    assert res["replies"][0] == {"ok": True, "kind": "hotspots", "added": 1, "updated": 0,
+                                 "unchanged": 0}
+    assert _hcell(res, "ring_type") == "Icy"           # blank filled
+    assert _hcell(res, "reserve_level") == "Pristine"  # set value kept
+    assert _hcell(res, "overlap") == "Resource [HAZ]"  # older stamp ignored
+    assert res["replies"][2]["unchanged"] == 1
+    assert res["hotspot_rows"][0] == res["hotspot_columns"]
+
+
+def test_hotspots_are_fetched_by_system_without_test_rows():
+    res = _run([
+        {"hotspots": [_hot(), _hot(hotspot_id="h00000000002", is_test=1),
+                      _hot(hotspot_id="h00000000003", system="Elsewhere", system_address=9)]},
+        {"fetch_hotspots": {"system": "borann"}},
+        {"fetch_hotspots": {"system_address": 9}},
+    ])
+    assert [h["hotspot_id"] for h in res["replies"][1]["hotspots"]] == ["h00000000001"]
+    assert [h["hotspot_id"] for h in res["replies"][2]["hotspots"]] == ["h00000000003"]
+
+
+def test_the_ping_reports_hotspot_columns():
+    res = _run([{"ping": True}])
+    assert res["replies"][0]["hotspot_columns"] == len(res["hotspot_columns"])
