@@ -1,7 +1,8 @@
 """One rig site, one deposit — however the commodity was spelled, wherever the
 SRV was standing when it refined.
 
-Reproduces Kitchang Mu 3 d on 2026-10-11: a Low Temp.
+Reproduces Kitchang Mu 3 d on 2026-10-11: a Low Temp. Diamonds site recorded
+from the deposit form, then refined from two spots 180 m apart.
 """
 import pytest
 

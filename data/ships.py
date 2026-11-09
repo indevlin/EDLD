@@ -375,7 +375,8 @@ def learn_ship_names_from_event(event: dict) -> None:
 def normalise_ship_name(raw: str | None) -> str | None:
     """Return the correctly-capitalised display name for a ship type string.
 
-    Accepts both internal journal identifiers (e.g.
+    Accepts both internal journal identifiers (e.g. ``"type8"``, ``"krait_mkii"``)
+    and pre-localized strings (e.g. ``"Cobra Mk IV"``).
 
     Falls back to a title-cased string for completely unknown ships, with Roman
     numerals after "Mk" kept properly uppercase.
@@ -463,7 +464,7 @@ def resolve_vehicle_name(raw: str) -> str:
 def resolve_fighter_name(fighter_type: str, loadout: str) -> str:
     """Return display name for a fighter given type + loadout key.
 
-    Handles engineered grade variants (e.g.
+    Handles engineered grade variants (e.g. "df_g1").
     """
     ft = (fighter_type or "").lower().strip()
     lo = (loadout or "").lower().strip()

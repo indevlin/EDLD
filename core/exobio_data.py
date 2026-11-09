@@ -206,7 +206,8 @@ GENUS_RANGES = _build_genus_ranges()
 def genus_value_range(genus_display: str):
     """(min, max) base value across a genus's species, or None if unknown.
 
-    Matches the leading-word genus the game reports (e.g.
+    Matches the leading-word genus the game reports (e.g. 'Bacterium'); other
+    multi-word names return None.
     """
     r = GENUS_RANGES.get((genus_display or "").split()[0] if genus_display else "")
     return (r[0], r[1]) if r else None

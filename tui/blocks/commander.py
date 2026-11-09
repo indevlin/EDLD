@@ -1,6 +1,6 @@
 """tui/blocks/commander.py — Commander window (Textual).
 
-Info, Ranks and Wallet, then Ships, Modules, Carrier and S.
+Info, Ranks and Wallet, then Ships, Modules, Carrier and S. Carrier.
 """
 from __future__ import annotations
 from textual.app     import ComposeResult

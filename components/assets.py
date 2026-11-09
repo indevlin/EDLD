@@ -846,9 +846,8 @@ class AssetsPlugin(BasePlugin):
                         continue
                     sid_i = int(sid) if isinstance(sid, int) else sid
                     # Sanitize type_display — if it looks like an unprocessed
-                    # internal name (contains "_" with no spaces, e.g.
-                    # "type9_military") refresh it through the localization
-                    # pipeline.
+                    # internal name (contains "_" with no spaces, e.g. "type9_military")
+                    # refresh it through the localization pipeline.
                     td = ship.get("type_display", "")
                     # Re-localise if type_display looks like an unprocessed internal name.
                     # Catches two patterns CAPI can produce:
@@ -879,7 +878,7 @@ class AssetsPlugin(BasePlugin):
             # Sanitize current ship type_display with the same logic applied to
             # stored ships above. Catches cases where
             # _load_capi_profile_from_disk or a stale capi_profile.json left a
-            # raw internal name (e.g.
+            # raw internal name (e.g. "Type9_Military") in assets_current_ship.
             _cur = state.assets_current_ship
             if _cur:
                 _td = _cur.get("type_display", "")

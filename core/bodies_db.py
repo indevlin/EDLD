@@ -443,6 +443,7 @@ class BodiesCore:
         """Add a column if it isn't already present (idempotent migration aid).
 
         ``coldef`` is the full SQLite column definition, e.g.
+        ``"ascending_node REAL"``. Existing rows receive the column's default.
         """
         column = coldef.split()[0]
         if not self._column_exists(conn, table, column):

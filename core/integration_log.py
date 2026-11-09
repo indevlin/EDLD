@@ -105,7 +105,7 @@ def response_failed(tag: str, http_status: Any, msg: str = "",
 def event_notice(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
     """Per-event informational notice — routine, not a problem.
 
-    e.g.
+    e.g. EDSM 101 "already stored", 102 "older than stored".
     """
     suffix = f": {msg}" if msg else ""
     _dbg.log(f"  [{tag}] {ev_name} notice ({status}){suffix}")
@@ -114,7 +114,7 @@ def event_notice(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
 def event_warning(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
     """Per-event warning — something looks wrong but the upload continued.
 
-    e.g.
+    e.g. Inara 3xx soft errors, EDSM 1xx-warning sub-codes.
     """
     suffix = f": {msg}" if msg else ""
     _dbg.info(f"  [{tag}] event warning — {ev_name} ({status}){suffix}")
@@ -123,7 +123,7 @@ def event_warning(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
 def event_error(tag: str, ev_name: str, status: Any, msg: str = "") -> None:
     """Per-event hard error — the event was rejected.
 
-    e.g.
+    e.g. Inara 400 "Missing required field", EDSM 200-series fatal codes.
     """
     suffix = f": {msg}" if msg else ""
     _dbg.info(f"  [{tag}] EVENT ERROR — {ev_name} status={status}{suffix}")

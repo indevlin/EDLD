@@ -149,7 +149,7 @@ def is_surface_refine(position: Optional[Position]) -> bool:
 
 #: Display names whose letters are not the game's symbol, keyed on the display
 #: name as :func:`_squash` leaves it. The game's own name for
-#: lowtemperaturediamond is "Low Temp.
+#: lowtemperaturediamond is "Low Temp. Diamonds".
 _COMMODITY_ALIASES: dict[str, str] = {
     "lowtempdiamonds":         "lowtemperaturediamond",
     "lowtemperaturediamonds":  "lowtemperaturediamond",
@@ -193,7 +193,7 @@ def canonical_commodity(raw: str) -> str:
     """The game's symbol for a commodity, from any spelling of it.
 
     ``$thortveitite_name;`` → ``thortveitite``, ``Helium-3`` → ``helium3``, and
-    ``Low Temp.
+    ``Low Temp. Diamonds`` → ``lowtemperaturediamond``.
     """
     s = _squash(raw)
     with _ALIAS_LOCK:
