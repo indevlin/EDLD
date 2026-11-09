@@ -2,19 +2,19 @@
 # scripts/sync_wiki.sh
 #
 # Copies EDLD docs from the main repo into the wiki repo.
-# Fully auto-discovers all docs and guides — no changes needed when new
-# files are added to docs/ or docs/guides/.
 #
-# Naming convention (applied automatically):
-#   README.md                       → Home.md           (special case)
-#   INSTALL.md                      → Installation.md   (special case)
-#   docs/SOME_DOC.md                → Some-Doc.md       (auto)
-#   docs/guides/SOME_GUIDE.md       → Some-Guide.md     (auto)
-#   docs/releases/RELEASE_NOTES_*   → combined into Release-Notes.md (auto)
+# Pages:
+#   README.md               → Home.md
+#   INSTALL.md              → Installation.md
+#   sheets/README.md        → Survey-Sheet.md
+#   CHANGELOG.md            → Release-Notes.md
+#   docs/SOME_DOC.md        → Some-Doc.md
+#   docs/guides/SOME_GUIDE  → Some-Guide.md
 #
-# Adding a new guide or doc: just create the file. Nothing else needed.
-# Adding a new abbreviation that needs special casing: add a line to the
-# case block in to_wiki_name() below.
+# Links resolve against the source file's directory. A link to another synced
+# doc becomes its wiki page; an image becomes a raw URL; anything else in the
+# repo becomes a blob (file) or tree (directory) URL on main. Pages in the wiki
+# that no source produced are removed. _Sidebar.md is regenerated.
 #
 # Usage (local):
 #   WIKI_DIR=/path/to/EDLD.wiki bash scripts/sync_wiki.sh
@@ -34,162 +34,127 @@ fi
 
 echo "Syncing docs to wiki at: $WIKI_DIR"
 
-# ── Filename → wiki page name ─────────────────────────────────────────────────
-# Strips path and .md extension, lowercases each word, title-cases, joins with
-# hyphens.  Special cases handle branding and the two fixed root files.
-#
-# To add a new special case (e.g. a guide whose name needs non-standard casing):
-#   add a line:  SOME_FILENAME) echo "Desired-Name"; return ;;
-#
-to_wiki_name() {
-    local _src="$1"
-    local _base
-    _base="$(basename "$_src" .md)"
+REPO_DIR="$REPO_DIR" WIKI_DIR="$WIKI_DIR" \
+GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-indevlin/EDLD}" \
+python3 - <<'PY'
+import os, posixpath, re, sys
+from pathlib import Path
 
-    case "$_base" in
-        README)        echo "Home";         return ;;
-        INSTALL)       echo "Installation"; return ;;
-    esac
+repo = Path(os.environ["REPO_DIR"])
+wiki = Path(os.environ["WIKI_DIR"])
+slug = os.environ["GITHUB_REPOSITORY"]
+blob = f"https://github.com/{slug}/blob/main/"
+tree = f"https://github.com/{slug}/tree/main/"
+raw = f"https://raw.githubusercontent.com/{slug}/main/"
 
-    # General rule: split on underscores/hyphens, lowercase each word,
-    # capitalise first letter, rejoin with hyphens.
-    echo "$_base" \
-        | tr '_' '-' \
-        | sed -E 's/-+/-/g' \
-        | awk -F'-' '{
-            for(i=1;i<=NF;i++){
-                w=tolower($i)
-                printf "%s%s", toupper(substr(w,1,1)) substr(w,2), (i<NF ? "-" : "")
-            }
-          }'
+FIXED = {
+    "README.md": "Home",
+    "INSTALL.md": "Installation",
+    "sheets/README.md": "Survey-Sheet",
+    "CHANGELOG.md": "Release-Notes",
 }
+IMAGE = re.compile(r"\.(png|jpe?g|gif|svg|webp|ico)$", re.I)
 
-# ── Discover all source files and build name registry ─────────────────────────
-declare -A WIKI_NAMES   # src_rel → wiki page name (no .md)
 
-register() {
-    local _src_rel="$1"
-    local _wiki_name
-    _wiki_name="$(to_wiki_name "$_src_rel")"
-    WIKI_NAMES["$_src_rel"]="$_wiki_name"
-}
+def wiki_name(rel):
+    if rel in FIXED:
+        return FIXED[rel]
+    base = Path(rel).stem
+    return "-".join(w[:1].upper() + w[1:].lower()
+                    for w in re.split(r"[_-]+", base) if w)
 
-register "README.md"
-register "INSTALL.md"
 
-for _f in "$REPO_DIR"/docs/*.md; do
-    [[ -f "$_f" ]] || continue
-    register "docs/$(basename "$_f")"
-done
+pages = {rel: wiki_name(rel) for rel in FIXED if (repo / rel).is_file()}
+guides = sorted(p.name for p in (repo / "docs/guides").glob("*.md"))
+refs = sorted(p.name for p in (repo / "docs").glob("*.md"))
+for n in guides:
+    pages[f"docs/guides/{n}"] = wiki_name(n)
+for n in refs:
+    pages[f"docs/{n}"] = wiki_name(n)
 
-for _f in "$REPO_DIR"/docs/guides/*.md; do
-    [[ -f "$_f" ]] || continue
-    register "docs/guides/$(basename "$_f")"
-done
+names = list(pages.values())
+dupes = {n for n in names if names.count(n) > 1}
+if dupes:
+    sys.exit(f"ERROR: wiki page names collide: {sorted(dupes)}")
 
-# ── Link rewriter ─────────────────────────────────────────────────────────────
-# Rewrites every internal markdown link to its wiki equivalent.
-# Uses private variable names (_rw_*) to avoid clobbering outer loop variables.
-rewrite_links() {
-    local _file="$1"
-    local _rw_rel _rw_name
-    for _rw_rel in "${!WIKI_NAMES[@]}"; do
-        _rw_name="${WIKI_NAMES[$_rw_rel]}"
-        sed -i -E "s|\]\(${_rw_rel}(#[^)]*)?\)|\](${_rw_name}\1)|g" "$_file"
-    done
-}
 
-# ── Image path rewriter ───────────────────────────────────────────────────────
-# The wiki is a separate git repo and has no access to the main repo's images/
-# directory.  Rewrite all relative image paths to absolute raw.githubusercontent
-# URLs so images render correctly on every wiki page.
-#
-# Handles:
-#   src="images/foo.png"      (README — same-level path)
-#   src="../images/foo.png"   (docs/* — one level up)
-#   ![alt](images/foo.png)    (markdown style, same-level)
-#   ![alt](../images/foo.png) (markdown style, one level up)
-#
-GITHUB_RAW="https://raw.githubusercontent.com/${GITHUB_REPOSITORY:-indevlin/EDLD}/main"
+def resolve(src, target, image):
+    if re.match(r"^([a-z][a-z0-9+.-]*:|#|//)", target, re.I):
+        return target
+    path, _, anchor = target.partition("#")
+    frag = f"#{anchor}" if anchor else ""
+    rel = posixpath.normpath(posixpath.join(posixpath.dirname(src), path))
+    if rel.startswith("../"):
+        print(f"  WARNING: {src}: link leaves the repo: {target}", file=sys.stderr)
+        return target
+    if rel in pages:
+        return pages[rel] + frag
+    full = repo / rel
+    if not full.exists():
+        print(f"  WARNING: {src}: missing target: {target}", file=sys.stderr)
+    if image or IMAGE.search(rel):
+        return raw + rel
+    return (tree if full.is_dir() else blob) + rel + frag
 
-rewrite_images() {
-    local _file="$1"
-    # HTML src attributes — both ../images/ and images/
-    sed -i -E \
-        's|src="(\.\./)?images/([^"]+)"|src="'"$GITHUB_RAW"'/images/\2"|g' \
-        "$_file"
-    # Markdown image syntax — both ../images/ and images/
-    sed -i -E \
-        's|!\[([^]]*)\]\((\.\./)?images/([^)]+)\)|![\1]('"$GITHUB_RAW"'/images/\3)|g' \
-        "$_file"
-}
 
-# ── Copy individual docs ──────────────────────────────────────────────────────
-for src_rel in "${!WIKI_NAMES[@]}"; do
-    src="$REPO_DIR/$src_rel"
-    wiki_name="${WIKI_NAMES[$src_rel]}"
-    dst="$WIKI_DIR/${wiki_name}.md"
-    if [[ -f "$src" ]]; then
-        cp "$src" "$dst"
-        rewrite_links "$dst"
-        rewrite_images "$dst"
-        echo "  copied: $src_rel → ${wiki_name}.md"
-    else
-        echo "  WARNING: source not found — $src_rel" >&2
-    fi
-done
+MD_LINK = re.compile(r"(!?)\[((?:[^\]\[]|\[[^\]]*\])*)\]\(([^)\s]+)(\s+\"[^\"]*\")?\)")
+ATTR = re.compile(r"\b(href|src)=\"([^\"]+)\"")
+FENCE = re.compile(r"^\s*(```|~~~)")
 
-# ── Combine release notes → Release-Notes.md (newest first) ──────────────────
-RELEASES_DIR="$REPO_DIR/docs/releases"
-RELEASE_OUT="$WIKI_DIR/Release-Notes.md"
 
-echo "# Release Notes" > "$RELEASE_OUT"
-echo "" >> "$RELEASE_OUT"
+def links(src, chunk):
+    chunk = MD_LINK.sub(lambda m: f"{m[1]}[{m[2]}]({resolve(src, m[3], bool(m[1]))}{m[4] or ''})", chunk)
+    return ATTR.sub(lambda m: f'{m[1]}="{resolve(src, m[2], m[1] == "src")}"', chunk)
 
-while IFS= read -r _rn_file; do
-    echo "---" >> "$RELEASE_OUT"
-    echo "" >> "$RELEASE_OUT"
-    cat "$_rn_file" >> "$RELEASE_OUT"
-    echo "" >> "$RELEASE_OUT"
-done < <(ls "$RELEASES_DIR"/RELEASE_NOTES_*.md 2>/dev/null | sort -r)
 
-echo "  combined: docs/releases/ → Release-Notes.md"
+def rewrite(src, text):
+    out, prose, fenced = [], [], False
+    for line in text.splitlines(keepends=True):
+        if FENCE.match(line):
+            if not fenced:
+                out.append(links(src, "".join(prose)))
+                prose = []
+            fenced = not fenced
+            out.append(line)
+        elif fenced:
+            out.append(line)
+        else:
+            prose.append(line)
+    out.append(links(src, "".join(prose)))
+    return "".join(out)
 
-# ── Auto-generate _Sidebar.md ─────────────────────────────────────────────────
-# Sections are fixed (Getting Started / Guides / Reference / Releases).
-# Pages within Guides and Reference are discovered from what was copied,
-# sorted alphabetically.  New docs appear in the sidebar automatically.
-SIDEBAR="$WIKI_DIR/_Sidebar.md"
 
-{
-    echo "## EDLD Wiki"
-    echo ""
-    echo "**Getting Started**"
-    echo "- [[Home]]"
-    echo "- [[Installation]]"
-    echo ""
-    echo "**Guides**"
-    while IFS= read -r _sb_f; do
-        _sb_rel="docs/guides/$(basename "$_sb_f")"
-        _sb_name="${WIKI_NAMES[$_sb_rel]:-}"
-        [[ -z "$_sb_name" ]] && continue
-        _sb_label="${_sb_name//-/ }"
-        echo "- [[$_sb_name|$_sb_label]]"
-    done < <(ls "$REPO_DIR"/docs/guides/*.md 2>/dev/null | sort)
-    echo ""
-    echo "**Reference**"
-    while IFS= read -r _sb_f; do
-        _sb_rel="docs/$(basename "$_sb_f")"
-        _sb_name="${WIKI_NAMES[$_sb_rel]:-}"
-        [[ -z "$_sb_name" ]] && continue
-        _sb_label="${_sb_name//-/ }"
-        echo "- [[$_sb_name|$_sb_label]]"
-    done < <(ls "$REPO_DIR"/docs/*.md 2>/dev/null | sort)
-    echo ""
-    echo "**Releases**"
-    echo "- [[Release-Notes|Release Notes]]"
-} > "$SIDEBAR"
+written = set()
+for rel, name in sorted(pages.items()):
+    text = (repo / rel).read_text(encoding="utf-8")
+    (wiki / f"{name}.md").write_text(rewrite(rel, text), encoding="utf-8")
+    written.add(f"{name}.md")
+    print(f"  copied: {rel} → {name}.md")
 
-echo "  wrote: _Sidebar.md"
+
+def entry(rel):
+    name = pages[rel]
+    return f"- [[{name.replace('-', ' ')}|{name}]]"
+
+
+side = ["## EDLD Wiki", "", "**Getting Started**",
+        entry("README.md"), entry("INSTALL.md"), "", "**Guides**"]
+side += [entry(f"docs/guides/{n}") for n in guides]
+if "sheets/README.md" in pages:
+    side.append(entry("sheets/README.md"))
+side += ["", "**Reference**"]
+side += [entry(f"docs/{n}") for n in refs]
+if "CHANGELOG.md" in pages:
+    side += ["", "**Releases**", entry("CHANGELOG.md")]
+(wiki / "_Sidebar.md").write_text("\n".join(side) + "\n", encoding="utf-8")
+written.add("_Sidebar.md")
+print("  wrote: _Sidebar.md")
+
+for page in sorted(wiki.glob("*.md")):
+    if page.name not in written and not page.name.startswith("_"):
+        page.unlink()
+        print(f"  removed: {page.name}")
+PY
+
 echo ""
 echo "Sync complete."
