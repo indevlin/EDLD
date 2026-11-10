@@ -4,6 +4,34 @@ Last updated: 20261108
 
 ---
 
+## Unreleased
+
+### Fixed: the diagnostic log is written only under --debug or --trace
+
+Every run wrote the diagnostic log, whatever its flags. The logging module had
+no level, so each debug line and each trace line, two overlay frames a second
+among them, reached `<data dir>/logs/error[_<profile>]_<YYYYMMDD>.log`; one
+evening's play left a file of more than six megabytes, and a file a day piles
+up. It went unnoticed because the file was meant to open only when something
+was written, and something always was. Without a flag nothing is written now
+and no file is created. `--debug` is new and writes errors, warnings, info and
+debug lines; `-d`/`--trace` writes those and the trace lines.
+
+### Fixed: power distributor and other engineering labels
+
+The commander dossier named an Engine Focused distributor Charge Enhanced, and
+a Charge Enhanced one High Frequency Distributor. The blueprint table had been
+written from memory rather than from journal names, so other labels were off
+as well: Clean Drive Tuning showed as Tuned Drive Tuning, Enhanced Low Power
+shields, lightweight bulkheads and several scanners and utilities fell through
+to a raw name, and most of the experimental-effect fallbacks used keys the
+journal never writes. Only the dossier shows these names, which is why it
+went unseen. Both tables now use the journal's own names, the localised
+experimental name from the journal still comes first, and a name the tables
+do not know reads as words rather than run together.
+
+---
+
 ## Released in 20261108
 
 ### Added: the Mining window, with Ring Hotspots and Surface Sites

@@ -202,7 +202,7 @@ All entries are hot-reloadable. Controls terminal, Discord, and dashboard output
 ## Command Line Arguments
 
 ```
-python edld.py [-p PROFILE] [-t] [-d]
+python edld.py [-p PROFILE] [-t] [-d | --debug]
                [--edcars | --dashg | --gui | --dasht | --tui | --term | --text | --headless]
                [--mode MODE] [-s] [--pair] [--paired] [--unpair ID]
                [--shortcuts] [--remove-shortcuts] [--version] [--selftest]
@@ -213,13 +213,14 @@ python edld.py [-p PROFILE] [-t] [-d]
 |------|-------------|
 | `-p`, `--config_profile` | Load a named config profile |
 | `-t`, `--test` | Re-route Discord output to terminal instead of sending to webhook |
-| `-d`, `--trace` | Print verbose debug and trace output to terminal |
+| `--debug` | Write the diagnostic log: errors, warnings and debug lines |
+| `-d`, `--trace` | Write the diagnostic log with trace detail as well, and echo routine lines to the terminal |
 | *(none)* | What `[UI] Interface` says — EDCARS unless you have changed it |
 | `--edcars` | EDCARS: the desktop window as a console — requires PySide6 |
 | `--dashg`, `--gui` | The desktop window, Dashboard layout — requires PySide6 |
 | `--dasht`, `--tui` | Terminal dashboard |
 | `--term`, `--text` | Plain scrolling event output (`--terminal`, its old name, still works) |
-| `--headless` | No interface and no terminal output, for running as a service; diagnostics go to the log file |
+| `--headless` | No interface and no terminal output, for running as a service; with `--debug` or `--trace`, diagnostics go to the log file |
 | `--mode MODE` | The same by id: `edcars`, `gui`, `textual`, `terminal` or `headless` |
 | `-s`, `--server` | Also serve paired EDAM devices, for this run — see [SERVER.md](SERVER.md). `[Server] Enabled` (Options → Server) does it for every run, whichever interface opens |
 | `--shortcuts` | Add, or refresh, a launcher shortcut for each interface — Windows Start menu or Linux application menu — then exit |
@@ -233,9 +234,11 @@ python edld.py [-p PROFILE] [-t] [-d]
 | `--overlay-doctor` | Explain why the overlay is or is not drawing, then exit |
 | `--overlay-selftest` | Draw a fixed test frame for 20 seconds, then exit |
 
-There is no option to redirect terminal output: trace lines, plugin errors and
-unhandled exceptions go to `<data dir>/logs/error[_<profile>]_<YYYYMMDD>.log`,
-opened only when something is written to it.
+There is no option to redirect terminal output. Under `--debug` or `--trace`,
+plugin errors, unhandled exceptions and debug lines go to
+`<data dir>/logs/error[_<profile>]_<YYYYMMDD>.log`, and `--trace` adds trace
+lines such as each overlay frame. Without either flag no log file is written.
+To report a bug, reproduce it with `--debug`, or `--trace` if asked.
 
 The interface flags are mutually exclusive, and passing one alongside a
 conflicting `--mode` is an error rather than a silent resolution.

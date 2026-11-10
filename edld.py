@@ -46,7 +46,9 @@ parser.add_argument("-p", "--config_profile",
 parser.add_argument("-t", "--test", action="store_true", default=None,
                     help="Re-route Discord output to terminal instead of webhook")
 parser.add_argument("-d", "--trace", action="store_true", default=None,
-                    help="Print verbose debug/trace output")
+                    help="Write the diagnostic log with trace detail")
+parser.add_argument("--debug", action="store_true", default=None,
+                    help="Write the diagnostic log")
 parser.add_argument("--mode", choices=list(_modes.IDS),
                     default=None, metavar="MODE",
                     help="Interface by id: " + " | ".join(_modes.IDS)
@@ -374,6 +376,7 @@ if _added_keys:
 config_dict = load_config_file(config_path)
 notify_test = bool(args.test)  if args.test  is not None else False
 trace_mode  = bool(args.trace) if args.trace is not None else DEBUG_MODE
+log_level   = "trace" if trace_mode else ("debug" if args.debug else None)
 
 # Preliminary manager — profile may be updated after commander name is known.
 # Debug log facility is initialized LATER (after the commander/profile
@@ -569,8 +572,9 @@ if _modes.needs_terminal(ui_mode):
 # on the terminal (terminal mode) or routed to /dev/null (textual mode);
 # trace lines, plugin errors, and unhandled exceptions go here instead.
 # The log file lives at <data_dir>/logs/error[_<profile>]_<YYYYMMDD>.log and
-# is opened lazily — runs that never trip --trace or an error path leave no
-# file behind.  Each run's section starts with a header recording version,
+# is written only under --debug or --trace; a run without either leaves no
+# file behind.  --debug writes errors, warnings, info and debug lines;
+# --trace adds trace lines.  Each run's section starts with a header recording version,
 # timestamp, exact launch command, and a fenced copy of the effective config
 # (defaults from config file, plus any active profile's overrides).
 #
@@ -594,6 +598,7 @@ _debug.init(
     config_dict=config_dict if isinstance(config_dict, dict) else {},
     profile_overrides=_profile_overrides,
     trace_echo=trace_mode,
+    level=log_level,
 )
 _debug.install_exception_hooks()
 
@@ -724,7 +729,9 @@ if loader.failed:
     try:
         sys.__stderr__.write(
             f"\nERROR: {len(loader.failed)} component(s) failed to load: {_names}\n"
-            f"       Their windows will stay empty.  See {_debug.path()}\n"
+            f"       Their windows will stay empty.  "
+            + (f"See {_debug.path()}\n" if _debug.path()
+               else "Run with --debug for details.\n")
         )
         sys.__stderr__.flush()
     except Exception:

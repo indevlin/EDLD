@@ -484,7 +484,7 @@ def _trace_price(key, mode, gal, tgt, gal_avg, tgt_sell, docked_sell, price) -> 
     """
     try:
         from core import debug as _debug
-        if not _debug.is_enabled():
+        if not _debug.is_tracing():
             return
         source = ("pinned-galactic" if mode == "galactic"
                   else "target" if (mode == "target" and tgt_sell)

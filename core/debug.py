@@ -8,6 +8,14 @@ and goes to /dev/null after fork in UI modes.  Diagnostic information
 (``--trace`` output, plugin errors, unhandled exceptions, intentional
 ``debug.log(...)`` calls) is written here and *only* here.
 
+Levels
+------
+Nothing is written unless a level is set at init():
+
+  - ``None``     no file is opened; every call is a no-op
+  - ``"debug"``  ERROR, WARNING, INFO and DEBUG lines
+  - ``"trace"``  everything above plus TRACE lines
+
 File layout
 -----------
 Path: ``<data_dir>/logs/error[_<profile>]_<YYYYMMDD>.log``
@@ -21,21 +29,26 @@ Path: ``<data_dir>/logs/error[_<profile>]_<YYYYMMDD>.log``
 
 API
 ---
-    init(data_dir, profile, version, config_dict, profile_overrides=None)
-        — capture metadata; the header is written lazily on first log().
+    init(data_dir, profile, version, config_dict, profile_overrides=None,
+         level=None)
+        — capture metadata and the level; the header is written lazily on
+          the first line that passes the level.
 
     log(message, *, level="DEBUG")
-        — append one line.  Triggers file open + header write on first call.
+        — append one line if the level allows it.  Opens the file and writes
+          the header on the first such line.
 
     trace(message)
         — alias for log(message, level="TRACE").
 
     is_enabled() -> bool
-        — True once init() has been called.  The log file itself remains
-          unopened until the first log()/trace() call.
+        — True when --debug or --trace is on.
+
+    is_tracing() -> bool
+        — True when --trace is on.
 
     path() -> Path | None
-        — current target file path, or None if init() not yet called.
+        — target file path, or None when logging is off.
 """
 
 from __future__ import annotations
@@ -60,6 +73,9 @@ _HEADER_WRITTEN:    bool           = False
 _PENDING_HEADER:    str            = ""          # built at init(), written on first log()
 _INITIALIZED:       bool           = False
 _TRACE_ECHO:        bool           = False        # set by init() — when True, log(..., echo=True) also prints
+_LEVEL:             str | None     = None         # None, "debug" or "trace"
+
+LEVELS = ("debug", "trace")
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -69,7 +85,8 @@ def init(data_dir: Path,
          version: str,
          config_dict: dict | None = None,
          profile_overrides: dict | None = None,
-         trace_echo: bool = False) -> None:
+         trace_echo: bool = False,
+         level: str | None = None) -> None:
     """Configure where the log will go and build the run header.
 
     Args
@@ -86,8 +103,10 @@ def init(data_dir: Path,
                       to writing to the log file.  Used to make routine
                       info-level lines visible on the terminal in trace
                       runs without spamming them in normal runs.
+    level             None writes nothing, ``"debug"`` writes all but TRACE,
+                      ``"trace"`` writes everything
     """
-    global _LOG_PATH, _PENDING_HEADER, _HEADER_WRITTEN, _INITIALIZED, _TRACE_ECHO
+    global _LOG_PATH, _PENDING_HEADER, _HEADER_WRITTEN, _INITIALIZED, _TRACE_ECHO, _LEVEL
 
     today = datetime.now().strftime("%Y%m%d")
     name  = f"error_{profile}_{today}.log" if profile else f"error_{today}.log"
@@ -98,6 +117,7 @@ def init(data_dir: Path,
     _HEADER_WRITTEN = False
     _INITIALIZED    = True
     _TRACE_ECHO     = bool(trace_echo)
+    _LEVEL          = level if level in LEVELS else None
 
 
 def log(message: str, *, level: str = "DEBUG", echo: bool = False) -> None:
@@ -107,6 +127,13 @@ def log(message: str, *, level: str = "DEBUG", echo: bool = False) -> None:
     needed) and emits the run header.
     """
     if not _INITIALIZED:
+        return
+    if _LEVEL is None or (level == "TRACE" and _LEVEL != "trace"):
+        if echo and _TRACE_ECHO:
+            try:
+                print(message)
+            except Exception:
+                pass
         return
     ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     line = f"[{ts}] [{level}] {message}\n"
@@ -153,14 +180,18 @@ def exception(message: str = "", exc: BaseException | None = None) -> None:
 
 
 def is_enabled() -> bool:
-    """True once init() has been called.  The log file itself may or may
-    not yet exist (it opens lazily on the first log line)."""
-    return _INITIALIZED
+    """True when a level is set, so lines reach the file."""
+    return _INITIALIZED and _LEVEL is not None
+
+
+def is_tracing() -> bool:
+    """True when TRACE lines reach the file."""
+    return _INITIALIZED and _LEVEL == "trace"
 
 
 def path() -> Path | None:
-    """Target log file path, or None if init() not yet called."""
-    return _LOG_PATH
+    """Target log file path, or None when logging is off."""
+    return _LOG_PATH if is_enabled() else None
 
 
 def install_exception_hooks() -> None:
