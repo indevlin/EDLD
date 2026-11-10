@@ -55,3 +55,26 @@ def test_trace_writes_everything(fresh, tmp_path):
 
 def test_unknown_level_is_off(fresh, tmp_path):
     assert _run(tmp_path, "verbose") == []
+
+
+def test_old_logs_are_pruned_without_a_flag(fresh, tmp_path):
+    import os, time
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    old = logs / "error_EDP1_20261020.log"
+    week = logs / "error_20261104.log"
+    new = logs / "error_EDP1_20261109.log"
+    other = logs / "notes.txt"
+    for f in (old, week, new, other):
+        f.write_text("x")
+    now = time.time()
+    os.utime(old, (now - 20 * 86400,) * 2)
+    os.utime(week, (now - 8 * 86400,) * 2)
+    os.utime(other, (now - 30 * 86400,) * 2)
+    debug.init(tmp_path, "EDP1", "test", {}, level=None)
+    assert not old.exists() and not week.exists()
+    assert new.exists() and other.exists()
+
+
+def test_prune_without_logs_dir(fresh, tmp_path):
+    assert debug.prune(tmp_path / "logs") == []

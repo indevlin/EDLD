@@ -238,6 +238,7 @@ There is no option to redirect terminal output. Under `--debug` or `--trace`,
 plugin errors, unhandled exceptions and debug lines go to
 `<data dir>/logs/error[_<profile>]_<YYYYMMDD>.log`, and `--trace` adds trace
 lines such as each overlay frame. Without either flag no log file is written.
+Log files last written more than a week ago are deleted at start-up.
 To report a bug, reproduce it with `--debug`, or `--trace` if asked.
 
 The interface flags are mutually exclusive, and passing one alongside a

@@ -1,6 +1,6 @@
 # EDLD Roadmap
 
-Last updated: 20261108
+Last updated: 20261110
 
 ---
 
@@ -13,6 +13,9 @@ where the law asks for one, and a one-time purchase that removes the ads.
 ---
 
 ## Recently shipped
+
+**Quiet logs** (20261110) — the diagnostic log is written only under
+`--debug` or `--trace`, and log files older than a week are deleted at start-up.
 
 **The Mining window and ring hotspots** (20261108) — Ring Hotspots, read from
 every ring the Detailed Surface Scanner has mapped, and Surface Sites, each a

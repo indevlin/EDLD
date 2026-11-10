@@ -76,6 +76,7 @@ _TRACE_ECHO:        bool           = False        # set by init() — when True,
 _LEVEL:             str | None     = None         # None, "debug" or "trace"
 
 LEVELS = ("debug", "trace")
+KEEP_DAYS = 7
 
 
 # ── Public API ────────────────────────────────────────────────────────────────
@@ -105,6 +106,8 @@ def init(data_dir: Path,
                       runs without spamming them in normal runs.
     level             None writes nothing, ``"debug"`` writes all but TRACE,
                       ``"trace"`` writes everything
+
+    Log files older than KEEP_DAYS are deleted whatever the level.
     """
     global _LOG_PATH, _PENDING_HEADER, _HEADER_WRITTEN, _INITIALIZED, _TRACE_ECHO, _LEVEL
 
@@ -112,12 +115,31 @@ def init(data_dir: Path,
     name  = f"error_{profile}_{today}.log" if profile else f"error_{today}.log"
     logs_dir = data_dir / "logs"
     _LOG_PATH = logs_dir / name
+    prune(logs_dir)
 
     _PENDING_HEADER = _build_header(version, config_dict, profile, profile_overrides)
     _HEADER_WRITTEN = False
     _INITIALIZED    = True
     _TRACE_ECHO     = bool(trace_echo)
     _LEVEL          = level if level in LEVELS else None
+
+
+def prune(logs_dir: Path, keep_days: int = KEEP_DAYS) -> list[Path]:
+    """Delete ``error*.log`` files last written more than keep_days ago."""
+    removed: list[Path] = []
+    cutoff = time.time() - keep_days * 86400
+    try:
+        files = list(logs_dir.glob("error*.log"))
+    except OSError:
+        return removed
+    for f in files:
+        try:
+            if f.is_file() and f.stat().st_mtime < cutoff:
+                f.unlink()
+                removed.append(f)
+        except OSError:
+            pass
+    return removed
 
 
 def log(message: str, *, level: str = "DEBUG", echo: bool = False) -> None:

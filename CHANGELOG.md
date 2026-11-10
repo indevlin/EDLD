@@ -1,10 +1,10 @@
 # EDLD CHANGELOG
 
-Last updated: 20261108
+Last updated: 20261110
 
 ---
 
-## Unreleased
+## Released in 20261110
 
 ### Fixed: the diagnostic log is written only under --debug or --trace
 
@@ -15,7 +15,9 @@ evening's play left a file of more than six megabytes, and a file a day piles
 up. It went unnoticed because the file was meant to open only when something
 was written, and something always was. Without a flag nothing is written now
 and no file is created. `--debug` is new and writes errors, warnings, info and
-debug lines; `-d`/`--trace` writes those and the trace lines.
+debug lines; `-d`/`--trace` writes those and the trace lines. Log files last
+written more than a week ago are deleted at every start, flags or not, which
+also clears the files earlier releases left behind.
 
 ### Fixed: power distributor and other engineering labels
 

@@ -186,7 +186,7 @@ requirements at all. Server mode is covered in [docs/SERVER.md](docs/SERVER.md).
 That reports on each interface directly:
 
 ```
-EDLD 20261108 selftest
+EDLD 20261110 selftest
   OK    server (identity qJqSd2OL…)
   OK    pairing QR code
   OK    terminal dashboard (--dasht)
