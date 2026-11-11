@@ -76,6 +76,14 @@ The "Support EDLD Development" strip along the bottom of the desktop window,
 its View menu toggle and the same links in Help → About are gone, along with
 `.github/FUNDING.yml`.
 
+### Fixed: EDDN fleet carrier bartender messages
+
+The `fcmaterials_capi/1` message, sent after a CAPI market poll of a fleet
+carrier, carried the game version and build from the journal. EDDN requires
+a message built from CAPI to name the CAPI endpoint instead, and flagged both
+such messages EDLD sent. It now sends `CAPI-Live-market` for both; messages
+built from the journal still carry the journal's values.
+
 ### Changed: EDCARS's sections
 
 The rail now runs Alerts, Command, Helm, Objectives, Exploration, Mining,

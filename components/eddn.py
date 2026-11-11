@@ -54,6 +54,10 @@ EDDN_ENDPOINT    = "https://eddn.edcd.io:4430/upload/"
 SOFTWARE_NAME    = PROGRAM
 SOFTWARE_VERSION = VERSION
 
+#: gameversion and gamebuild for a message from CAPI's /market on the live host
+#: (core/data.py CAPI_BASE); a journal's values are not allowed there.
+CAPI_MARKET = "CAPI-Live-market"
+
 # Retry queue on disk
 
 # How often (seconds) the sender thread wakes to process the retry queue
@@ -641,13 +645,15 @@ class EDDNPlugin(BasePlugin):
                 return str(name)
         return self._cmdr_name or "unknown"
 
-    def _header(self) -> dict:
+    def _header(self, source: str | None = None) -> dict:
+        """``source`` names the CAPI endpoint a message came from
+        ("CAPI-Live-market"); it replaces the journal's game version and build."""
         return {
             "uploaderID":      self._uploader(),
             "softwareName":    SOFTWARE_NAME,
             "softwareVersion": SOFTWARE_VERSION,
-            "gameversion":     self._game_version,
-            "gamebuild":       self._game_build,
+            "gameversion":     source if source is not None else self._game_version,
+            "gamebuild":       source if source is not None else self._game_build,
         }
 
     def _update_location(self, event: dict) -> None:
@@ -738,13 +744,13 @@ class EDDNPlugin(BasePlugin):
         if self._odyssey is not None:
             msg["odyssey"] = self._odyssey
 
-    def _post(self, schema_ref: str, message: dict) -> None:
+    def _post(self, schema_ref: str, message: dict, source: str | None = None) -> None:
         """Build the envelope and hand to the sender thread."""
         if getattr(self, "_replaying", False):
             return
         envelope = {
             "$schemaRef": schema_ref,
-            "header":     self._header(),
+            "header":     self._header(source),
             "message":    message,
         }
         if self._sender:
@@ -1284,5 +1290,5 @@ class EDDNPlugin(BasePlugin):
             "Items":     clean_items,
         }
         self._add_horizons_odyssey(msg)
-        self._post(_schema("fcmaterials_capi", 1, is_test), msg)
+        self._post(_schema("fcmaterials_capi", 1, is_test), msg, CAPI_MARKET)
 
