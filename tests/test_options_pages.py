@@ -96,6 +96,31 @@ def test_gui_every_selector_fits_at_the_smallest_size(qt, tmp_path, edcars):
     dlg.close()
 
 
+@pytest.mark.parametrize("console", ["edcars", "order", "rebel", "rogue"])
+def test_gui_every_selector_is_wide_enough_in_every_console(qt, tmp_path, console):
+    # ORDER and REBEL letter-space their labels: "NOTIFICATIONS" and
+    # "SESSION MGMT" were wider than the column and lost their first letters.
+    from PySide6.QtWidgets import QApplication, QPushButton, QWidget
+    from gui import consoles as C
+    from gui.preferences import NAV_W
+    C.set_active(console)
+    try:
+        dlg = _dialog(tmp_path, edcars=True)
+        dlg._add_page("Session Mgmt", QWidget())
+        dlg._fit_nav()
+        dlg.show()
+        dlg.resize(dlg.minimumSize())
+        QApplication.processEvents()
+        nav = dlg.findChild(QWidget, "prefNav")
+        assert nav.width() >= NAV_W
+        pills = [b for b in dlg.findChildren(QPushButton) if b.objectName() == "edcarsPill"]
+        for b in pills:
+            assert b.width() >= b.sizeHint().width(), b.text()
+        dlg.close()
+    finally:
+        C.set_active(None)
+
+
 def test_gui_keys_move_between_pages(qt, tmp_path):
     from PySide6.QtCore import Qt
     from PySide6.QtTest import QTest

@@ -98,8 +98,8 @@ _RESTART_KEYS: dict[str, set[str]] = {
 
 # ── Page selectors ────────────────────────────────────────────────────────────
 
-#: Width of the column of page selectors: the longest label, "Notifications",
-#: with room to spare in either skin.
+#: Least width of the column of page selectors; it widens to its widest
+#: selector, which a console's face and letter spacing can push past this.
 NAV_W = 156
 
 #: Object name the window takes when opened from EDCARS, which its own rules
@@ -298,8 +298,7 @@ class PreferencesDialog(QDialog):
             QShortcut(QKeySequence(keys), self, lambda d=step: self._step(d))
 
         bottom = QHBoxLayout()
-        # Under the pages, not the selectors, from EDCARS.
-        bottom.setContentsMargins(NAV_W + 10 if self._edcars else 0, 0, 0, 0)
+        self._bottom = bottom
         self._restart_note = QLabel("")
         self._restart_note.setProperty("role", "dim")
         bottom.addWidget(self._restart_note, 1)
@@ -315,6 +314,7 @@ class PreferencesDialog(QDialog):
                 b.setFont(caps_font(11))
         bottom.addWidget(buttons, 0)
         lay.addLayout(bottom)
+        self._navw = nav
         self._restyle(theme)
 
     # ── Pages ─────────────────────────────────────────────────────────────────
@@ -372,6 +372,20 @@ class PreferencesDialog(QDialog):
                     w.ink = ink
                     w.update()
         self.setStyleSheet(css)
+        self._fit_nav()
+
+    def _fit_nav(self) -> None:
+        """The column as wide as its widest selector, NAV_W at least; from
+        EDCARS the buttons below start where the pages do."""
+        nav = getattr(self, "_navw", None)
+        if nav is None:
+            return
+        width = NAV_W
+        for b in self._nav.buttons():
+            b.ensurePolished()
+            width = max(width, b.sizeHint().width())
+        nav.setFixedWidth(width)
+        self._bottom.setContentsMargins(width + 10 if self._edcars else 0, 0, 0, 0)
 
     # ── Widget factories that record on change ────────────────────────────────
 
