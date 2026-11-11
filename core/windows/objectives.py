@@ -1,13 +1,14 @@
 """core/windows/objectives.py — the Objectives window: the mission board and
 colonization construction sites.
 
-Missions: every active mission, one table per kind.
+Missions: every active mission, one table per kind, then the community goals
+signed up for or open to join.
 """
 from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from core.windows import R, Tab
+from core.windows import R, Tab, cr, num
 
 
 def fmt_reward(v: int) -> str:
@@ -215,7 +216,63 @@ def missions(core, now: datetime | None = None) -> Tab:
             rows.extend(_ore_held(core, ms))
     if not rows:
         rows = [R.text("No active missions", "dim")]
+    goals = community_goals(core, now)
+    if goals:
+        rows.append(R.text(""))
+        rows.extend(goals)
     return Tab("missions", "Missions", rows)
+
+
+def _goal_rows(g: dict, now) -> list:
+    from core.community_goals import finished
+    rows = [R.text(f"[bold cyan]{g.get('title') or 'Community goal'}[/bold cyan]")]
+    where = " · ".join(x for x in (g.get("station"), g.get("system")) if x)
+    if where:
+        rows.append(R.kv("Where", where))
+    if g.get("objective"):
+        rows.append(R.text(g["objective"], "dim"))
+    if g.get("joined") and finished(g, now):
+        rows.append(R.kv("Status", "Finished — hand in to claim", "val health-good"))
+    elif g.get("expiry"):
+        rows.append(R.kv("Ends in", time_left(g["expiry"], now)))
+    if g.get("tier") is not None:
+        rows.append(R.kv("Tier", f"{g['tier']} of {g['top_tier']}" if g.get("top_tier") else str(g["tier"])))
+    if g.get("contributors"):
+        rows.append(R.kv("Contributors", num(g["contributors"])))
+    if g.get("joined"):
+        rows.append(R.kv("Your contribution", f"{int(g.get('contribution') or 0):,}"))
+        # The game gives a band and its reward before anything is handed in.
+        if not g.get("contribution"):
+            return rows
+        if g.get("percentile"):
+            band = f"Top {g['percentile']}%"
+            if g.get("top_rank"):
+                band += " · top commanders"
+            rows.append(R.kv("Your band", band))
+        if g.get("reward"):
+            rows.append(R.kv("Reward", cr(g["reward"])))
+    else:
+        rows.append(R.kv("Signed up", "No", "val dim"))
+    return rows
+
+
+def community_goals(core, now: datetime | None = None) -> list:
+    """Goals signed up for — running, then finished and waiting to be handed
+    in — then those running that are open to join; nothing when there are
+    none."""
+    from core import community_goals as CG
+    s = core.state
+    goals = CG.merged(getattr(s, "cg_joined", {}) or {},
+                      getattr(s, "capi_community_goals", None),
+                      CG.from_inara(getattr(s, "inara_community_goals", None)), now)
+    if not goals:
+        return []
+    rows = [R.hdr("Community Goals")]
+    for i, g in enumerate(goals):
+        if i:
+            rows.append(R.text(""))
+        rows.extend(_goal_rows(g, now))
+    return rows
 
 
 def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None = None) -> Tab:

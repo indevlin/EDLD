@@ -1255,7 +1255,7 @@ class InaraPlugin(BasePlugin):
                 {
                     "eventName":      "getCommunityGoalsRecent",
                     "eventTimestamp": ts_iso,
-                    "eventData":      {},
+                    "eventData":      [],
                 },
             ],
         }
@@ -1310,6 +1310,9 @@ class InaraPlugin(BasePlugin):
         self.core.state.inara_community_goals    = cgs
         self.core.state.inara_community_goals_ts = _t.time()
         _dbg.info(f"  [Inara] Community Goals refreshed: {len(cgs)} active")
+        gq = self.core.gui_queue
+        if gq:
+            gq.put(("mission_update", None))
 
     def get_community_goals(self) -> list:
         """Public accessor — returns the most recent CG list (may be empty

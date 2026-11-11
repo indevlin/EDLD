@@ -817,6 +817,8 @@ class CAPISource:
             elif endpoint in (EP_MARKET, EP_SHIPYARD):
                 gq.put(("plugin_refresh", "assets"))
                 gq.put(("plugin_refresh", "cargo"))
+            elif endpoint == EP_COMMUNITYGOALS:
+                gq.put(("mission_update", None))
 
         # Push credits to Inara after profile poll
         if endpoint == EP_PROFILE:
@@ -1065,24 +1067,15 @@ class CAPISource:
                 state.assets_stored_modules = mods
 
     def _extract_communitygoals(self, data: dict, state) -> None:
-        goals = data if isinstance(data, list) else data.get("communityGoals", [])
-        state.capi_community_goals = [
-            {
-                "id":                   g.get("id"),
-                "title":                g.get("title", ""),
-                "expiry":               g.get("expiry", ""),
-                "system":               g.get("starsystem", ""),
-                "station":              (g.get("market", {}).get("name", "")
-                                         if isinstance(g.get("market"), dict) else ""),
-                "objective":            g.get("objective", ""),
-                "description":          g.get("description", ""),
-                "target_tier":          g.get("targetTier", 0),
-                "current_tier":         g.get("tierReached", 0),
-                "player_contribution":  g.get("contribution", 0),
-                "player_reward":        g.get("reward", 0),
-            }
-            for g in (goals if isinstance(goals, list) else [])
-        ]
+        # {"activeCommunityGoals": [...]}; see core/community_goals.py.
+        from core.community_goals import from_capi
+        goals = from_capi(data)
+        state.capi_community_goals = goals
+        if not goals and data:
+            keys = sorted(data) if isinstance(data, dict) else type(data).__name__
+            if keys != ["activeCommunityGoals"]:
+                from core import debug
+                debug.info(f"  [CAPI] communitygoals: no goals read from {keys}")
 
     def _extract_market(self, data: dict, state) -> None:
         items = data.get("commodities") or data.get("items") or []

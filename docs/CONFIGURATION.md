@@ -643,7 +643,8 @@ redirected to Frontier's login page in your browser. On success, tokens are
 | Stored ship loadout | ✓ (from journal, CAPI-validated) | ✓ (from journal, unvalidated) |
 | Market prices | ✓ (live on dock) | From `Market.json` |
 | Squadron identity | ✓ | ✗ |
-| Community Goals | ✓ | ✗ |
+| Community goals signed up for, and your contribution | ✓ (journal) | ✓ (journal) |
+| Community goals open to join | ✓ | From Inara, when enabled |
 
 ### Persisted CAPI data
 

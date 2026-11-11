@@ -436,6 +436,9 @@ class MonitorState:
         self.capi_community_goals: list | None = None
         self.capi_debt:            float| None = None
 
+        # Community goals signed up for, by CGID (components/community_goals.py)
+        self.cg_joined:            dict        = {}
+
         # Assets (fleet, wallet)
         self.assets_balance:       float| None = None
         # Status.json's balance and when the game wrote it; see core/credit_flows.py
