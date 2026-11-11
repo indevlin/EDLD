@@ -10,6 +10,13 @@ config.toml
 *.key
 *.pub
 !signing/id_ed25519_signing.pub
+*.jks
+*.keystore
+*.p12
+*.pfx
+*.pepk
+keystore.properties
+signing.properties
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/
