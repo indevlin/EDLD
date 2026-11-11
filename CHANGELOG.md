@@ -47,6 +47,29 @@ the first letters of NOTIFICATIONS and SESSION MGMT. The column was a fixed
 space their letters wider, and the names needed 163 and 169. The column now
 widens to its widest page name, and the buttons under the pages move with it.
 
+### Fixed: a newer release could go unannounced
+
+EDLD asked GitHub for the latest release once, on a thread started with the
+program, and read the answer once, during start-up, after waiting for it no
+more than two seconds. An answer that came later, on a slow connection or
+behind a slow name lookup, was dropped, and the next chance was the next
+launch. A failed request, refused, rate-limited or unreachable, was swallowed
+whole, so the diagnostic log had nothing to say about any of it, and with no
+notice either way nothing showed that the check had not happened. A session
+left running for days never asked again, so a release published meanwhile
+went unseen. The check is its own watcher now: at start-up and every six
+hours after, or 15 minutes after a failure, and whenever it learns of a
+newer release it says so then, not at a fixed moment of start-up. A failure
+is written to the diagnostic log under --debug.
+
+### Added: a newer release in the Alerts panel
+
+A newer release now has a line in the Alerts panel, which reaches EDAM too,
+as well as the bars below the desktop window's menu and the terminal
+dashboard's header, the scrolling log and Discord. It does not fade or pulse,
+survives the clearing of alerts that docking and jumping bring, stays until
+Clear, and is replaced by the next newer release, not added to.
+
 ### Fixed: a leg from a white dwarf was called beyond range
 
 A route through a white dwarf showed the jump after it in red as beyond range,

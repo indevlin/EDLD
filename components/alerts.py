@@ -466,6 +466,16 @@ class AlertsPlugin(BasePlugin):
         gq = self.core.gui_queue
         if gq: gq.put(("alerts_update", None))
 
+    def push_notice(self, key: str, emoji: str, text: str) -> None:
+        """Record a lasting notice, such as a newer release. Like a fault it
+        does not fade and stays until Clear; one with the same ``key``
+        replaces it."""
+        self.faults = [f for f in self.faults if f.get("key") != key]
+        self.faults.append({"key": key, "emoji": emoji, "text": text,
+                            "mono_time": None, "urgent": False})
+        gq = self.core.gui_queue
+        if gq: gq.put(("alerts_update", None))
+
     def get_alerts(self) -> list[dict]:
         """Return current alerts list for the dashboard block renderer."""
         return list(self.faults) + list(self.alert_queue)

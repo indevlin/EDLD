@@ -35,6 +35,6 @@ def test_nonsense_sorts_first_and_never_raises(junk):
 
 
 def test_the_update_check_uses_it():
-    src = (ROOT / "edld.py").read_text(encoding="utf-8")
-    assert "version_key(tag) > version_key(VERSION)" in src
-    assert "def _vkey" not in src
+    src = (ROOT / "core" / "updates.py").read_text(encoding="utf-8")
+    assert "version_key(tag) > version_key(version)" in src
+    assert "def _vkey" not in (ROOT / "edld.py").read_text(encoding="utf-8")

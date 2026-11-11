@@ -10,14 +10,12 @@ All business logic lives in the packages below:
 """
 
 import argparse
-import json
 import os
 import sys
 import threading
 import time
 import queue
 from pathlib import Path
-from urllib.request import urlopen
 
 # ── Ensure repo root is on sys.path ───────────────────────────────────────────
 _HERE = Path(__file__).parent.resolve()
@@ -273,41 +271,6 @@ except Exception:
 
 title = f"{PROGRAM} v{VERSION} by {AUTHOR}"
 print(f"{Terminal.CYAN}{'=' * len(title)}\n{title}\n{'=' * len(title)}{Terminal.END}\n")
-
-
-# ── Background update check ───────────────────────────────────────────────────
-# Checks two things in order of severity:
-#   1. New tagged release on GitHub   → "release" notice
-#   2. New commits on origin/main     → "commits" notice (only if git is present
-#      and _HERE is a git working tree)
-#
-# _update_notice  = ("release", version_str)   — a tagged release is available
-# _update_notice  = ("commits", N_str)          — N new commits ahead of local
-# _update_notice  = None                        — nothing new
-#
-# In both cases File → Upgrade runs the same git-pull path.
-
-_update_notice: tuple[str, str] | None = None
-
-def _check_for_update() -> None:
-    global _update_notice
-
-    # Check for a newer tagged release via GitHub API. Compares VERSION against
-    # the latest release tag using a (date, suffix) key so 20260325a <
-    # 20260325b < 20260326 all sort correctly.
-    try:
-        url = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"
-        with urlopen(url, timeout=4) as resp:
-            if resp.status == 200:
-                tag = json.loads(resp.read()).get("tag_name", "").lstrip("v").strip()
-                if tag and tag != VERSION:
-                    from core.state import version_key
-                    if version_key(tag) > version_key(VERSION):
-                        _update_notice = ("release", tag)
-    except Exception:
-        pass
-
-_update_thread = threading.Thread(target=_check_for_update, daemon=True)
 
 
 # ── Config ────────────────────────────────────────────────────────────────────
@@ -649,14 +612,6 @@ if ui_mode != _modes.TERMINAL:   # every interface but the scrolling log
             pass
 
 
-# ── Now safe to start background threads ──────────────────────────────────────
-# Update check spins off here so its result is available by the time we
-# render the update notice in the post-bootstrap section.  In textual mode
-# this runs in the child; in textual/terminal mode it runs in-process.
-
-_update_thread.start()
-
-
 # ── Emitter ───────────────────────────────────────────────────────────────────
 
 from core.emit import Emitter, emit_summary
@@ -757,6 +712,29 @@ except Exception as _e:
     _debug.log(f"Last session not restored: {_e}", level="WARNING")
 
 
+# ── Update check ──────────────────────────────────────────────────────────────
+# At start-up and every few hours after. A newer release goes to the Alerts
+# panel, the notice bar, the terminal and Discord, whenever GitHub answers.
+
+def _announce_update(tag: str) -> None:
+    from core import updates as _updates
+    url = _updates.page_url(GITHUB_REPO)
+    _al = core._plugins.get("alerts")
+    if _al is not None:
+        _al.push_notice("update", "\u2191",f"EDLD v{tag} available — {url}")
+    if ui_mode == _modes.TERMINAL:
+        print(f"{Terminal.YELL}\u26a0 Update available: v{tag}{Terminal.END}"
+              f"  {Terminal.WHITE}{url}{Terminal.END}\n")
+    else:
+        gui_queue.put(("update_notice", ("release", tag)))
+    emitter.set_update_notice(tag)
+
+
+from core.updates import UpdateWatcher as _UpdateWatcher
+_update_watcher = _UpdateWatcher(GITHUB_REPO, VERSION, _announce_update)
+_update_watcher.start()
+
+
 # ── History, session restore, startup banner, server ──────────────────────────
 # All of it reads or follows from the journals' history, and none of it has to
 # happen before a window can open: it runs first thing on the monitor thread
@@ -786,23 +764,6 @@ def _prepare_history() -> None:
     bootstrap_crew(state, journal_dir, trace_mode=trace_mode)
     bootstrap_missions(state, journal_dir, mgr, trace_mode=trace_mode)
     bootstrap_burn_rate(state, journal_dir, active_session, trace_mode=trace_mode)
-
-    # ── Update notice ─────────────────────────────────────────────────────────────
-
-    _update_thread.join(timeout=2)
-    if _update_notice:
-        _kind, _value = _update_notice   # _kind is always "release" now
-        _repo_url = f"https://github.com/{GITHUB_REPO}"
-        _term_msg = (
-            f"{Terminal.YELL}\u26a0 Update available: v{_value}{Terminal.END}"
-            f"  {Terminal.WHITE}{_repo_url}/releases{Terminal.END}\n"
-        )
-        if ui_mode == "terminal":
-            print(_term_msg)
-        else:  # textual / gui — surface it in the dashboard's notice bar
-            gui_queue.put(("update_notice", ("release", _value)))
-        emitter.set_update_notice(_value)
-
 
     # ── Session restore + startup banner ─────────────────────────────────────────
 

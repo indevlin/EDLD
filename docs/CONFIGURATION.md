@@ -284,7 +284,7 @@ looks for certificates where the build machine kept them. `SSL_CERT_FILE` is
 respected if you set it — point it at your own root if you are behind a
 TLS-inspecting proxy. The startup log records which store is in use.
 
-When a new release is available on GitHub, EDLD displays a notification at startup (terminal), in the title bar (terminal dashboard), or in a bar below the menu (desktop window). Updating is manual — take the new source or binary from the [releases page](https://github.com/indevlin/EDLD/releases), and re-run `install.sh` if you run from source.
+EDLD asks GitHub for the latest release at startup and every six hours while it runs, or 15 minutes after a check that failed. A newer release is shown in the Alerts panel, where it stays until cleared, and in EDAM's; in a bar below the menu (desktop window) or below the header (terminal dashboard); in the scrolling log (terminal); and, once, on Discord. A failed check is written to the diagnostic log under `--debug`. Updating is manual — take the new source or binary from the [releases page](https://github.com/indevlin/EDLD/releases), and re-run `install.sh` if you run from source.
 
 ---
 
