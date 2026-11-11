@@ -434,6 +434,7 @@ class EDDNPlugin(BasePlugin):
         self._last_outfitting_hash:  str | None = None
         self._last_shipyard_hash:    str | None = None
         self._last_fcmaterials_hash: str | None = None
+        self._last_fcmaterials_capi_hash: str | None = None
         self._last_market_id:        int | None = None
 
         if self._enabled:
@@ -534,9 +535,12 @@ class EDDNPlugin(BasePlugin):
             # CarrierID == MarketID; own carrier only, not a squadron carrier.
             if event.get("CarrierType", "FleetCarrier") == "FleetCarrier":
                 self._carrier_market_id = event.get("CarrierID")
-        elif ev in ("Location",) and event.get("Docked"):
-            self._docked_station_id   = event.get("MarketID")
-            self._docked_station_name = event.get("StationName", "") or ""
+        elif ev in ("Location", "CarrierJump"):
+            # Docked or not, as the game says; a Location after a restart
+            # while landed carries no Undocked before it.
+            docked = bool(event.get("Docked"))
+            self._docked_station_id   = event.get("MarketID") if docked else None
+            self._docked_station_name = (event.get("StationName", "") or "") if docked else ""
 
         if ev in ("FSDJump", "Location", "CarrierJump"):
             self._update_location(event)
@@ -1264,6 +1268,15 @@ class EDDNPlugin(BasePlugin):
             return
         if not items:
             return
+        # Only the carrier the commander is docked at, and only when its
+        # orders changed: CAPI answers with the last market docked at.
+        if self._docked_station_id is None or int(market_id) != int(self._docked_station_id):
+            _dbg.info(f"  [EDDN] fcmaterials_capi skipped: not docked at market {market_id}")
+            return
+        h = _dict_hash({"mid": int(market_id), "items": items})
+        if h == self._last_fcmaterials_capi_hash:
+            return
+        self._last_fcmaterials_capi_hash = h
 
         # Strip locName from purchases and sales per schema requirement
         def _strip_loc(obj):

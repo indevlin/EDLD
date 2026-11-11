@@ -78,11 +78,17 @@ its View menu toggle and the same links in Help → About are gone, along with
 
 ### Fixed: EDDN fleet carrier bartender messages
 
-The `fcmaterials_capi/1` message, sent after a CAPI market poll of a fleet
-carrier, carried the game version and build from the journal. EDDN requires
-a message built from CAPI to name the CAPI endpoint instead, and flagged both
-such messages EDLD sent. It now sends `CAPI-Live-market` for both; messages
-built from the journal still carry the journal's values.
+The `fcmaterials_capi/1` message, the bartender's orders from a CAPI market
+poll of a fleet carrier, was sent after every poll, docked or not: CAPI
+answers with the last market docked at, so EDLD uploaded a carrier's orders
+from a planet's surface, again at every start, and EDDN flagged each one. It
+is now sent only while docked at that carrier, and only when its orders have
+changed. A `Location` that says the ship is not docked, as after restarting
+the game while landed, now clears the docked station, which only `Undocked`
+did before. The message also carried the game version and build from the
+journal; a message built from CAPI names the CAPI endpoint instead, so it now
+sends `CAPI-Live-market` for both. Messages built from the journal still carry
+the journal's values.
 
 ### Changed: EDCARS's sections
 
