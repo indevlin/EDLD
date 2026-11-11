@@ -7,12 +7,9 @@ Depends on: core.state, core.config
 import re
 from datetime import datetime, timezone
 
-try:
-    from discord_webhook import DiscordEmbed, DiscordWebhook
-    notify_enabled = True
-except ImportError:
-    notify_enabled = False
-    print("Module discord_webhook unavailable: operating with terminal output only.\n")
+from core.discord import Webhook
+
+notify_enabled = True
 
 from core.state import MAX_DUPLICATES, PATTERN_WEBHOOK
 
@@ -124,18 +121,34 @@ class Emitter:
             )
             return
 
-        self._discord_hook = DiscordWebhook(url=webhook_url)
+        self._discord_hook = Webhook(webhook_url)
         self._discord_up   = True
+        self._apply_identity()
 
-        if dc.get("Identity"):
-            self._discord_hook.username   = "ED Live Dashboard"
-            self._discord_hook.avatar_url = AVATAR_URL
-
-    def _restore_identity(self) -> None:
+    def _apply_identity(self) -> None:
         dc = self._cfg.discord_cfg
-        if dc.get("Identity") and self._discord_hook:
-            self._discord_hook.username   = "ED Live Dashboard"
-            self._discord_hook.avatar_url = AVATAR_URL
+        on = bool(dc.get("Identity"))
+        self._discord_hook.username   = "ED Live Dashboard" if on else None
+        self._discord_hook.avatar_url = AVATAR_URL if on else None
+
+    def _thread_name(self) -> str | None:
+        """A forum channel's thread title, until the first post starts it."""
+        dc = self._cfg.discord_cfg
+        if not dc.get("ForumChannel"):
+            return None
+        name = getattr(self._state, "pilot_name", "") or ""
+        if dc.get("ThreadCmdrNames") and name:
+            return f"CMDR {name}"
+        return f"ED Live Dashboard {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+
+    def _send(self, content: str = "", embeds=None) -> None:
+        hook = self._discord_hook
+        self._apply_identity()
+        if not self._cfg.discord_cfg.get("ForumChannel"):
+            hook.thread_id = None
+        if not hook.thread_id:
+            hook.thread_name = self._thread_name()
+        hook.send(content, embeds=embeds)
 
     def _post(self, message: str) -> None:
         """Send a raw string to Discord (or echo in test mode)."""
@@ -145,17 +158,7 @@ class Emitter:
             print(f"{Terminal.WHITE}DISCORD:{Terminal.END} {message}")
             return
         try:
-            self._discord_hook.content = message
-            self._discord_hook.execute()
-            self._restore_identity()
-            dc = self._cfg.discord_cfg
-            if (
-                dc.get("ForumChannel")
-                and self._discord_hook.thread_name
-                and not self._discord_hook.thread_id
-            ):
-                self._discord_hook.thread_name = None
-                self._discord_hook.thread_id   = self._discord_hook.id
+            self._send(message)
         except Exception as e:
             print(f"{Terminal.WHITE}Discord:{Terminal.END} Webhook send error: {e}")
 
@@ -217,15 +220,9 @@ class Emitter:
                 f"  —  {repo_url}/releases"
             )
             try:
-                upd_hook = DiscordWebhook(
-                    url=dc.get("WebhookURL", ""),
-                    content=content,
-                    username="ED Live Dashboard" if dc.get("Identity") else None,
-                    avatar_url=AVATAR_URL if dc.get("Identity") else None,
-                )
-                upd_hook.execute()
-            except Exception:
-                pass
+                self._send(content)
+            except Exception as e:
+                print(f"{Terminal.WHITE}Discord:{Terminal.END} Update notice error: {e}")
 
         # ── Discord ───────────────────────────────────────────────────────
         if self._discord_up and loglevel > 1:
@@ -256,22 +253,11 @@ class Emitter:
                 state.dup_suppressed = True
 
     def post_embed(self, embed) -> None:
-        """Send a DiscordEmbed directly (used for startup embed)."""
+        """Send a core.discord.Embed (used for the startup embed)."""
         if not self._discord_up or not self._discord_hook:
             return
         try:
-            self._discord_hook.add_embed(embed)
-            self._discord_hook.execute()
-            self._discord_hook.remove_embeds()
-            self._restore_identity()
-            dc = self._cfg.discord_cfg
-            if (
-                dc.get("ForumChannel")
-                and self._discord_hook.thread_name
-                and not self._discord_hook.thread_id
-            ):
-                self._discord_hook.thread_name = None
-                self._discord_hook.thread_id   = self._discord_hook.id
+            self._send(embeds=[embed])
         except Exception as e:
             print(f"{Terminal.WHITE}Discord:{Terminal.END} Startup embed error: {e}")
 

@@ -109,21 +109,21 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 ### Linux (Arch)
 ```bash
 sudo pacman -S python-psutil
-pip install discord-webhook textual miniaudio --break-system-packages
+pip install textual miniaudio --break-system-packages
 ./install.sh
 ```
 
 ### Linux (Debian / Ubuntu)
 ```bash
 sudo apt install python3-psutil
-pip install discord-webhook textual miniaudio --break-system-packages
+pip install textual miniaudio --break-system-packages
 bash install.sh
 ```
 
 ### Linux (Fedora)
 ```bash
 sudo dnf install python3-psutil
-pip install discord-webhook textual miniaudio --break-system-packages
+pip install textual miniaudio --break-system-packages
 bash install.sh
 ```
 

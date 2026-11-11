@@ -44,8 +44,8 @@
 | `UserID` | `0` | ❌ | Your Discord user ID for `@mention` pings on level-3 events |
 | `Identity` | `true` | ❌ | Use EDLD's name and avatar on the webhook |
 | `Timestamp` | `true` | ❌ | Append a timestamp to each Discord message |
-| `ForumChannel` | `false` | ❌ | Enable forum channel thread support |
-| `ThreadCmdrNames` | `false` | ❌ | Use commander name as forum thread title |
+| `ForumChannel` | `false` | ❌ | The webhook is a forum channel's: the first post starts a thread and the rest go into it |
+| `ThreadCmdrNames` | `false` | ❌ | Name the forum thread `CMDR <name>`; otherwise `ED Live Dashboard` with the date and time |
 | `PrependCmdrName` | `false` | ✅ | Prefix every Discord message with your commander name |
 
 <div align="center">

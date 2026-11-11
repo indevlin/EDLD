@@ -15,8 +15,6 @@
 #
 # ── pip ──────────────────────────────────────────────────────────────────────
 #
-discord-webhook>=1.3.0
-#
 # Radio tab (Crew / Alerts window).  MIT; decodes MP3, Ogg Vorbis and FLAC and
 # plays through the system's audio output, with no player to install.  EDLD
 # runs without it — the Radio tab says it is missing.

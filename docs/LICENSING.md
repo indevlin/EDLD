@@ -17,8 +17,6 @@ proprietary. Keep the copyright notice.
 | PySide6 / Qt | **LGPL v3** | yes |
 | Textual | MIT | yes |
 | Rich | MIT | yes |
-| discord-webhook | MIT | yes |
-| requests (via discord-webhook) | Apache 2.0 | yes |
 | psutil | BSD 3-Clause | yes |
 | certifi | MPL 2.0 | yes — CA bundle, shipped unmodified as data |
 | miniaudio (pyminiaudio) | MIT; bundled C libraries public domain / MIT-0 | yes |

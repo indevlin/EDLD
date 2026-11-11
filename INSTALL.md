@@ -14,7 +14,7 @@ Arch ships current versions of everything EDLD needs.
 
 ```bash
 sudo pacman -S python-psutil
-pip install discord-webhook textual miniaudio --break-system-packages
+pip install textual miniaudio --break-system-packages
 ```
 
 ```bash
@@ -35,7 +35,7 @@ nano ~/.local/share/EDLD/config.toml   # JournalFolder, unless the game runs und
 
 ```bash
 sudo apt install python3-psutil
-pip install discord-webhook textual miniaudio --break-system-packages
+pip install textual miniaudio --break-system-packages
 ```
 
 ```bash
@@ -55,7 +55,7 @@ nano ~/.local/share/EDLD/config.toml
 
 ```bash
 sudo dnf install python3-psutil
-pip install discord-webhook textual miniaudio --break-system-packages
+pip install textual miniaudio --break-system-packages
 ```
 
 ```bash
@@ -160,7 +160,6 @@ If no config file is found on startup, EDLD writes one — a copy of `example.co
 | Dependency | Purpose | Install method |
 |------------|---------|----------------|
 | `python-psutil` | Process utilities | Package manager |
-| `discord-webhook` | Discord notifications | pip |
 | `textual>=0.47` | Terminal dashboard (`--dasht`) | pip |
 | `rich>=13.3.3` | Terminal dashboard markup — arrives with Textual | pip |
 | `miniaudio>=1.71` | Radio tab playback (MP3, Ogg Vorbis, FLAC) — optional | pip |
@@ -199,7 +198,7 @@ you use server mode, and the radio line only if you use the Radio tab. To check 
 instead:
 
 ```bash
-python3 -c "import discord_webhook, textual, miniaudio; print('Core OK')"
+python3 -c "import textual, miniaudio; print('Core OK')"
 python3 -c "import psutil;  print('psutil OK')"    # game-process detection
 python3 -c "import PySide6; print('Desktop OK')"   # only for the desktop window
 ```
@@ -213,9 +212,6 @@ running and session management is unavailable.
 
 **`ModuleNotFoundError: No module named 'psutil'`**
 Install via package manager: `sudo pacman -S python-psutil` (Arch) · `sudo apt install python3-psutil` (Debian/Ubuntu) · `sudo dnf install python3-psutil` (Fedora).
-
-**`ModuleNotFoundError: No module named 'discord_webhook'`**
-Run `pip install discord-webhook --break-system-packages`.
 
 **`ModuleNotFoundError: No module named 'textual'`**
 Run `pip install textual --break-system-packages`.

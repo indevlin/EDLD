@@ -134,7 +134,6 @@ section "Installing pip packages"
 # interfaces work perfectly without it. Without it a plain ./edld.py opens the
 # terminal dashboard instead of EDCARS, and says so.
 PIP_PACKAGES=(
-    "discord-webhook>=1.3.0:discord_webhook"
     "textual>=0.47.0:textual"
     "miniaudio>=1.71:miniaudio"
 )
@@ -165,8 +164,8 @@ if [ "$INSTALL_GUI" = "yes" ]; then
 fi
 
 for PKG in "${PIP_PACKAGES[@]}"; do
-    PKG_SPEC="${PKG%%:*}"   # e.g. "discord-webhook>=1.3.0"
-    PKG_IMPORT="${PKG##*:}" # e.g. "discord_webhook"
+    PKG_SPEC="${PKG%%:*}"   # e.g. "textual>=0.47.0"
+    PKG_IMPORT="${PKG##*:}" # e.g. "textual"
     PKG_NAME="${PKG_SPEC%%[>=]*}"
     # If already importable, skip silently
     if $PYTHON -c "import ${PKG_IMPORT}" &>/dev/null 2>&1; then

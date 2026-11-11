@@ -19,7 +19,6 @@ ROOT = Path(__file__).resolve().parents[1]
 
 #: Import name -> distribution name, where they differ.
 IMPORT_TO_DIST = {
-    "discord_webhook": "discord-webhook",
     "PyInstaller":     "pyinstaller",
     "PySide6":         "pyside6",
 }
