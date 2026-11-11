@@ -280,6 +280,7 @@ class SnapshotBuilder:
             "titles": titles,
             "sections": edcars.wire_sections(),
             "omit": list(edcars.EDCARS_OMITS),
+            "start": edcars.DEFAULT_SECTION,
             "strip": strip,
             "alerts": edcars.alert_mode_of(cfg),
         }

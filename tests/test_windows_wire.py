@@ -62,7 +62,8 @@ def test_modules_carry_the_damage_count_and_tones():
 
 def test_engineering_reaches_the_device_as_pages():
     core = _core(materials_raw={"iron": {"name_local": "Iron", "count": 300}})
-    p = _panels(core)["ship.engineering"]
+    p = _panels(core)["engineering.materials"]
+    assert p["group"] == "engineering"
     ids = [pg["id"] for pg in p["pages"]]
     assert ids[:3] == ["raw", "manufactured", "encoded"]
     raw = p["pages"][0]["rows"]
@@ -86,7 +87,8 @@ def test_missions_stack_is_a_kills_missions_reward_table_with_a_warning():
 
 def test_every_desktop_window_has_its_panels():
     ids = set(_panels(_core()))
-    assert {"cargo", "ship.modules", "ship.engineering", "commander.info",
+    assert {"cargo", "ship.modules", "engineering.fitting", "engineering.materials",
+            "commander.info",
             "commander.ranks", "commander.wallet", "commander.ships",
             "commander.stored-modules", "crew.crew", "exploration.system",
             "missions.missions", "colonisation.colonisation",
@@ -104,7 +106,7 @@ def test_the_snapshot_carries_the_windows_and_omits_status():
     core = _core(cargo_capacity=64, cargo_items={"tritium": {"count": 64, "name_local": "Tritium"}})
     b = protocol.SnapshotBuilder(core)
     ids = {p["id"] for p in b.panels()}
-    assert "cargo" in ids and "ship.engineering" in ids
+    assert "cargo" in ids and "engineering.materials" in ids and "ship.engineering" not in ids
     assert "status" in b.header()["edcars"]["omit"]
 
 

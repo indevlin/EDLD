@@ -1123,7 +1123,8 @@ def test_plugin_map_targets_are_live_ids():
     from tui.theme import BLOCK_DOM_ID
 
     known = set(BLOCK_DOM_ID.values())
-    dead = {k: v for k, v in tui_app._PLUGIN_TO_BLOCK.items() if v not in known}
+    dead = {k: v for k, v in tui_app._PLUGIN_TO_BLOCK.items()
+            if not set(v if isinstance(v, tuple) else (v,)) <= known}
     assert not dead, f"plugin map points at dead ids: {dead}"
 
 

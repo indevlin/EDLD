@@ -11,6 +11,9 @@
     ("table", label, [(heading, width), …])  column headings over the cells
                                          below; label heads the label column
     ("cells", label, [value, …], classes[, action]) a row of a table
+    ("note", body, indent, classes)      a line under the row above it, set in
+                                         as far as ``indent`` reaches in the
+                                         row's label (a module's engineering)
 """
 from __future__ import annotations
 
@@ -83,6 +86,10 @@ class R:
         return ("table", str(label), [(str(h), int(w)) for h, w in columns])
 
     @staticmethod
+    def note(body, indent: str = "", classes: str = "dim") -> tuple:
+        return ("note", "" if body is None else str(body), str(indent or ""), classes)
+
+    @staticmethod
     def cells(label, values, classes: str = "val", action: str | None = None) -> tuple:
         row = ("cells", str(label), [str(v) for v in values], classes)
         return row + (action,) if action else row
@@ -141,7 +148,8 @@ def tone_of(classes: str, text: str = "") -> str | None:
 
 def wire_rows(rows) -> list[dict]:
     """Model rows as protocol rows: label, value, kind (kv | sub | line |
-    cells), an optional tone, and for a table its headings and cells."""
+    cells | note), an optional tone, for a table its headings and cells, and
+    for a note the text it is set in under."""
     from core.tooltab import plain
     out: list[dict] = []
     for kind, row, _w in iter_render(rows):
@@ -165,6 +173,16 @@ def wire_rows(rows) -> list[dict]:
                 continue
             r = {"label": "", "value": body, "kind": "line"}
             tone = tone_of(row[2] if len(row) > 2 else "", row[1]) or tone
+            if tone:
+                r["tone"] = tone
+            out.append(r)
+        elif kind == "note":
+            body, _ = plain(row[1])
+            if not body.strip():
+                continue
+            r = {"label": body, "value": "", "kind": "note",
+                 "indent": plain(row[2])[0] if len(row) > 2 else ""}
+            tone = tone_of(row[3] if len(row) > 3 else "", "")
             if tone:
                 r["tone"] = tone
             out.append(r)

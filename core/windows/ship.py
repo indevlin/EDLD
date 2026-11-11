@@ -1,22 +1,16 @@
-"""core/windows/ship.py — the Ship window: the vessel's name, then Cargo,
-Modules and Engineering.
+"""core/windows/ship.py — the Ship window: the vessel's name, then Cargo and
+Modules, each engineered module with its blueprint, grade and experimental
+effect on the line under it.
 
-Hull, shields and fuel live in the Commander window's Info tab.
+Hull, shields and fuel live in the Commander window's Info tab. The materials
+are in the Engineering window's Materials tab (core/windows/engineering.py):
+they travel with every ship, not this one.
 """
 from __future__ import annotations
 
-from core.windows import R, Tab, health_cls
+import re
 
-#: Material grades, in the order the Engineering tab presents them.
-GRADES = (
-    ("raw",          "Raw"),
-    ("manufactured", "Mfg"),
-    ("encoded",      "Enc"),
-    ("components",   "Comp"),
-    ("items",        "Items"),
-    ("consumables",  "Cons"),
-    ("data",         "Data"),
-)
+from core.windows import R, Tab, health_cls
 
 
 def fmt_health(fraction: float) -> str:
@@ -135,38 +129,46 @@ def modules(core) -> Tab:
     rows = []
     for m in mods:
         health = float(m.get("health", 1.0) or 0.0)
-        key = f"{int(m.get('priority', 0) or 0) + 1}  {m.get('name_display') or m.get('slot') or '—'}"
+        prio = f"{int(m.get('priority', 0) or 0) + 1}  "
+        name = str(m.get("name_display") or m.get("slot") or "—")
+        key = prio + name
         if not m.get("on", True):
             key += " (off)"
         cls = f"val {health_cls(int(health * 100))}" if health < 1.0 else "val dim"
         rows.append(R.kv(key, fmt_health(health), cls))
+        eng = engineering_line(m.get("engineering"))
+        if eng:
+            rows.append(R.note(eng, prio + rating_prefix(name)))
     return Tab("modules", "Modules", rows, heading=heading)
 
 
-def engineering(core) -> Tab:
-    s = core.state
-    lk = getattr(s, "engineering_locker", {}) or {}
-    buckets = {
-        "raw":          getattr(s, "materials_raw", {}) or {},
-        "manufactured": getattr(s, "materials_manufactured", {}) or {},
-        "encoded":      getattr(s, "materials_encoded", {}) or {},
-        "components":   lk.get("components", {}) or {},
-        "items":        lk.get("items", {}) or {},
-        "consumables":  lk.get("consumables", {}) or {},
-        "data":         lk.get("data", {}) or {},
-    }
-    pages = []
-    for key, label in GRADES:
-        items = buckets[key]
-        if not items:
-            rows = [R.text("— none —", "dim")]
-        else:
-            rows = [R.kv(d.get("name_local", ""), str(d.get("count", 0)))
-                    for _k, d in sorted(items.items(),
-                                        key=lambda kv: kv[1].get("name_local", kv[0]).lower())]
-        pages.append(Tab(key, label, rows))
-    return Tab("engineering", "Engineering", pages=pages)
+_RATING = re.compile(r"^\d[A-I] ")
+
+
+def rating_prefix(name: str) -> str:
+    """The class and rating that open a module's name ("8A "), which the
+    engineering line under it is set in past, so its grade sits under the
+    module's own name."""
+    m = _RATING.match(name or "")
+    return m.group(0) if m else ""
+
+
+def engineering_line(eng: dict | None) -> str:
+    """"G5 Increased Range (Mass Manager)": the grade and blueprint, and the
+    experimental effect, of an engineered module; "" for one that is not."""
+    from data.engineering import normalise_eng_name
+    eng = eng or {}
+    bp = str(eng.get("BlueprintName") or "")
+    fx = str(eng.get("ExperimentalEffect_Localised") or "") or \
+        (normalise_eng_name(str(eng.get("ExperimentalEffect") or ""))
+         if eng.get("ExperimentalEffect") else "")
+    if not bp and not fx:
+        return ""
+    text = f"G{int(eng.get('Level') or 0)} {normalise_eng_name(bp)}" if bp else ""
+    if fx:
+        text = f"{text} ({fx})" if text else fx
+    return text
 
 
 def tabs(core) -> list[Tab]:
-    return [cargo(core), modules(core), engineering(core)]
+    return [cargo(core), modules(core)]

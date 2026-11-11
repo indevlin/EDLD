@@ -9,7 +9,7 @@ Windows are grouped into interchangeable classes.
 
     panel    Every interchangeable window (Career, Session, Ship Health,
              Cargo, Missions, Navigation, Colonisation, Exploration,
-             Exobiology, Assets, Engineering)
+             Exobiology, Assets, Mining, Engineering)
     compact  Alerts · Crew/SLF   (two halves of one Panel height)
     anchor   Commander           (one Panel height)
 
@@ -78,6 +78,7 @@ BLOCK_CLASS = {
     "ship_info":    PANEL,
     "career":       PANEL,
     "mining":       PANEL,
+    "engineering":  PANEL,
     # Center column: three equal windows, freely interchangeable.
     "commander":    CENTER,
     "objectives":   CENTER,
@@ -91,6 +92,7 @@ BLOCK_DISPLAY = {
     "career":       "Career / Session",
     "objectives":   "Objectives",
     "mining":       "Mining",
+    "engineering":  "Engineering",
     "commander":    "Commander",
     "status":       "Crew / Alerts",
 }

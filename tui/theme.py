@@ -452,6 +452,28 @@ SellModal { align: center middle; }
    them rather than punching two block-bg holes in the stripe. */
 .sell-row-alt { background: $row-alt; }
 
+/* ── Engineering window and its dialogs ────────────────────────────────────── */
+#eng-ship  { width: 100%; max-width: 70; }
+#eng-actions, #eng-plan-actions { height: 1; width: 100%; }
+#eng-actions .footer-lbl, #eng-plan-actions .footer-lbl { width: auto; margin-right: 2; }
+#eng-plan-bar { height: auto; width: 100%; layout: vertical; }
+#eng-apply { width: 100%; max-width: 70; }
+#eng-fit { height: 1fr; }
+TargetModal, NewPlanModal, ShoppingModal { align: center middle; }
+#eng-modal-outer {
+    width: 76%;
+    height: 76%;
+    background: $block-bg;
+    border: solid $accent;
+    padding: 1 2;
+}
+#eng-modal-outer.eng-modal-small { height: auto; width: 60; }
+.eng-modal-hint { width: 100%; margin-bottom: 1; }
+#eng-import-text { height: 1fr; }
+#eng-import-status { width: 100%; height: auto; max-height: 8; }
+#eng-shop-rows { height: 1fr; }
+.eng-modal-buttons { height: 3; width: 100%; align: right middle; }
+
 /* ── Search modal ──────────────────────────────────────────────────────────── */
 SearchModal { align: center middle; }
 
@@ -573,6 +595,7 @@ BLOCK_DOM_ID = {
     "objectives":   "block-objectives",
     "mining":       "block-mining",
     "exploration":  "block-exploration",
+    "engineering":  "block-engineering",
     # Not a slot of the layout: the Helm panel along the foot (tui/blocks/helm.py).
     "helm":         "block-helm",
 }

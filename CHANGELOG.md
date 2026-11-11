@@ -1,8 +1,77 @@
 # EDLD CHANGELOG
 
-Last updated: 20261111
+Last updated: 20261112
 
 ---
+
+## 20261112-dev — added, unreleased
+
+### Added: the Engineering window
+
+Engineering is a window of its own again, with two tabs. Fitting shows one
+ship at a time, picked from a list of every ship owned, then the builds
+planned for hulls not owned yet, then New (Planned)…, which asks for the hull
+from a list and starts one. Each slot is listed with what is fitted beside the
+target build, a module that differs in red and engineering still to do in
+amber. Target… takes the build: an EDSY or Coriolis link, long or short, an
+EDOMH link, or SLEF JSON exported by EDSY, Coriolis or EDSX, and refuses a
+build for another hull. A planned build is edited the same way and has Apply
+to, which makes it the target of an owned ship of its hull, drops the plan and
+shows that ship.
+
+Under the slots, Work left lists what each slot still needs — the module to
+buy, or to take out of storage when one of that kind is stored, the grades
+still to roll with the rolls each takes, the experimental effect — and
+Materials totals what the work costs against what is held, with what is
+short. Shopping list… suggests the trades that cover a shortfall from what
+the build does not need, within a trader's column before across one, and the
+nearest material trader of each kind, from Spansh. A grade takes as many
+rolls as its number, so G1 to G5 is fifteen; a grade rolled part way takes
+the rest of its rolls. Recipes, EDSY links and EDOMH ships are read with
+EDSY's own tables, downloaded the first time they are needed and kept in the
+data folder, refreshed weekly.
+
+Materials is the Ship window's former Engineering tab, moved: the materials
+travel with every ship, not the one being flown. In EDCARS the window has the
+Engineering section; in the Dashboard layout and the terminal dashboard it is
+a large window chosen under Options → Display. EDAM receives it as the
+engineering group, with Fitting showing the ship chosen on the desktop.
+
+### Changed: EDCARS's sections
+
+The rail now runs Alerts, Command, Helm, Objectives, Exploration, Mining,
+Fleet, Engineering, Career, then Settings, with `Ctrl+1` to `Ctrl+9` in that
+order. EDCARS still opens on Command, and tells EDAM to.
+
+### Added: engineering in the Ship window's Modules
+
+Each engineered module has a line under it with its grade, blueprint and
+experimental effect — `G5 Increased Range (Mass Manager)` — set in so the
+grade sits under the module's name, past its class and rating. A roll at an
+engineer changes the line at once rather than at the next Loadout. EDAM
+receives these as a new `note` row and draws them the same way.
+
+### Fixed: material trades were never counted
+
+A `MaterialTrade` names each side's material and amount `Material` and
+`Quantity`, where the other material events say `Name` and `Count`; the trade
+was read as the latter, so both sides came back empty and were skipped. Every
+trade left the Engineering tab showing what was held before it until the
+next login's `Materials` snapshot put it right, and since the numbers were
+merely stale nothing looked wrong. Materials given as mission rewards, given
+to an engineer, and given to research were not counted at all, for the same
+lack of any visible failure; all four are counted now.
+
+### Fixed: no materials when the newest journal holds no login
+
+The materials came only from the `Materials` snapshot the game writes at
+login, read while replaying the newest journal. A newest journal without one
+— the launcher started and closed, a crash before login — left the tab empty
+until the next login, and an empty tab reads as nothing held rather than as
+nothing read. At start-up the materials are now taken from the newest
+snapshot in the earlier journals and every material event after it, as they
+stood when the game last closed; checked against the journals, they match
+`update_stock.py` to the unit.
 
 ## Released in 20261111
 

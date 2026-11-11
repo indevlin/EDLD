@@ -1,12 +1,12 @@
 """gui/blocks/ship_info.py — Ship window (Qt).
 
-The vessel's name, then Cargo, Modules and Engineering.
+The vessel's name, then Cargo and Modules.
 """
 
 from __future__ import annotations
 
 from core.ui_helpers import cargo_cols, fmt_cargo_cr, is_limpet
-from core.windows.ship import GRADES as _TABS, fmt_health as _fmt_health
+from core.windows.ship import fmt_health as _fmt_health  # noqa: F401
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QHBoxLayout, QLabel, QPushButton, QTabWidget, QVBoxLayout, QWidget,
@@ -85,20 +85,6 @@ class ShipInfoBlock(GuiBlock):
         modules_layout.addWidget(self._scroll, 1)
         self._tabs.addTab(modules_page, "Modules")
 
-        eng_page = QWidget()
-        eng_layout = QVBoxLayout(eng_page)
-        eng_layout.setContentsMargins(0, 0, 0, 0)
-
-        self._eng_tabs = QTabWidget()
-        self._eng_tabs.setDocumentMode(True)
-        self._scrolls: dict[str, RowScroll] = {}
-        for key, label in _TABS:
-            scroll = RowScroll()
-            self._scrolls[key] = scroll
-            self._eng_tabs.addTab(scroll, label)
-        eng_layout.addWidget(self._eng_tabs, 1)
-        self._tabs.addTab(eng_page, "Engineering")
-
         layout.addWidget(self._tabs, 1)
 
     # ── Target market search ──────────────────────────────────────────────────
@@ -151,7 +137,3 @@ class ShipInfoBlock(GuiBlock):
         self._price_src.setText(to_html(f" {src} ", self.palette_map))
         self._target_lbl.setText(to_html(target, self.palette_map))
         self._cargo_scroll.set_rows(self.render_rows(W.cargo(self.core).rows))
-        for page in W.engineering(self.core).pages:
-            scroll = self._scrolls.get(page.id)
-            if scroll is not None:
-                scroll.set_rows(self.render_rows(page.rows))

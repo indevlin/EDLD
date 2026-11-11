@@ -14,7 +14,9 @@ incremental repair and damage events on top of it.
 State published on MonitorState
 -------------------------------
     ship_modules       list  — [{slot, name_internal, name_display,
-                                 priority, on, health}]
+                                 priority, on, health, engineering?}]
+                               engineering is the Loadout's own: BlueprintName,
+                               Level, Quality, ExperimentalEffect
                                health is 0.0–1.0; priority is the raw
                                journal value (0-based)
     ship_hull_exact    float — hull integrity 0.0–1.0, full precision
@@ -76,6 +78,8 @@ class ShipHealthPlugin(BasePlugin):
         "Repair",
         "RepairAll",
         "RebootRepair",
+        # A module engineered: its blueprint, grade and experimental.
+        "EngineerCraft",
         # Full resets.
         "Died",
         "Resurrect",
@@ -160,6 +164,9 @@ class ShipHealthPlugin(BasePlugin):
                     self._set_health(target, float(health))
                     self._changed()
 
+            case "EngineerCraft":
+                self._apply_craft(event, state)
+
             case "Repair":
                 self._apply_repair(event, state)
 
@@ -196,19 +203,50 @@ class ShipHealthPlugin(BasePlugin):
             item = m.get("Item", "")
             if not slot or not item or _is_cosmetic(slot, item):
                 continue
-            modules.append({
+            entry = {
                 "slot":          slot,
                 "name_internal": item,
                 "name_display":  normalise_module_name(item),
                 "priority":      int(m.get("Priority", 0) or 0),
                 "on":            bool(m.get("On", True)),
                 "health":        float(m.get("Health", 1.0) or 0.0),
-            })
+            }
+            eng = m.get("Engineering") or {}
+            if eng.get("BlueprintName") or eng.get("ExperimentalEffect"):
+                entry["engineering"] = {
+                    k: eng[k] for k in ("BlueprintName", "Level", "Quality",
+                                        "ExperimentalEffect", "ExperimentalEffect_Localised")
+                    if eng.get(k) not in (None, "")}
+            modules.append(entry)
         state.ship_modules = modules
 
         hull = event.get("HullHealth")
         if hull is not None:
             state.ship_hull_exact = float(hull)
+        self._changed()
+
+    def _apply_craft(self, event: dict, state) -> None:
+        """The crafted module's engineering, until the next Loadout."""
+        slot = str(event.get("Slot") or "").lower()
+        mod = next((m for m in state.ship_modules
+                    if str(m.get("slot") or "").lower() == slot), None)
+        if mod is None or not event.get("BlueprintName"):
+            return
+        eng = dict(mod.get("engineering") or {})
+        if str(eng.get("BlueprintName") or "").lower() != str(event["BlueprintName"]).lower():
+            eng = {}
+        eng.update({"BlueprintName": event["BlueprintName"],
+                    "Level": int(event.get("Level") or 0),
+                    "Quality": float(event.get("Quality") or 0)})
+        fx = event.get("ApplyExperimentalEffect") or event.get("ExperimentalEffect")
+        if fx:
+            eng["ExperimentalEffect"] = fx
+            local = event.get("ExperimentalEffect_Localised")
+            if local and not event.get("ApplyExperimentalEffect"):
+                eng["ExperimentalEffect_Localised"] = local
+            elif event.get("ApplyExperimentalEffect"):
+                eng.pop("ExperimentalEffect_Localised", None)
+        mod["engineering"] = eng
         self._changed()
 
     def _apply_repair(self, event: dict, state) -> None:

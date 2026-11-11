@@ -51,6 +51,7 @@ from gui.blocks.navigation   import NavigationBlock
 from gui.blocks.ship_info    import ShipInfoBlock
 from gui.blocks.objectives   import ObjectivesBlock
 from gui.blocks.mining       import MiningBlock
+from gui.blocks.engineering  import EngineeringBlock
 from gui.blocks.status       import StatusBlock
 from gui.blocks.helm         import HelmBlock
 
@@ -73,18 +74,19 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     "colonisation_update": ["block-objectives"],
     "crew_update":        ["block-status"],
     "slf_update":         ["block-status"],
-    "vessel_update":      ["block-commander", "block-ship", "block-nav"],
-    "ship_health_update": ["block-ship"],
+    "vessel_update":      ["block-commander", "block-ship", "block-nav",
+                           "block-engineering"],
+    "ship_health_update": ["block-ship", "block-engineering"],
     "location_update":    ["block-commander", "block-nav"],
     # Missions render in the Session window's Missions tab.
     "mission_update":     ["block-objectives"],
     "cargo_update":       ["block-ship", "block-nav"],
     # Assets folded into the Commander window's tabs.
-    "assets_update":      ["block-commander"],
+    "assets_update":      ["block-commander", "block-engineering"],
     "exploration_update": ["block-exploration", "block-career"],
     # Exobiology nests inside the Exploration window.
     "exobiology_update":  ["block-exploration", "block-career"],
-    "materials_update":   ["block-ship"],
+    "materials_update":   ["block-engineering"],
     "alert_update":       ["block-status"],
     # What the alerts component actually sends.
     "alerts_update":      ["block-status"],
@@ -108,6 +110,7 @@ _PLUGIN_TO_BLOCK: dict[str, str] = {
     "ring_hotspots": "block-mining",
     "status":        "block-status",
     "automation":    "block-helm",
+    "engineering":   "block-engineering",
 }
 
 # Window name → GUI block class.
@@ -118,6 +121,7 @@ _BLOCK_CLASSES = {
     "ship_info":    ShipInfoBlock,
     "objectives":   ObjectivesBlock,
     "mining":       MiningBlock,
+    "engineering":  EngineeringBlock,
     "status":       StatusBlock,
     "exploration":  ExplorationBlock,
     "helm":         HelmBlock,
@@ -132,6 +136,7 @@ BLOCK_ID = {
     "ship_info":     "block-ship",
     "objectives":    "block-objectives",
     "mining":        "block-mining",
+    "engineering":   "block-engineering",
     "status":        "block-status",
     "exploration":  "block-exploration",
     "helm":         "block-helm",

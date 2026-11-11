@@ -187,6 +187,11 @@ FLEET_TABS = ("Ships", "Modules", "Carrier", "S. Carrier")
 
 SECTIONS: tuple[Section, ...] = (
     Section(
+        "alerts", "Alerts",
+        parts=(Part("alerts", title="Alerts", tabs=False),),
+        groups=("alerts",),
+    ),
+    Section(
         "command", "Command",
         parts=(Part("commander", "identity", column=0, weight=3, title="Commander",
                     groups=("commander",)),
@@ -203,10 +208,9 @@ SECTIONS: tuple[Section, ...] = (
         groups=("helm",),
     ),
     Section(
-        "fleet", "Fleet",
-        parts=(Part("commander", "fleet", title="Fleet"),),
-        panels=("commander.ships", "commander.stored-modules",
-                "commander.carrier", "commander.squadron-carrier"),
+        "objectives", "Objectives",
+        parts=(Part("objectives", title="Objectives"),),
+        groups=("missions", "colonisation"),
     ),
     Section(
         "exploration", "Exploration",
@@ -218,28 +222,32 @@ SECTIONS: tuple[Section, ...] = (
         columns=(55, 45),
     ),
     Section(
-        "objectives", "Objectives",
-        parts=(Part("objectives", title="Objectives"),),
-        groups=("missions", "colonisation"),
-    ),
-    Section(
         "mining", "Mining",
         parts=(Part("mining", title="Mining"),),
         groups=("mining",),
+    ),
+    Section(
+        "fleet", "Fleet",
+        parts=(Part("commander", "fleet", title="Fleet"),),
+        panels=("commander.ships", "commander.stored-modules",
+                "commander.carrier", "commander.squadron-carrier"),
+    ),
+    Section(
+        "engineering", "Engineering",
+        parts=(Part("engineering", title="Engineering"),),
+        groups=("engineering",),
     ),
     Section(
         "career", "Career",
         parts=(Part("career", title="Career / Session"),),
         groups=("session", "career"),
     ),
-    Section(
-        "alerts", "Alerts",
-        parts=(Part("alerts", title="Alerts", tabs=False),),
-        groups=("alerts",),
-    ),
 )
 
 ALERTS_SECTION = "alerts"
+
+#: The section shown at start: Command, though Alerts leads the rail.
+DEFAULT_SECTION = "command"
 
 #: Panels EDLD sends that EDCARS does not draw: hull, shields and fuel are in
 #: the Commander window's Info tab and the header strip, and this panel is

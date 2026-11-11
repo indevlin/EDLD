@@ -369,7 +369,7 @@ class MonitorState:
 
         # Per-module condition (ship_health component, Ship Health window).
         # ship_modules entries: {slot, name_internal, name_display,
-        #                        priority, on, health}
+        #                        priority, on, health, engineering?}
         #   priority — raw journal value, 0-based (the in-game power panel
         #              labels the same groups one higher)
         #   health   — 0.0–1.0

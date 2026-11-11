@@ -49,6 +49,9 @@ Options or `config.toml`.
 | **EDSM** star data | Plotting a route, or looking a system up | System names, and the coordinates of the system you are in when no database knows it yet. Nothing that identifies you |
 | **Radio stations** | Pressing play on the Radio tab | A connection to that station’s stream server, which sees your IP address like any listener’s. EDLD never starts a stream on its own |
 | **Coriolis** or **EDSY** | Clicking *Open in Coriolis* or *Open in EDSY* on a ship in the dossier | Your browser opens the site with that ship’s fitting in the link |
+| **EDSY**, **sh.orbis.zone**, **link.edomh.nl** | Importing a target build from a short link in the Engineering window | A request for the link, to read where it leads. Nothing about you |
+| **GitHub** (EDSY’s tables) | Opening the Engineering window’s Fitting tab, the first time and then weekly | A request for EDSY’s published `eddb.js`. Nothing about you |
+| **Spansh** material traders | Opening the Engineering window’s shopping list | The coordinates of the system you are in, to find the nearest material traders. Nothing that identifies you |
 
 The radio stations, Spansh, Coriolis and EDSY, and every service above, are run
 by others and are not affiliated with EDLD. Their own terms and privacy

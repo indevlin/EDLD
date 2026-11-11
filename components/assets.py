@@ -895,6 +895,18 @@ class AssetsPlugin(BasePlugin):
         if gq:
             gq.put(("plugin_refresh", "assets"))
 
+    def loadout_for(self, ship_id) -> list:
+        """The fitted modules last seen on a ship, from its newest Loadout;
+        [] when none has been seen."""
+        try:
+            sid = int(ship_id)
+        except (TypeError, ValueError):
+            return []
+        cur = getattr(self.core.state, "assets_current_ship", None) or {}
+        if cur.get("ship_id") is not None and int(cur["ship_id"]) == sid and cur.get("loadout"):
+            return list(cur["loadout"])
+        return list(self._ship_loadout_cache.get(sid) or [])
+
     def _parse_stored_ships(self, event: dict) -> list:
         ships = []
         for section in ("ShipsHere", "ShipsRemote"):

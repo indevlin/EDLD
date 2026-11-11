@@ -74,8 +74,9 @@ def test_every_window_has_a_place():
 
 def test_the_agreed_sections_in_order():
     assert [s.id for s in H.SECTIONS] == [
-        "command", "helm", "fleet", "exploration", "objectives", "mining", "career",
-        "alerts"]
+        "alerts", "command", "helm", "objectives", "exploration", "mining", "fleet",
+        "engineering", "career"]
+    assert H.DEFAULT_SECTION == "command"
     assert H.section("helm").label == "Helm"
     command = H.section("command")
     assert {p.window for p in command.parts} == {"commander", "ship_info", "status"}
@@ -109,7 +110,7 @@ def test_wire_panels_find_their_section(pid, group, want):
 #: Every group EDLD sends that EDCARS draws: core/windows/wire.py's, and the
 #: protocol's own. "status" is the Dashboard style's (H.EDCARS_OMITS).
 WIRE_GROUPS = {"commander", "ship", "crew", "exploration", "navigation", "missions",
-               "colonisation", "vessel", "session", "career", "alerts"}
+               "colonisation", "vessel", "session", "career", "alerts", "engineering"}
 
 
 def test_every_group_edld_sends_has_a_section():
@@ -125,7 +126,8 @@ def test_every_group_edld_sends_has_a_section():
     ("cargo", "vessel", "ship_info"),
     ("ship", "vessel", "ship_info"),
     ("ship.modules", "ship", "ship_info"),
-    ("ship.engineering", "ship", "ship_info"),
+    ("engineering.fitting", "engineering", "engineering"),
+    ("engineering.materials", "engineering", "engineering"),
     ("exploration.system", "exploration", "exploration"),
     ("navigation.route", "navigation", "navigation"),
 ])

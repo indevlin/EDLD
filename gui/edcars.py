@@ -586,7 +586,7 @@ class EdcarsShell(QWidget):
         self.setStyleSheet(_qss(self.ink))
         self.blocks: dict[str, object] = {}
         self._pages: dict[str, int] = {}
-        self._current = H.SECTIONS[0].id
+        self._current = H.DEFAULT_SECTION if H.section(H.DEFAULT_SECTION) else H.SECTIONS[0].id
         self._seen_urgent: set = set()
         self._unacked: Optional[dict] = None
         self._pulse_on = False

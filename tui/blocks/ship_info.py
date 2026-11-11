@@ -1,6 +1,6 @@
 """tui/blocks/ship_info.py — Ship window (Textual).
 
-The vessel's name, then Cargo, Modules and Engineering.
+The vessel's name, then Cargo and Modules.
 """
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from textual.containers import VerticalScroll, Horizontal
 
 from tui.block_base     import TuiBlock, SecHdr
 from core.ui_helpers    import cargo_cols, fmt_cargo_cr, is_limpet
-from core.windows.ship  import GRADES as _TABS, fmt_health as _fmt_health
+from core.windows.ship  import fmt_health as _fmt_health  # noqa: F401
 
 # Re-exported from core.ui_helpers; imported from here by tests.
 _is_limpet  = is_limpet
@@ -36,8 +36,6 @@ class ShipInfoBlock(TuiBlock):
             with TabPane("Modules", id="ship-tab-modules"):
                 yield SecHdr("Modules", id="sh-modules-hdr")
                 yield VerticalScroll(id="sh-modules")
-            with TabPane("Engineering", id="ship-tab-engineering"):
-                yield from self._compose_engineering()
 
     def _compose_cargo(self) -> ComposeResult:
         # The panel prices every row against one market, so it has to say
@@ -97,13 +95,6 @@ class ShipInfoBlock(TuiBlock):
             callback     = _on_select,
         ))
 
-    def _compose_engineering(self) -> ComposeResult:
-        with TabbedContent(id="eng-tabs"):
-            for key, label in _TABS:
-                with TabPane(label, id=f"eng-pane-{key}"):
-                    yield VerticalScroll(id=f"eng-scroll-{key}")
-
-
     # ── Refresh ───────────────────────────────────────────────────────────────
 
     def refresh_data(self) -> None:
@@ -124,8 +115,6 @@ class ShipInfoBlock(TuiBlock):
         except Exception:
             pass
         self._fill("#cargo-scroll", W.cargo(self.core).rows)
-        for page in W.engineering(self.core).pages:
-            self._fill(f"#eng-scroll-{page.id}", page.rows)
 
     def _refresh_cargo(self) -> None:
         self.refresh_data()

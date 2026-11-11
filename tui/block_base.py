@@ -194,6 +194,12 @@ class TuiBlock(Widget):
                 out.append(Label(row[1], classes=row[2] if len(row) > 2 else ""))
             elif kind == "rule":
                 out.append(HRule())
+            elif kind == "note":
+                # The indent as left padding, one cell per letter.
+                indent = row[2] if len(row) > 2 else ""
+                w = KVRow(row[1], "", val_classes=row[3] if len(row) > 3 else "dim")
+                w.styles.padding = (0, 1, 0, 1 + len(indent))
+                out.append(w)
             elif kind == "toggle":
                 # The block walks up from a clicked widget to the heading
                 # and reads which group it is.

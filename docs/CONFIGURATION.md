@@ -114,7 +114,7 @@ window they belonged with:
 | Massacre Mission Stack | the Missions tab in **Objectives** |
 | Colonization | the Colonization tab in **Objectives** |
 | Cargo | the Cargo tab in **Ship** |
-| Engineering | the Engineering tab in **Ship** |
+| Engineering | its own window again, **Engineering**: Fitting, and the Materials tab that was **Ship**'s Engineering tab |
 | Ship Health | renamed **Ship**; hull, shields and fuel moved to Commander's Info tab |
 | Alerts, Crew / SLF | merged into **Crew / Alerts** |
 | Session | the Session tab in **Career / Session** |

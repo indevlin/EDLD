@@ -117,6 +117,40 @@ class KVRow(QWidget):
         _apply_classes(self._val, classes)
 
 
+class NoteRow(QWidget):
+    """A line under a row, set in by ``indent`` drawn unseen in the label's
+    own face."""
+
+    def __init__(self, body: str = "", indent: str = "", classes: str = "dim",
+                 palette: dict | None = None, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self._palette = palette or rgb("default")
+        lay = QHBoxLayout(self)
+        lay.setContentsMargins(6, 0, 6, 0)
+        lay.setSpacing(0)
+        self._label = QLabel()
+        self._label.setProperty("role", "key")
+        self._label.setTextFormat(Qt.RichText)
+        self._label.setWordWrap(False)
+        self._label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self._label.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        lay.addWidget(self._label, 1)
+        self.set_note(body, indent, classes)
+
+    def set_note(self, body: str, indent: str = "", classes: str = "dim") -> None:
+        pad = to_html(indent, self._palette) if indent else ""
+        if pad:
+            pad = pad.replace(" ", "&nbsp;")
+            pad = f'<span style="color: transparent;">{pad}</span>'
+        tone = classes_to_props(classes).get("health", "")
+        colour = {"health-good": "green", "health-warn": "amber",
+                  "health-crit": "red"}.get(tone)
+        text = to_html(body, self._palette)
+        if colour and self._palette.get(colour):
+            text = f'<span style="color: {self._palette[colour]};">{text}</span>'
+        self._label.setText(pad + text)
+
+
 class TableHdr(KVRow):
     """A table's heading row: what each row is, on the left, as a section
     header; the column headings over the values, in the same accent and in
@@ -375,6 +409,10 @@ class GuiBlock(QFrame):
                 out.append(self.text(row[1], row[2] if len(row) > 2 else ""))
             elif kind == "rule":
                 out.append(self.rule())
+            elif kind == "note":
+                out.append(NoteRow(row[1], row[2] if len(row) > 2 else "",
+                                   row[3] if len(row) > 3 else "dim",
+                                   palette=self.palette_map))
             elif kind == "toggle":
                 key = {"system_name": row[3]} if row[2] == "system" else {"market_id": row[3]}
                 out.append(ClickableHdr(row[1], self.palette_map, on_toggle, **key))

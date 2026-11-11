@@ -2,7 +2,8 @@
 
     group        panels                                     window
     vessel       ship (the vessel's name), cargo            Ship
-    ship         ship.modules, ship.engineering (pages)     Ship
+    ship         ship.modules                               Ship
+    engineering  engineering.fitting, .materials (pages)    Engineering
     commander    commander.info, .ranks, .wallet,           Commander
                  .ships, .stored-modules, .carrier,
                  .squadron-carrier
@@ -46,18 +47,22 @@ def _safe(fault, name, fn, *a):
 def panels(core, fault=lambda name, exc: None) -> list[dict]:
     """Every window's panels, in the desktop's tab order."""
     from core import route_view as RV
-    from core.windows import career, commander, crew, exploration, mining, objectives, ship
+    from core.windows import (career, commander, crew, engineering, exploration, mining,
+                              objectives, ship)
     out: list[dict] = []
 
     t = _safe(fault, "cargo", ship.cargo, core)
     if t is not None:
         out.append(panel("cargo", t.title, "vessel", t, 30))
-    order = 1000
-    for name, fn, group in (("ship", ship.modules, "ship"),
-                            ("ship", ship.engineering, "ship")):
-        t = _safe(fault, name, fn, core)
+    t = _safe(fault, "ship", ship.modules, core)
+    if t is not None:
+        out.append(panel(f"ship.{t.id}", t.title, "ship", t, 1000))
+
+    order = 1250
+    for fn in (engineering.fitting_tab, engineering.materials):
+        t = _safe(fault, "engineering", fn, core)
         if t is not None:
-            out.append(panel(f"{group}.{t.id}", t.title, group, t, order))
+            out.append(panel(f"engineering.{t.id}", t.title, "engineering", t, order))
         order += 1
 
     order = 1100

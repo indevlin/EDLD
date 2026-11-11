@@ -526,7 +526,8 @@ the desktop's tab order.
 |---|---|---|
 | `status` | `status`: hull, shields, fuel (not drawn by EDCARS) | — |
 | `vessel` | `ship`: the vessel's name and type; `cargo`, the hold priced as the Ship window prices it | Ship |
-| `ship` | `ship.modules` by power group; `ship.engineering`, its seven inner tabs as `pages` | Ship |
+| `ship` | `ship.modules` by power group, each engineered module's engineering as a `note` under it | Ship |
+| `engineering` | `engineering.fitting`: the ship chosen on the desktop, each slot fitted and planned, the work left and its materials; `engineering.materials`, its seven inner tabs as `pages` | Engineering |
 | `alerts` | `alerts`: the Alerts pane | Alerts |
 | `commander` | `commander.info`, `.ranks`, `.wallet`, `.ships`, `.stored-modules`, `.carrier`, `.squadron-carrier` | Commander |
 | `crew` | `crew.crew`: the NPC crew and fighter | Crew / SLF |
@@ -551,6 +552,7 @@ Row `kind`:
 | `rule` | a dividing line |
 | `head` | a table's column headings: `label` over the first column, `cells` over the rest, right-aligned |
 | `cells` | a table row: `label`, then `cells` under the headings; `value` joins them, for a client that draws no tables |
+| `note` | a line under the row above, in `label`, set in as far as `indent` — text of that row's label — reaches; a client that draws `indent` unseen in the label's face lines the two up |
 
 A row's optional `tone` colors its value, line or cells: `crit`, `warn`,
 `good`, `accent` or `dim`, as the desktop colors them. `rate` is an optional

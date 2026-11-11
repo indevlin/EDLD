@@ -28,6 +28,7 @@ from tui.blocks.career import CareerBlock
 from tui.blocks.ship_info   import ShipInfoBlock
 from tui.blocks.objectives  import ObjectivesBlock
 from tui.blocks.mining      import MiningBlock
+from tui.blocks.engineering import EngineeringBlock
 from tui.blocks.status      import StatusBlock
 from tui.blocks.navigation import NavigationBlock
 from tui.blocks.commander     import CommanderBlock
@@ -54,18 +55,19 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     "colonisation_update":["block-objectives"],
     "crew_update":        ["block-status"],
     "slf_update":         ["block-status"],
-    "vessel_update":      ["block-commander", "block-ship", "block-nav"],
-    "ship_health_update": ["block-ship"],
+    "vessel_update":      ["block-commander", "block-ship", "block-nav",
+                           "block-engineering"],
+    "ship_health_update": ["block-ship", "block-engineering"],
     "location_update":    ["block-commander", "block-nav"],
     # Missions now render inside the Session window's Missions tab.
     "mission_update":     ["block-objectives"],
     "cargo_update":       ["block-ship", "block-nav"],
     # Assets folded into the Commander window's tabs.
-    "assets_update":      ["block-commander"],
+    "assets_update":      ["block-commander", "block-engineering"],
     "exploration_update": ["block-exploration", "block-career"],
     # Exobiology nests inside the Exploration window.
     "exobiology_update":  ["block-exploration", "block-career"],
-    "materials_update":   ["block-ship"],
+    "materials_update":   ["block-engineering"],
     "alert_update":       ["block-status"],
     # What the alerts component actually sends.
     "alerts_update":      ["block-status"],
@@ -82,9 +84,9 @@ _PLUGIN_TO_BLOCK: dict[str, str] = {
     "crew_slf":      "block-status",
     "alerts":        "block-status",
     "cargo":         "block-ship",
-    "engineering":   "block-ship",
+    "engineering":   "block-engineering",
     "ship_health":   "block-ship",
-    "assets":        "block-commander",
+    "assets":        ("block-commander", "block-engineering"),
     "colonisation":  "block-objectives",
     "surface_mining": "block-mining",
     "ring_hotspots": "block-mining",
@@ -108,6 +110,7 @@ _BLOCK_CLASSES = {
     "objectives":   ObjectivesBlock,
     "mining":       MiningBlock,
     "exploration":  ExplorationBlock,
+    "engineering":  EngineeringBlock,
 }
 
 # Layout-model column → Textual column container id.
@@ -215,7 +218,9 @@ class EdldTui(App):
                 if targets is None:
                     if msg_type == "plugin_refresh" and isinstance(payload, str):
                         bid = _PLUGIN_TO_BLOCK.get(payload)
-                        if bid:
+                        if isinstance(bid, tuple):
+                            dirty.update(bid)
+                        elif bid:
                             dirty.add(bid)
                         else:
                             dirty.update(self._all_block_ids())

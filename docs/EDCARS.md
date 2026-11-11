@@ -75,14 +75,45 @@ strip until you open the Alerts section.
 
 | Section | Key | Holds |
 |---------|-----|-------|
-| Command | `Ctrl+1` | The Commander window (Info, Ranks, Wallet), Crew / SLF, and the Ship window |
-| Helm | `Ctrl+2` | The Helm panel: the game's controls and EDLD's automation, as buttons |
-| Fleet | `Ctrl+3` | Ships, stored modules, the fleet carrier and the squadron carrier |
-| Exploration | `Ctrl+4` | Exploration / Exobiology beside Navigation |
-| Objectives | `Ctrl+5` | Missions and colonization |
+| Alerts | `Ctrl+1` | The alert feed, with its Clear button |
+| Command | `Ctrl+2` | The Commander window (Info, Ranks, Wallet), Crew / SLF, and the Ship window |
+| Helm | `Ctrl+3` | The Helm panel: the game's controls and EDLD's automation, as buttons |
+| Objectives | `Ctrl+4` | Missions and colonization |
+| Exploration | `Ctrl+5` | Exploration / Exobiology beside Navigation |
 | Mining | `Ctrl+6` | Ring Hotspots and Surface Sites, each a filterable table |
-| Career | `Ctrl+7` | Career / Session |
-| Alerts | `Ctrl+8` | The alert feed, with its Clear button |
+| Fleet | `Ctrl+7` | Ships, stored modules, the fleet carrier and the squadron carrier |
+| Engineering | `Ctrl+8` | Fitting — each ship beside the build planned for it, the work left and its materials — and Materials |
+| Career | `Ctrl+9` | Career / Session |
+
+EDCARS opens on Command, though Alerts leads the rail.
+
+### Engineering
+
+**Fitting** shows one ship at a time, chosen from the list at its top: every
+ship you own, then the builds you have planned for hulls you do not own yet,
+then **New (Planned)…**, which asks for the hull and starts one. The slots run
+down the window with what is fitted in one column and the target build in the
+next; a module that differs is in red, engineering still to do in amber.
+**Target…** (**Build…** for a planned build) takes an EDSY or Coriolis link,
+long or short, an EDOMH link, or SLEF JSON exported by EDSY, Coriolis or EDSX;
+a build for another hull is refused. A planned build has **Apply to**, which
+makes it the target of an owned ship of its hull and drops the plan.
+
+Under the slots, **Work left** lists each slot still to change: the module to
+buy, or to take out of storage when you have that module stored, the grades
+still to roll with the rolls they take, and the experimental effect.
+**Materials** totals what that costs against what you hold, and
+**Shopping list…** suggests the trades that cover a shortfall from what the
+build does not need — within a trader's column first, since crossing columns
+costs six times as much — with the nearest material trader of each kind.
+
+A grade takes as many rolls as its number, fifteen from nothing to a full G5;
+a grade rolled only part way takes the rest of its rolls. Blueprint recipes,
+EDSY links and EDOMH ships are read with EDSY's tables, which EDLD downloads
+the first time it needs them and keeps in its data folder.
+
+**Materials** is the materials you hold, by kind, as it was on the Ship
+window: they travel with every ship rather than the one you are in.
 
 Under the sections, the last pill on the rail is **Settings**, as on EDAM. It
 is not a section: it opens Options (`Ctrl+O`, or **File → Options…**) over
@@ -163,7 +194,7 @@ Opening the section, or clearing the alerts, settles the pill.
 ## Consoles
 
 EDCARS can be drawn as four consoles. The layout is the same in all of them —
-the band and the strip of facts, the rail of eight sections, the same windows
+the band and the strip of facts, the rail of nine sections, the same windows
 framed in the same places, the radio along the foot, the same shortcuts and
 the same alerts. What differs is how the band, the pills and the frames are
 drawn, and the faces the chrome is set in. **Options → Appearance →
@@ -246,7 +277,7 @@ In landscape, and on tablets, EDAM draws EDCARS as the desktop window does —
 the same elbow, band, cap, strip and rail, to the same measurements, and
 each section's windows framed in the same columns at the same widths, tabbed
 where the desktop's are, with the same tabs in the same order — the
-Navigation forms after Route, the Engineering locker's own tabs, tables in
+Navigation forms after Route, the Materials tab's own tabs, tables in
 columns, values in the desktop's colors, and the buttons along a window's
 foot — with two differences: the radio strip along the
 desktop window's foot is not there (the ad banner is), and the band carries
