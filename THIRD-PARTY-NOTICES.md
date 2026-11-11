@@ -194,7 +194,9 @@ tables the Engineering window uses are taken out of the JavaScript source and
 stored as SQLite, and nothing is added to them. It is shipped in the
 repository and in every binary under that license, not EDLD's, and its `meta`
 table records where it came from and the version it was made from. The
-journal's own record of each roll at an engineer is checked against it.
+journal's own record of each roll at an engineer is checked against it. It is
+provided as is, without warranties of any kind, as section 5 of that license
+sets out.
 
 ## Elite Dangerous
 

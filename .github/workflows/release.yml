@@ -131,7 +131,8 @@ jobs:
           for path in packaging/edld.spec packaging/build_common.py \
                       packaging/icons licenses THIRD-PARTY-NOTICES.md \
                       requirements.txt requirements-dev.txt \
-                      gui components core tui edld.py version; do
+                      gui components core tui edld.py version \
+                      data/eddb.sqlite; do
             if [ ! -e "$path" ]; then
               echo "::error::Missing from the repository: $path"
               MISSING=1
