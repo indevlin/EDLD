@@ -27,6 +27,10 @@ GUARDIAN_BOOSTER_LY = {1: 4.00, 2: 6.00, 3: 7.75, 4: 9.25, 5: 10.50}
 SUPERCHARGE_STANDARD = 4
 SUPERCHARGE_MK2 = 6
 
+#: A white dwarf's supercharge: ×1.5, ×3 for the SCO drive Mk II (+200%).
+WHITE_DWARF_STANDARD = 1.5
+WHITE_DWARF_MK2 = 3.0
+
 #: How far the table's figures may miss the Loadout's own MaxJumpRange before
 #: the optimal mass is worked out from the range instead. The game's figure
 #: is the authority; a table can be stale or wrong.
@@ -50,6 +54,7 @@ class Drive:
     max_jump_range: float    # the Loadout's own figure
     supercharge: int
     source: str
+    white_dwarf: float = WHITE_DWARF_STANDARD
 
     def as_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -126,9 +131,22 @@ def from_loadout(event: dict) -> Drive | None:
     if abs(predicted + boost - r0) / r0 > RANGE_TOLERANCE and r0 > boost:
         opt = opt * (r0 - boost) / predicted
         source = "range"
-    supercharge = SUPERCHARGE_MK2 if "overchargebooster_mkii" in item else SUPERCHARGE_STANDARD
+    mk2 = "overchargebooster_mkii" in item
+    supercharge = SUPERCHARGE_MK2 if mk2 else SUPERCHARGE_STANDARD
+    white_dwarf = WHITE_DWARF_MK2 if mk2 else WHITE_DWARF_STANDARD
     return Drive(item, round(opt, 4), max_fuel, mul, power, boost, unladen,
-                 tank, reserve, r0, supercharge, source)
+                 tank, reserve, r0, supercharge, source, white_dwarf)
+
+
+def star_boost(drive: Drive | None, star_class: str) -> float:
+    """The range multiplier a jump leaving a ``star_class`` star can have:
+    the drive's neutron or white dwarf supercharge, 1 for any other star."""
+    sc = str(star_class or "").strip()
+    if sc == "N":
+        return float(drive.supercharge if drive else SUPERCHARGE_STANDARD)
+    if sc.startswith("D"):
+        return float(drive.white_dwarf if drive else WHITE_DWARF_STANDARD)
+    return 1.0
 
 
 def jump_range(drive: Drive, fuel: float, cargo: float = 0.0) -> float:
@@ -144,11 +162,15 @@ def jump_range(drive: Drive, fuel: float, cargo: float = 0.0) -> float:
                       drive.fuel_power, mass) + drive.booster
 
 
-def jump_fuel(drive: Drive, distance: float, fuel: float, cargo: float = 0.0) -> float | None:
+def jump_fuel(drive: Drive, distance: float, fuel: float, cargo: float = 0.0,
+              boost: float = 1.0) -> float | None:
     """Fuel a ``distance`` ly jump burns from ``fuel`` tons in the tank, or
-    None when it is out of reach."""
-    if distance > jump_range(drive, fuel, cargo) + 1e-9:
+    None when it is out of reach. A supercharged jump reaches ``boost`` times
+    as far and burns what a jump of ``distance / boost`` would."""
+    boost = max(float(boost or 1.0), 1.0)
+    if distance > jump_range(drive, fuel, cargo) * boost + 1e-9:
         return None
+    distance /= boost
     mass = drive.unladen + fuel + cargo
     d = max(distance - drive.booster, 0.0)
     return drive.fuel_multiplier * (d * mass / drive.optimal_mass) ** drive.fuel_power

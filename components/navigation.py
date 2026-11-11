@@ -151,7 +151,7 @@ class NavigationPlugin(SettingsSpecMixin, BasePlugin):
     SUBSCRIBED_EVENTS = [
         "FSDJump", "CarrierJump", "Location",
         "StartJump", "NavRoute", "NavRouteClear",
-        "FSDTarget", "Loadout",
+        "FSDTarget", "Loadout", "JetConeBoost",
     ]
 
     SETTINGS_SECTION = "Navigation"
@@ -564,6 +564,16 @@ class NavigationPlugin(SettingsSpecMixin, BasePlugin):
 
     def on_event(self, event: dict, state) -> None:
         ev = event.get("event")
+
+        if ev == "JetConeBoost":
+            try:
+                state.nav_jet_boost = float(event.get("BoostValue") or 0.0)
+            except (TypeError, ValueError):
+                state.nav_jet_boost = 0.0
+            self._notify()
+            return
+        if ev == "FSDJump":
+            state.nav_jet_boost = 0.0          # the jump spends the supercharge
 
         if ev == "StartJump":
             # Only a hyperspace jump commits us to a destination; a

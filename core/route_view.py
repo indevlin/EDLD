@@ -166,6 +166,10 @@ def route_view(core, ahead_max: int = 40) -> dict[str, Any] | None:
 
     rng = view["range_now"]
     prev = route[idx].get("StarPos") if idx is not None else getattr(s, "pilot_star_pos", None)
+    # Off the route, the first leg leaves wherever the commander is.
+    from core import route_fuel
+    origins = [route[idx]] + route[start:-1] if idx is not None else [None] + route[:-1]
+    mult = route_fuel.boosts(s, origins)
     jumps_left, dist_left, legs = 0, 0.0, []
     for n, entry in enumerate(route[start:], start=1):
         extra = entry.get("EDLD") or {}
@@ -184,6 +188,9 @@ def route_view(core, ahead_max: int = 40) -> dict[str, Any] | None:
         if leg is not None:
             dist_left += leg
         if n <= ahead_max:
+            boost = mult[n - 1] if n - 1 < len(mult) else 1.0
+            needs_boost = bool(rng and leg and leg_jumps == 1 and leg > rng + 0.005
+                               and boost > 1.0)
             sc = str(entry.get("StarClass") or "")
             todo_line = ""
             if extra.get("bodies") or extra.get("trade"):
@@ -202,8 +209,10 @@ def route_view(core, ahead_max: int = 40) -> dict[str, Any] | None:
                 "leg_ly": leg,
                 "jumps": leg_jumps,
                 # Only a one-jump leg can be too long: a neutron waypoint is
-                # reached in as many jumps as it takes.
-                "too_far": bool(rng and leg and leg_jumps == 1 and leg > rng + 0.005),
+                # reached in as many jumps as it takes. A leg from a neutron
+                # star or white dwarf has the supercharge's range.
+                "boost": boost if needs_boost else 1.0,
+                "too_far": bool(rng and leg and leg_jumps == 1 and leg > rng * boost + 0.005),
             })
     view["jumps_left"] = jumps_left
     view["distance_left"] = dist_left if dist_left > 0 else None
@@ -239,9 +248,16 @@ def leg_text(leg: dict) -> str:
         parts.append(f"{leg['jumps']} jumps")
     if leg.get("too_far"):
         parts.append("beyond range")
+    elif leg.get("boost", 1.0) > 1.0:
+        parts.append(f"{fmt_boost(leg['boost'])} boost")
     if leg.get("todo"):
         parts.append(leg["todo"])
     return " · ".join(parts)
+
+
+def fmt_boost(b: float) -> str:
+    """×3, ×1.5."""
+    return f"×{b:g}"
 
 
 def fmt_duration_s(sec: float | None) -> str:
@@ -320,7 +336,12 @@ def route_rows(view: dict | None) -> list[tuple]:
             parts.append(f"[{tag}]{leg['star_class']}[/{tag}]")
         if leg["leg_ly"] is not None:
             ly = f"{leg['leg_ly']:.1f} ly"
-            parts.append(f"[red]{ly} — beyond range[/red]" if leg["too_far"] else ly)
+            if leg["too_far"]:
+                parts.append(f"[red]{ly} — beyond range[/red]")
+            elif leg.get("boost", 1.0) > 1.0:
+                parts.append(f"{ly} · [cyan]{fmt_boost(leg['boost'])} boost[/cyan]")
+            else:
+                parts.append(ly)
         if leg["jumps"] > 1:
             parts.append(f"{leg['jumps']} jumps")
         fa = leg.get("fuel_after")

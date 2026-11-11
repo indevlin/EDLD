@@ -47,6 +47,26 @@ the first letters of NOTIFICATIONS and SESSION MGMT. The column was a fixed
 space their letters wider, and the names needed 163 and 169. The column now
 widens to its widest page name, and the buttons under the pages move with it.
 
+### Fixed: a leg from a white dwarf was called beyond range
+
+A route through a white dwarf showed the jump after it in red as beyond range,
+said the tank ran dry there, and counted a dry stretch longer than a full
+tank, though the game had plotted it and the ship could fly it. The Route tab
+measured every one-jump leg against the plain jump range and knew nothing of
+a white dwarf's supercharge: ×1.5, or ×3 on the Caspian Explorer's SCO drive
+Mk II. A neutron star fared no better on the game's own routes, since only
+EDLD's Spansh plots, whose neutron legs are several jumps each, were spared
+the check. The fuel figures went the same way: a leg out of reach burns
+nothing it can name, so the tank was said to run dry at the end of it. Nothing
+in the journal contradicted the warning until the jump was made, so it read as
+a cautious estimate rather than a wrong one. A leg leaving a neutron star or
+white dwarf is now measured against the drive's supercharge, ×4 or ×6 for a
+neutron star, and burns the fuel of a jump that much shorter; a supercharge
+already taken, from the game's JetConeBoost, carries the next leg wherever it
+starts, and the jump spends it. Such a leg shows its boost — "228.7 ly · ×3
+boost" — in the desktop window, the terminal dashboard and EDCARS, and reaches
+EDAM unchanged.
+
 ---
 
 ## Released in 20261110

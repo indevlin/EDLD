@@ -39,6 +39,19 @@ def _legs(route: list) -> list[float | None]:
     return out
 
 
+def boosts(state, origins: list) -> list[float]:
+    """Each leg's range multiplier, from the star it leaves: the drive's
+    supercharge at a neutron star or white dwarf, 1 elsewhere or where the
+    star is not known (None). A boost already taken stands for the first."""
+    from core import fsd
+    drive = getattr(state, "ship_drive", None)
+    out = [fsd.star_boost(drive, str((o or {}).get("StarClass") or "")) for o in origins]
+    taken = float(getattr(state, "nav_jet_boost", 0.0) or 0.0)
+    if out and taken > 1.0:
+        out[0] = taken
+    return out
+
+
 def analyse(state, route: list, start: int = 0) -> dict[str, Any] | None:
     """Fuel along ``route`` from entry ``start`` (where the commander is).
     None without a drive model or for a route of waypoints several jumps
@@ -55,6 +68,7 @@ def analyse(state, route: list, start: int = 0) -> dict[str, Any] | None:
     if fuel is None:
         fuel = drive.tank
     legs = _legs(route)[start:]
+    mult = boosts(state, route[start:-1])
     out: dict[str, Any] = {"fuel_after": [], "dry": [], "runs_out_at": "", "runs_out_after": 0}
 
     # Never scooping, from the fuel aboard now.
@@ -63,7 +77,7 @@ def analyse(state, route: list, start: int = 0) -> dict[str, Any] | None:
         if d is None:
             out["fuel_after"].append(None)
             continue
-        burn = fsd.jump_fuel(drive, d, f, cargo)
+        burn = fsd.jump_fuel(drive, d, f, cargo, mult[i - 1])
         if burn is None:
             out["runs_out_at"] = route[start + i].get("StarSystem") or ""
             out["runs_out_after"] = i
@@ -72,12 +86,12 @@ def analyse(state, route: list, start: int = 0) -> dict[str, Any] | None:
         out["fuel_after"].append(f)
 
     # Dry stretches, from a full tank at the last scoopable star.
-    run: list[float] = []
+    run: list[tuple[float, float]] = []
     after = route[start].get("StarSystem") or ""
     for i, d in enumerate(legs, start=1):
         entry = route[start + i]
         if d is not None:
-            run.append(d)
+            run.append((d, mult[i - 1]))
         if _scoopable(entry) or i == len(legs):
             if len(run) >= DRY_MENTION or _too_long(drive, run, cargo):
                 out["dry"].append({"after": after, "jumps": len(run),
@@ -89,11 +103,11 @@ def analyse(state, route: list, start: int = 0) -> dict[str, Any] | None:
     return out
 
 
-def _too_long(drive, run: list[float], cargo: float) -> bool:
+def _too_long(drive, run: list[tuple[float, float]], cargo: float) -> bool:
     from core import fsd
     f = drive.tank
-    for d in run:
-        burn = fsd.jump_fuel(drive, d, f, cargo)
+    for d, boost in run:
+        burn = fsd.jump_fuel(drive, d, f, cargo, boost)
         if burn is None:
             return True
         f -= burn

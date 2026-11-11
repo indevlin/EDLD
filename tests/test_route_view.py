@@ -170,3 +170,93 @@ def test_both_front_ends_have_the_route_tab_first():
     assert tui.index('TabPane("Route"') < tui.index("for tab in self._tool_tabs.values()")
     plots = (ROOT / "core/plot_tools.py").read_text(encoding="utf-8")
     assert "RV.plot_summary(result, neutron)" in plots
+
+
+# ── Supercharged legs ─────────────────────────────────────────────────────────
+
+PICTOR_NOW = dict(PICTOR_LOADOUT, MaxJumpRange=81.455025, UnladenMass=1198.5)
+
+# The game's own route (NavRoute.json, 2026-11-11): from Sorbago through the
+# white dwarf BPM 890, whose ×3 boost carries the 228.7 ly leg after it.
+SORBAGO_ROUTE = [
+    {"StarSystem": "Sorbago", "StarPos": [60.96875, -72.09375, 37.40625], "StarClass": "K"},
+    {"StarSystem": "BPM 890", "StarPos": [58.31250, -34.68750, 41.50000], "StarClass": "DA"},
+    {"StarSystem": "Synuefe YA-M c24-20", "StarPos": [283.31250, -50.59375, 3.62500],
+     "StarClass": "M"},
+    {"StarSystem": "Synuefe FI-W b49-2", "StarPos": [358.93750, -55.84375, -2.40625],
+     "StarClass": "M"},
+    {"StarSystem": "Synuefe EW-L c24-17", "StarPos": [431.00000, -68.15625, -22.93750],
+     "StarClass": "G"},
+]
+
+
+def _core_now(route, here, fuel=88.0):
+    from core import fsd
+    core = _core_with_route(route, here, fuel)
+    core.state.ship_drive = fsd.from_loadout(PICTOR_NOW)
+    return core
+
+
+def test_the_mk2_drive_boosts_white_dwarfs_x3_and_neutrons_x6():
+    from core import fsd
+    mk2, std = fsd.from_loadout(PICTOR_NOW), fsd.from_loadout(dict(
+        PICTOR_NOW, Modules=[{"Slot": "FrameShiftDrive",
+                              "Item": "int_hyperdrive_size8_class5"}]))
+    assert (fsd.star_boost(mk2, "DA"), fsd.star_boost(mk2, "N")) == (3.0, 6.0)
+    assert (fsd.star_boost(std, "DAB"), fsd.star_boost(std, "N")) == (1.5, 4.0)
+    assert fsd.star_boost(mk2, "K") == fsd.star_boost(mk2, "") == 1.0
+    # A boosted jump burns what a jump of a third the length would.
+    assert fsd.jump_fuel(mk2, 228.7, 88) is None
+    assert abs(fsd.jump_fuel(mk2, 228.7, 88, boost=3.0)
+               - fsd.jump_fuel(mk2, 228.7 / 3, 88)) < 1e-12
+    assert fsd.jump_fuel(mk2, 240.0, 88, boost=3.0) is None
+
+
+def test_a_leg_from_a_white_dwarf_is_in_range():
+    v = RV.route_view(_core_now(SORBAGO_ROUTE, "Sorbago"))
+    assert round(v["range_now"], 2) == 76.31
+    by = {leg["system"]: leg for leg in v["ahead"]}
+    ya = by["Synuefe YA-M c24-20"]
+    assert round(ya["leg_ly"], 1) == 228.7 and not ya["too_far"] and ya["boost"] == 3.0
+    assert by["BPM 890"]["boost"] == 1.0 and by["Synuefe FI-W b49-2"]["boost"] == 1.0
+    # Fuel: no false dry tank, no false dry stretch.
+    f = v["fuel"]
+    assert f["runs_out_at"] == "" and f["dry"] == []
+    assert RV.fuel_lines(v) == []
+    rows = RV.route_rows(v)
+    assert any(r[1] == "2. Synuefe YA-M c24-20" and "×3 boost" in r[2]
+               and "beyond range" not in r[2] for r in rows if r[0] == "kv")
+    assert "×3 boost" in RV.leg_text(ya)
+
+
+def test_a_long_leg_from_an_ordinary_star_is_still_beyond_range():
+    r = [dict(e) for e in SORBAGO_ROUTE]
+    r[1]["StarClass"] = "M"
+    v = RV.route_view(_core_now(r, "Sorbago"))
+    ya = next(leg for leg in v["ahead"] if leg["system"] == "Synuefe YA-M c24-20")
+    assert ya["too_far"] and ya["boost"] == 1.0
+    assert v["fuel"]["runs_out_at"] == "Synuefe YA-M c24-20"
+
+
+def test_a_boost_taken_counts_and_the_jump_spends_it():
+    from components.navigation import NavigationPlugin
+    core = _core_now(SORBAGO_ROUTE, "BPM 890")
+    nav = core._plugins["navigation"]
+    s = core.state
+    s.in_preload = True
+    NavigationPlugin.on_event(nav, {"event": "JetConeBoost", "BoostValue": 3.0}, s)
+    assert s.nav_jet_boost == 3.0
+    v = RV.route_view(core)
+    assert v["ahead"][0]["boost"] == 3.0 and not v["ahead"][0]["too_far"]
+    # Off the route, only the boost taken can carry the first leg.
+    nav._edld_route = {"timestamp": "2026-10-24T05:00:00Z", "Route": SORBAGO_ROUTE[2:]}
+    s.pilot_system = "BPM 890 (off the route)"
+    s.pilot_star_pos = [58.3125, -34.6875, 41.5]
+    first = RV.route_view(core)["ahead"][0]
+    assert not first["too_far"] and first["boost"] == 3.0
+    s.nav_jet_boost = 0.0
+    assert RV.route_view(core)["ahead"][0]["too_far"]
+    s.nav_jet_boost = 3.0
+    NavigationPlugin.on_event(nav, {"event": "FSDJump", "StarSystem": "X",
+                                    "StarPos": [0, 0, 0]}, s)
+    assert s.nav_jet_boost == 0.0

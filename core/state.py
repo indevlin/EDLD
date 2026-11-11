@@ -481,6 +481,7 @@ class MonitorState:
 
         # Navigation
         self.nav_route:              list = []
+        self.nav_jet_boost:          float = 0.0   # supercharge held, ×; 0 when none
 
         # Pilot extended
         self.pilot_minor_reputation: dict | None = None
