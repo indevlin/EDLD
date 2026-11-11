@@ -175,7 +175,8 @@ class Need:
 
 
 def materials(steps: list[Step], db) -> tuple[dict[str, Need], list[str]]:
-    """{material: Need} for every step, and what could not be priced."""
+    """{material: Need} for every step, and what could not be priced. A
+    recipe the journal has shown is used over the table's."""
     out: dict[str, Need] = {}
     unknown: list[str] = []
 
@@ -190,23 +191,22 @@ def materials(steps: list[Step], db) -> tuple[dict[str, Need], list[str]]:
             n = out[k] = Need(k, mat.name, mat.kind, mat.grade, mat.group)
         n.need += int(round(count))
 
+    from core.eddb import effect_recipe, recipe
     for st in steps:
-        if st.blueprint and st.grades:
-            bp = db.blueprint(st.blueprint, st.item)
-            if bp is None:
-                unknown.append(st.blueprint)
-            else:
-                for g, rolls in st.grades:
-                    recipe = bp.mats[g - 1] if 0 < g <= len(bp.mats) else {}
-                    for mk, cnt in recipe.items():
-                        add(mk, cnt * rolls)
+        for g, rolls in st.grades if st.blueprint else ():
+            mats = recipe(db, st.blueprint, g, st.item)
+            if mats is None:
+                unknown.append(f"{st.blueprint} G{g}")
+                continue
+            for mk, cnt in mats.items():
+                add(mk, cnt * rolls)
         if st.effect:
-            fx = db.effect(st.effect)
-            if fx is None:
+            mats = effect_recipe(db, st.effect)
+            if mats is None:
                 unknown.append(st.effect)
-            else:
-                for mk, cnt in fx.mats.items():
-                    add(mk, cnt)
+                continue
+            for mk, cnt in mats.items():
+                add(mk, cnt)
     return out, sorted(set(unknown))
 
 

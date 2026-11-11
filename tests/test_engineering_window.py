@@ -94,31 +94,53 @@ RAW = {
 
 
 @pytest.fixture
-def db():
+def db(monkeypatch):
+    monkeypatch.setattr(eddb, "OBSERVED", {})
     d = eddb.Eddb(RAW)
     eddb.use(d)
     yield d
     eddb.use(None)
 
 
-# ── eddb.js ───────────────────────────────────────────────────────────────────
+# ── tables ──────────────────────────────────────────────────────────────────────
 
-def test_the_eddb_reader_takes_comments_trailing_commas_and_arithmetic():
-    text = """/* header */ 'use strict';
-var eddb = {
-	version : 42,
-	module : {
-		100 : { fdname:'Int_X', rof: 1/0, mass: 2*3, name:'A \\'quoted\\' name' }, // note
-	//	101 : { fdname:'Gone' },
-	},
-	list : [1, -2.5, 'x',],
-};"""
-    raw = eddb.parse_eddb(text)
-    assert raw["version"] == 42
-    m = raw["module"]["100"]
-    assert m["rof"] == float("inf") and m["mass"] == 6 and m["name"] == "A 'quoted' name"
-    assert "101" not in raw["module"]
-    assert raw["list"] == [1, -2.5, "x"]
+def test_the_shipped_tables_load_and_hold_what_the_window_needs():
+    eddb.use(None)
+    try:
+        db = eddb.load()
+        assert db is not None, eddb.last_error()
+        assert db.ship("lakonminer").name == "Type-11 Prospector"
+        assert db.module("int_hyperdrive_overcharge_size5_class5").mtype
+        bp = db.blueprint("FSD_LongRange")
+        assert bp.maxgrade == 5 and all(bp.mats)
+        assert db.material("vanadium").kind == "raw"
+        assert db.ships[38].modules            # hull-only bulkheads, per hull
+    finally:
+        eddb.use(None)
+
+
+def test_a_recipe_the_journal_shows_wins_and_a_disagreement_is_logged(db, monkeypatch):
+    logged = []
+    monkeypatch.setattr("core.debug.log", lambda msg, **k: logged.append(msg))
+    monkeypatch.setattr(eddb, "OBSERVED", {})
+    monkeypatch.setattr(eddb, "_reported", set())
+    assert eddb.recipe(db, "PowerPlant_Boosted", 2) == {"heatconductionwiring": 1,
+                                                         "conductivecomponents": 1}
+    craft = {"event": "EngineerCraft", "BlueprintName": "PowerPlant_Boosted", "Level": 2,
+             "Module": "int_powerplant_size4_class5",
+             "Ingredients": [{"Name": "HeatConductionWiring", "Count": 1},
+                             {"Name": "sulphur", "Count": 2}]}
+    eddb.observe_craft(craft, db)
+    eddb.observe_craft(craft, db)
+    assert eddb.recipe(db, "PowerPlant_Boosted", 2) == {"heatconductionwiring": 1, "sulphur": 2}
+    assert len(logged) == 1 and "PowerPlant_Boosted".lower() in logged[0]
+    eddb.observe_craft({"event": "EngineerCraft", "ApplyExperimentalEffect":
+                        "special_powerplant_highcharge", "BlueprintName": "PowerPlant_Boosted",
+                        "Level": 2, "Ingredients": [{"Name": "sulphur", "Count": 5},
+                                                    {"Name": "cadmium", "Count": 3}]}, db)
+    assert len(logged) == 1                 # agrees with the table
+    assert eddb.effect_recipe(db, "special_powerplant_highcharge") == {"sulphur": 5,
+                                                                      "cadmium": 3}
 
 
 def test_hull_modules_are_kept_per_hull(db):
@@ -238,7 +260,7 @@ def test_an_edsy_link_reads_slots_engineering_and_name(db):
 def test_an_old_edsy_link_is_refused_and_tables_are_needed(db):
     with pytest.raises(builds.BuildError, match="old version"):
         builds.parse("https://edsy.org/#/L=A123", db=db)
-    with pytest.raises(builds.BuildError, match="reference data"):
+    with pytest.raises(builds.BuildError, match="engineering tables"):
         builds.parse("https://edsy.org/#/L=K0", db=None)
 
 
@@ -608,3 +630,37 @@ def test_note_rows_reach_both_front_ends():
     rows = [R.kv("1  8A Thing", "100%"), R.note("G5 Something", "1  8A ")]
     from core.windows import iter_render
     assert [k for k, _r, _w in iter_render(rows)] == ["kv", "note"]
+
+
+def _journal(path, events):
+    path.write_text("".join(json.dumps(e) + "\n" for e in events), encoding="utf-8")
+
+
+def test_traders_come_from_the_journals_first_and_spansh_fills_the_rest(tmp_path):
+    from core import eng_trade
+    mt = ["dock", "materialtrader"]
+    _journal(tmp_path / "Journal.2026-10-01T100000.01.log", [
+        {"timestamp": "2026-10-01T10:00:00Z", "event": "FSDJump", "StarSystem": "Bolg", "StarPos": [10, 0, 0]},
+        {"timestamp": "2026-10-01T10:01:00Z", "event": "Docked", "StarSystem": "Bolg", "StationName": "Moxon's Mojo",
+         "MarketID": 1, "DistFromStarLS": 50, "StationServices": mt},
+        {"timestamp": "2026-10-01T10:02:00Z", "event": "MaterialTrade", "MarketID": 1, "TraderType": "Raw"},
+        {"timestamp": "2026-10-01T10:03:00Z", "event": "FSDJump", "StarSystem": "Far", "StarPos": [90, 0, 0]},
+        {"timestamp": "2026-10-01T10:04:00Z", "event": "Docked", "StarSystem": "Far", "StationName": "Untraded",
+         "MarketID": 2, "StationServices": mt},
+    ])
+    found = {t["market_id"]: t for t in eng_trade.journal_traders(tmp_path)}
+    assert found[1]["kind"] == "raw" and found[1]["pos"] == [10, 0, 0]
+    assert found[2]["kind"] == ""
+
+    class Spansh:
+        def stations_near(self, here, service, size):
+            return [{"market_id": 1, "material_trader": "Raw", "system_name": "Bolg", "name": "Moxon's Mojo", "distance": 10},
+                    {"market_id": 3, "material_trader": "Encoded", "system_name": "Enc", "name": "E", "distance": 20},
+                    {"market_id": 4, "economy": "High Tech", "system_name": "Guess", "name": "G", "distance": 5}]
+
+    core = SimpleNamespace(journal_dir=tmp_path, _plugins={"spansh": Spansh()},
+                           state=SimpleNamespace(pilot_star_pos=[0, 0, 0]))
+    got = eng_trade.nearest_traders(core, ["raw", "enc", "mfc"])
+    assert [(t["station"], t["seen"]) for t in got["raw"]] == [("Moxon's Mojo", True)]
+    assert [t["station"] for t in got["enc"]] == ["E"]
+    assert got["mfc"] == []

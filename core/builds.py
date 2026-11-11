@@ -14,8 +14,8 @@ Every one becomes the same thing, a build:
                                   "ExperimentalEffect"}}]}
 
 Short links are followed with ``fetch(url)``, which returns the address the
-link redirects to. EDSY hashes and EDOMH ships need EDSY's tables
-(core/eddb.py); SLEF and Loadout JSON need nothing.
+link redirects to. EDSY hashes and EDOMH ships need the tables in
+core/eddb.py; SLEF and Loadout JSON need nothing.
 """
 from __future__ import annotations
 
@@ -253,8 +253,7 @@ def _edsy_maps(version: int) -> dict:
 
 def _need_db(db, what: str):
     if db is None:
-        raise BuildError(f"{what} needs EDSY's reference data, which has not been "
-                         "downloaded yet. Try again in a moment.")
+        raise BuildError(f"{what} needs the engineering tables, which could not be read.")
     return db
 
 
@@ -278,8 +277,8 @@ def from_edsy_hash(buildhash: str, db, warnings: list[str]) -> dict:
     shipid = _dec(ship_chunk[i:i + 1]); i += 1
     ship = db.ships.get(shipid)
     if ship is None:
-        raise BuildError(f"EDSY ship #{shipid} is not in EDSY's tables. Try again "
-                         "after the tables refresh.")
+        raise BuildError(f"EDSY ship #{shipid} is not in EDLD's tables; an EDLD "
+                         "release newer than the hull will know it.")
     i += 1                                        # discounts
     costbits = _dec(ship_chunk[i:i + 1]); i += 1
     i += ((costbits >> 4) & 0x3) + 2              # hull cost

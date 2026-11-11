@@ -86,6 +86,8 @@ class EngineeringPlugin(BasePlugin):
 
         # Ship materials as the journals before this one left them.
         self._bootstrap_materials()
+        # Recipes every craft in the journals shows.
+        self._learn_recipes()
         # Bootstrap Backpack.json for immediate Odyssey backpack display
         _bootstrap_backpack(s, core.journal_dir)
         # Read ShipLocker.json for immediate locker display on startup
@@ -126,6 +128,18 @@ class EngineeringPlugin(BasePlugin):
         except Exception as exc:
             from core import debug as _dbg
             _dbg.log(f"  [engineering] materials not read from the journals: "
+                     f"{type(exc).__name__}: {exc}")
+
+    def _learn_recipes(self) -> None:
+        try:
+            from core import eddb
+            from core.journal_index import index_for
+            db = eddb.load()
+            for _f, ev in index_for(Path(self.core.journal_dir)).events(("EngineerCraft",)):
+                eddb.observe_craft(ev, db)
+        except Exception as exc:
+            from core import debug as _dbg
+            _dbg.log(f"  [engineering] recipes not read from the journals: "
                      f"{type(exc).__name__}: {exc}")
 
     def _startup_refresh(self) -> None:
@@ -212,6 +226,9 @@ class EngineeringPlugin(BasePlugin):
                 if gq: gq.put(("plugin_refresh", "engineering"))
 
             case "EngineerCraft" | "TechnologyBroker" | "Synthesis":
+                if ev == "EngineerCraft":
+                    from core import eddb
+                    eddb.observe_craft(event)
                 key_ingr = "Ingredients" if ev != "Synthesis" else "Materials"
                 for item in event.get(key_ingr, []):
                     cat    = item.get("Category", "").lower()
@@ -333,13 +350,6 @@ class EngineeringPlugin(BasePlugin):
         network; raises BuildError. ``ship_type`` refuses another hull."""
         from core import builds, eddb
         db = eddb.load()
-        if db is None and eddb.fetching():
-            import time
-            for _ in range(60):
-                time.sleep(0.5)
-                db = eddb.load(fetch=False)
-                if db is not None or not eddb.fetching():
-                    break
         build, warnings = builds.parse(text, fetch=builds.redirect_target, db=db)
         want = (ship_type or "").lower()
         if want and build.get("ship") and build["ship"] != want:
@@ -388,7 +398,7 @@ def _adjust(state, category: str, key: str, delta: int, local: str | None = None
 def _bucket_from_tables(state, key: str):
     try:
         from core import eddb
-        db = eddb.load(fetch=False)
+        db = eddb.load()
         mat = db.material(key) if db is not None else None
     except Exception:
         mat = None

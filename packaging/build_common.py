@@ -43,6 +43,8 @@ DATA_FILES = [
     # Callout cues (core/sounds.py), made with earcongen; see
     # THIRD-PARTY-NOTICES.md.
     (str(ROOT / "sounds"), "sounds"),
+    # Ship, module, blueprint and material tables (core/eddb.py).
+    (str(ROOT / "data" / "eddb.sqlite"), "data"),
     (str(ROOT / "docs"), "docs"),
     (str(ROOT / "README.md"), "."),
     (str(ROOT / "CHANGELOG.md"), "."),
@@ -299,8 +301,6 @@ HIDDEN_IMPORTS = (
         "gui.theme",
         "tui.app",
         "tui.theme",
-        # Optional at runtime; present when the user installed them.
-        "discord_webhook",
         # psutil is imported inside a try/except so a source install without it
         # still runs. That makes it look optional to PyInstaller's static
         # analysis, which may then leave it out of the bundle even when it is

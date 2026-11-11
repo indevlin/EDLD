@@ -69,13 +69,13 @@ def materials(core) -> Tab:
 # ── Ships ────────────────────────────────────────────────────────────────────
 
 def _ship_type_name(ship_type: str) -> str:
-    """A hull's name: EDSY's, once its tables are here, else EDLD's own."""
+    """A hull's name, from the tables, else EDLD's own."""
     return hull_name(ship_type)
 
 
 def hull_name(ship_type: str) -> str:
     from core import eddb
-    db = eddb.load(fetch=False)
+    db = eddb.load()
     hull = db.ship(ship_type) if db is not None else None
     if hull is not None:
         return hull.name
@@ -120,10 +120,9 @@ def choices(core) -> list[tuple[str, str]]:
 
 
 def ship_types(core) -> list[tuple[str, str]]:
-    """(journal id, name) for every hull a plan can be for: EDSY's list once
-    downloaded, EDLD's own names until then."""
+    """(journal id, name) for every hull a plan can be for."""
     from core import eddb
-    db = eddb.load(fetch=False)
+    db = eddb.load()
     if db is not None and db.ships:
         return db.ship_types()
     from data.ships import SHIP_NAME_MAP
@@ -376,14 +375,10 @@ def fitting(core, key: Optional[str] = None) -> FittingView:
         view.status = "No Loadout seen for this ship yet: board it once to read its fitting."
     stored = list(getattr(core.state, "assets_stored_modules", None) or [])
     steps = P.delta(fitted(current), {"modules": fitted(target.get("modules"))}, stored)
-    db = eddb.load(on_fetched=lambda: _refresh(core))
+    db = eddb.load()
     view.work = work_rows(steps, db)
     if db is None:
-        why = eddb.last_error()
-        if why and not eddb.fetching():
-            view.status = f"EDSY's tables could not be downloaded ({why}); materials need them."
-        else:
-            view.status = "Downloading EDSY's tables; materials follow when they land."
+        view.status = f"The engineering tables could not be read ({eddb.last_error()})."
         return view
     needs, unknown = P.materials(steps, db)
     rows = P.shortfall(needs, P.holdings(core.state))
@@ -392,12 +387,6 @@ def fitting(core, key: Optional[str] = None) -> FittingView:
     if unknown:
         view.status = "Not priced: " + ", ".join(unknown)
     return view
-
-
-def _refresh(core) -> None:
-    gq = getattr(core, "gui_queue", None)
-    if gq is not None:
-        gq.put(("plugin_refresh", "engineering"))
 
 
 def work_rows(steps, db) -> list:
@@ -454,9 +443,9 @@ def shopping(core, key: Optional[str] = None, traders: Optional[dict] = None) ->
     key = _resolve_key(core, key)
     eng = _plugin(core, "engineering")
     target = eng.target(key) if eng is not None and key else None
-    db = eddb.load(fetch=False)
+    db = eddb.load()
     if not target or db is None:
-        return [R.text("Nothing to plan: no target build, or EDSY's tables not yet here.", "dim")]
+        return [R.text("Nothing to plan: no target build.", "dim")]
     kind, _, ident = key.partition(":")
     current = current_fit(core, ident) if kind == "ship" else []
     steps = P.delta(fitted(current), {"modules": fitted(target.get("modules"))},
@@ -481,10 +470,11 @@ def shopping(core, key: Optional[str] = None, traders: Optional[dict] = None) ->
         for st in (traders or {}).get(k, []) or []:
             ly = st.get("ly")
             where = f"{st.get('station')}, {st.get('system')}"
-            rows.append(R.note(f"{where}" + (f"  ·  {float(ly):,.1f} ly" if ly is not None else ""),
-                               "  "))
+            rows.append(R.note(where + (f"  ·  {float(ly):,.1f} ly" if ly is not None else "")
+                               + ("  ·  traded here" if st.get("seen") else ""), "  "))
         if traders is not None and not (traders or {}).get(k):
-            rows.append(R.note("No trader found nearby (or Spansh not reachable).", "  "))
+            rows.append(R.note("None known: you have not traded at one of these, and Spansh "
+                               "named none nearby.", "  "))
     if left:
         rows.append(R.hdr("Still to collect"))
         for n in left:

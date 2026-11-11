@@ -1,177 +1,24 @@
-"""core/eddb.py — EDSY's reference tables, read from its eddb.js.
+"""core/eddb.py — the ship, module, blueprint and material tables, from
+data/eddb.sqlite.
 
 Ships and their slot layouts, every module with its type, class and rating,
 the blueprints with the materials each grade costs, the experimental effects,
-and the materials themselves. The ENGINEERING window reads a build from an
-EDSY link with them and prices what a planned build still needs.
+and the materials themselves. The Engineering window reads EDSY links and
+EDOMH ships with them and prices what a planned build still needs.
 
-The file is downloaded on first use and kept in the shared data directory; it
-is not shipped with EDLD. ``load()`` answers from the cache and refreshes it in
-the background once it is a week old.
+data/eddb.sqlite is built from EDSY's eddb.js by the eddb2sqlite tool, outside
+the program, and shipped with it. Recipes the journal shows (EngineerCraft)
+are kept in ``OBSERVED`` and win over the table's: ``observe_craft``.
 """
 from __future__ import annotations
 
-import re
+import json
+import sqlite3
+import sys
 import threading
-import time
-import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Optional
-
-URL = "https://raw.githubusercontent.com/taleden/EDSY/master/eddb.js"
-CACHE_NAME = "eddb.js"
-MAX_AGE_S = 7 * 86400
-
-
-# ── A reader for the object literal eddb.js holds ────────────────────────────
-
-class JsError(ValueError):
-    pass
-
-
-class _Js:
-    """Recursive descent over a JavaScript object literal: objects with bare
-    or quoted keys, arrays, strings, numbers, true/false/null, comments and
-    trailing commas."""
-
-    _NUM = re.compile(r"-?(?:\d+\.?\d*|\.\d+)(?:[eE][-+]?\d+)?")
-    _IDENT = re.compile(r"[A-Za-z_$][\w$]*")
-
-    def __init__(self, text: str, pos: int = 0) -> None:
-        self.t = text
-        self.i = pos
-        self.n = len(text)
-
-    def skip(self) -> None:
-        t, n = self.t, self.n
-        while self.i < n:
-            c = t[self.i]
-            if c in " \t\r\n":
-                self.i += 1
-            elif t.startswith("//", self.i):
-                j = t.find("\n", self.i)
-                self.i = n if j < 0 else j + 1
-            elif t.startswith("/*", self.i):
-                j = t.find("*/", self.i + 2)
-                self.i = n if j < 0 else j + 2
-            else:
-                return
-
-    def value(self) -> Any:
-        self.skip()
-        if self.i >= self.n:
-            raise JsError("unexpected end")
-        c = self.t[self.i]
-        if c == "{":
-            return self._object()
-        if c == "[":
-            return self._array()
-        if c in "'\"":
-            return self._string()
-        m = self._NUM.match(self.t, self.i)
-        if m:
-            self.i = m.end()
-            s = m.group(0)
-            num = float(s) if any(ch in s for ch in ".eE") else int(s)
-            return self._arith(num)
-        m = self._IDENT.match(self.t, self.i)
-        if m:
-            self.i = m.end()
-            word = m.group(0)
-            return {"true": True, "false": False, "null": None,
-                    "undefined": None, "Infinity": float("inf")}.get(word)
-        raise JsError(f"unexpected {c!r} at {self.i}")
-
-    def _arith(self, num):
-        """A number followed by * or / and another: "rof: 1/0"."""
-        while True:
-            j = self.i
-            while j < self.n and self.t[j] in " \t":
-                j += 1
-            op = self.t[j:j + 1]
-            if op not in ("*", "/") or self.t.startswith(("//", "/*"), j):
-                return num
-            self.i = j + 1
-            self.skip()
-            m = self._NUM.match(self.t, self.i)
-            if not m:
-                raise JsError(f"bad operand at {self.i}")
-            self.i = m.end()
-            rhs = float(m.group(0))
-            if op == "*":
-                num = num * rhs
-            else:
-                num = num / rhs if rhs else float("inf")
-
-    def _string(self) -> str:
-        q = self.t[self.i]
-        self.i += 1
-        out = []
-        t = self.t
-        while self.i < self.n:
-            c = t[self.i]
-            if c == "\\":
-                nxt = t[self.i + 1:self.i + 2]
-                out.append({"n": "\n", "t": "\t"}.get(nxt, nxt))
-                self.i += 2
-                continue
-            if c == q:
-                self.i += 1
-                return "".join(out)
-            out.append(c)
-            self.i += 1
-        raise JsError("unterminated string")
-
-    def _key(self) -> str:
-        self.skip()
-        c = self.t[self.i]
-        if c in "'\"":
-            return self._string()
-        m = self._NUM.match(self.t, self.i) or self._IDENT.match(self.t, self.i)
-        if not m:
-            raise JsError(f"bad key at {self.i}")
-        self.i = m.end()
-        return m.group(0)
-
-    def _object(self) -> dict:
-        self.i += 1
-        out: dict = {}
-        while True:
-            self.skip()
-            if self.t[self.i] == "}":
-                self.i += 1
-                return out
-            k = self._key()
-            self.skip()
-            if self.t[self.i] != ":":
-                raise JsError(f"expected ':' at {self.i}")
-            self.i += 1
-            out[k] = self.value()
-            self.skip()
-            if self.t[self.i] == ",":
-                self.i += 1
-
-    def _array(self) -> list:
-        self.i += 1
-        out: list = []
-        while True:
-            self.skip()
-            if self.t[self.i] == "]":
-                self.i += 1
-                return out
-            out.append(self.value())
-            self.skip()
-            if self.t[self.i] == ",":
-                self.i += 1
-
-
-def parse_eddb(text: str) -> dict:
-    """The ``eddb`` object of eddb.js as Python data."""
-    m = re.search(r"\bvar\s+eddb\s*=\s*\{", text)
-    if not m:
-        raise JsError("no 'var eddb' in the file")
-    return _Js(text, m.end() - 1).value()
+from typing import Optional
 
 
 # ── The tables ────────────────────────────────────────────────────────────────
@@ -351,97 +198,145 @@ class Eddb:
 
 # ── Loading ──────────────────────────────────────────────────────────────────
 
+def db_path() -> Path:
+    base = getattr(sys, "_MEIPASS", None)
+    return (Path(base) if base else Path(__file__).resolve().parents[1]) / "data" / "eddb.sqlite"
+
+
+def raw_from_sqlite(path: Path) -> dict:
+    """The tables as the nested shape ``Eddb`` takes."""
+    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+    try:
+        q = con.execute
+        raw: dict = {"version": dict(q("SELECT key, value FROM meta")).get("eddb_version"),
+                     "module": {}, "ship": {}, "blueprint": {}, "expeffect": {},
+                     "mtype": {}, "material": {}}
+        for sid, fd, name, slots, slotnames in q("SELECT * FROM ships"):
+            raw["ship"][str(sid)] = {"fdname": fd, "name": name, "slots": json.loads(slots),
+                                     "slotnames": json.loads(slotnames), "module": {}}
+        for mid, ship, fd, mtype, cls, rating, name, mount in q("SELECT * FROM modules"):
+            rec = {"fdname": fd, "mtype": mtype, "class": cls, "rating": rating,
+                   "name": name, "mount": mount}
+            if ship:
+                raw["ship"][str(ship)]["module"][str(mid)] = rec
+            else:
+                raw["module"][str(mid)] = rec
+        for key, name in q("SELECT * FROM mtypes"):
+            raw["mtype"][key] = {"name": name, "blueprints": [], "expeffects": []}
+        for mtype, _pos, bp in q("SELECT * FROM mtype_blueprints ORDER BY mtype, pos"):
+            raw["mtype"][mtype]["blueprints"].append(bp)
+        for mtype, _pos, fx in q("SELECT * FROM mtype_effects ORDER BY mtype, pos"):
+            raw["mtype"][mtype]["expeffects"].append(fx)
+        for key, fd, name, maxgrade in q("SELECT * FROM blueprints"):
+            raw["blueprint"][key] = {"fdname": fd, "name": name, "maxgrade": maxgrade,
+                                     "mats": [{} for _ in range(maxgrade)]}
+        for bp, grade, mat, cnt in q("SELECT * FROM blueprint_mats"):
+            mats = raw["blueprint"][bp]["mats"]
+            while len(mats) < grade:
+                mats.append({})
+            mats[grade - 1][mat] = cnt
+        for key, fd, name in q("SELECT * FROM effects"):
+            raw["expeffect"][key] = {"fdname": fd, "name": name, "mats": {}}
+        for fx, mat, cnt in q("SELECT * FROM effect_mats"):
+            raw["expeffect"][fx]["mats"][mat] = cnt
+        for key, fd, name, kind, grp, grade in q("SELECT * FROM materials"):
+            raw["material"][key] = {"fdname": fd, "name": name, "mattype": kind,
+                                    "matgrp": grp, "rarity": grade}
+        return raw
+    finally:
+        con.close()
+
+
 _lock = threading.Lock()
 _loaded: Optional[Eddb] = None
-_loaded_mtime = 0.0
-_fetching = False
-_last_error = ""
-
-
-def cache_path() -> Path:
-    from core.state import shared_data_dir
-    return shared_data_dir() / CACHE_NAME
+_tried = False
+_error = ""
 
 
 def last_error() -> str:
-    return _last_error
+    """Why the tables could not be read, or ""."""
+    return _error
 
 
-def _download(path: Path) -> None:
-    global _last_error
-    from core import debug as _dbg
-    try:
-        req = urllib.request.Request(URL, headers={"User-Agent": "EDLD"})
-        with urllib.request.urlopen(req, timeout=60) as resp:
-            data = resp.read()
-        parse_eddb(data.decode("utf-8-sig"))            # refuse a broken file
-        tmp = path.with_suffix(".tmp")
-        tmp.write_bytes(data)
-        tmp.replace(path)
-        _last_error = ""
-        _dbg.log(f"  [eddb] downloaded {len(data):,} bytes")
-    except Exception as exc:
-        _last_error = f"{type(exc).__name__}: {exc}"
-        _dbg.log(f"  [eddb] download failed: {_last_error}")
-
-
-def _fetch_async(path: Path, on_done=None) -> None:
-    global _fetching
-    if _fetching:
-        return
-    _fetching = True
-
-    def run():
-        global _fetching
-        try:
-            _download(path)
-        finally:
-            _fetching = False
-        if on_done is not None:
-            try:
-                on_done()
-            except Exception:
-                pass
-    threading.Thread(target=run, name="eddb-fetch", daemon=True).start()
-
-
-def fetching() -> bool:
-    return _fetching
-
-
-def load(fetch: bool = True, on_fetched=None, path: Optional[Path] = None) -> Optional[Eddb]:
-    """The tables, from the cache; None until a first download has landed.
-    A missing or week-old cache is fetched in the background when ``fetch``,
-    and ``on_fetched`` called when it arrives."""
-    global _loaded, _loaded_mtime, _last_error
-    if _loaded is not None and _loaded_mtime < 0:
-        return _loaded
-    p = path or cache_path()
-    try:
-        mtime = p.stat().st_mtime
-    except OSError:
-        mtime = 0.0
-    if fetch and (not mtime or time.time() - mtime > MAX_AGE_S):
-        _fetch_async(p, on_fetched)
-    if not mtime:
-        return None
+def load() -> Optional[Eddb]:
+    """The tables, read once; None when data/eddb.sqlite cannot be read."""
+    global _loaded, _tried, _error
     with _lock:
-        if _loaded is not None and _loaded_mtime == mtime:
-            return _loaded
-        try:
-            _loaded = Eddb(parse_eddb(p.read_text(encoding="utf-8-sig")))
-            _loaded_mtime = mtime
-        except Exception as exc:
-            _last_error = f"cached eddb.js unreadable: {exc}"
-            from core import debug as _dbg
-            _dbg.log(f"  [eddb] {_last_error}")
-            return _loaded
-    return _loaded
+        if _loaded is None and not _tried:
+            _tried = True
+            try:
+                _loaded = Eddb(raw_from_sqlite(db_path()))
+            except Exception as exc:
+                _error = f"{type(exc).__name__}: {exc}"
+                from core import debug as _dbg
+                _dbg.log(f"  [eddb] {db_path()} unreadable: {_error}", level="WARN", echo=True)
+        return _loaded
 
 
 def use(db: Optional[Eddb]) -> None:
-    """Install tables directly (tests)."""
-    global _loaded, _loaded_mtime
+    """Install tables directly (tests); None reads the file again."""
+    global _loaded, _tried
     with _lock:
         _loaded = db
-        _loaded_mtime = -1.0 if db is not None else 0.0
+        _tried = db is not None
+
+
+# ── Recipes the journal shows ────────────────────────────────────────────────
+
+#: (blueprint fdname lower, grade) → {material: count}, and
+#: ("fx", effect fdname lower) → {material: count}, from EngineerCraft.
+OBSERVED: dict[tuple, dict[str, int]] = {}
+_reported: set = set()
+
+
+def _table_recipe(db: Eddb, key: tuple, item: str) -> Optional[dict]:
+    if key[0] == "fx":
+        fx = db.effect(key[1])
+        mats = fx.mats if fx else None
+    else:
+        bp = db.blueprint(key[0], item)
+        mats = bp.mats[key[1] - 1] if bp and 0 < key[1] <= len(bp.mats) else None
+    if mats is None:
+        return None
+    out = {}
+    for k, v in mats.items():
+        m = db.material(k)
+        out[m.fdname.lower() if m else k] = int(v)
+    return out
+
+
+def observe_craft(event: dict, db: Optional[Eddb] = None) -> None:
+    """Keep the recipe an EngineerCraft shows, and log once where the table
+    disagrees with it."""
+    ing = {str(i.get("Name") or "").lower(): int(i.get("Count") or 0)
+           for i in event.get("Ingredients") or [] if i.get("Name")}
+    if not ing:
+        return
+    fx = str(event.get("ApplyExperimentalEffect") or "")
+    if fx:
+        key = ("fx", fx.lower())
+    elif event.get("BlueprintName") and event.get("Level"):
+        key = (str(event["BlueprintName"]).lower(), int(event["Level"]))
+    else:
+        return
+    OBSERVED[key] = ing
+    db = db or load()
+    if db is None or key in _reported:
+        return
+    table = _table_recipe(db, key, str(event.get("Module") or ""))
+    if table is not None and table != ing:
+        _reported.add(key)
+        from core import debug as _dbg
+        _dbg.log(f"  [eddb] journal recipe for {key} is {ing}; the table says {table}. "
+                 "The journal's is used.", level="WARN")
+
+
+def recipe(db: Eddb, blueprint: str, grade: int, item: str = "") -> Optional[dict]:
+    """{material fdname lower: count} for one roll: the journal's when seen."""
+    key = (blueprint.lower(), grade)
+    return OBSERVED.get(key) or _table_recipe(db, key, item)
+
+
+def effect_recipe(db: Eddb, effect: str) -> Optional[dict]:
+    key = ("fx", effect.lower())
+    return OBSERVED.get(key) or _table_recipe(db, key, "")
