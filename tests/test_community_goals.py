@@ -196,8 +196,26 @@ def _core(state):
 
 def test_no_goals_no_section():
     s = MonitorState()
+    s.capi_community_goals = []
     rows = O.missions(_core(s), NOW).rows
     assert rows == [("text", "No active missions", "dim")]
+
+
+def test_with_neither_capi_nor_inara_the_section_says_where_goals_come_from():
+    s = MonitorState()
+    rows = O.missions(_core(s), NOW).rows
+    assert ("hdr", "Community Goals") in rows
+    assert ("text", O.NO_GOAL_SOURCE, "dim") in rows
+
+    p, s = _plugin()
+    p.on_event(_ev("CommunityGoal", CurrentGoals=[SORBAGO]), s)
+    rows = O.missions(_core(s), NOW).rows
+    assert rows[-1] == ("text", O.NO_GOAL_SOURCE, "dim")
+    assert any(r[0] == "kv" and r[1] == "Your contribution" for r in rows)
+
+    s.inara_community_goals, s.inara_community_goals_ts = [], 1.0
+    rows = O.missions(_core(s), NOW).rows
+    assert ("text", O.NO_GOAL_SOURCE, "dim") not in rows
 
 
 def test_the_section_under_the_missions():

@@ -240,7 +240,9 @@ def test_time_left():
 
 
 def test_no_missions():
-    assert _rows(MonitorState()) == [("text", "No active missions", "dim")]
+    s = MonitorState()
+    s.capi_community_goals = []
+    assert _rows(s) == [("text", "No active missions", "dim")]
 
 
 # ── EDCARS: Settings on the rail ──────────────────────────────────────────────

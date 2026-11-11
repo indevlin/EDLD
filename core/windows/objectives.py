@@ -265,14 +265,29 @@ def community_goals(core, now: datetime | None = None) -> list:
     goals = CG.merged(getattr(s, "cg_joined", {}) or {},
                       getattr(s, "capi_community_goals", None),
                       CG.from_inara(getattr(s, "inara_community_goals", None)), now)
-    if not goals:
-        return []
     rows = [R.hdr("Community Goals")]
     for i, g in enumerate(goals):
         if i:
             rows.append(R.text(""))
         rows.extend(_goal_rows(g, now))
-    return rows
+    if not open_goals_known(core):
+        if goals:
+            rows.append(R.text(""))
+        rows.append(R.text(NO_GOAL_SOURCE, "dim"))
+    return rows if len(rows) > 1 else []
+
+
+#: Neither CAPI nor Inara has answered.
+NO_GOAL_SOURCE = ("Goals you have not joined come from Frontier's CAPI or from "
+                  "Inara: connect either under Preferences › Data. A goal you "
+                  "join at its station shows here from your journal.")
+
+
+def open_goals_known(core) -> bool:
+    """CAPI or Inara has answered with the goals running, even if none are."""
+    s = core.state
+    return (getattr(s, "capi_community_goals", None) is not None
+            or bool(getattr(s, "inara_community_goals_ts", 0.0)))
 
 
 def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None = None) -> Tab:
