@@ -1,8 +1,6 @@
 """gui/about.py — About dialog.
 
   * what the program is, and where its source lives (GitHub);
-  * the funding links, repeated from the support bar so they are findable
-    even with the bar hidden;
   * the third-party attribution LGPLv3 section 4(c) requires — the clause
     says notices must appear "among" the application's own copyright
     notices, and this dialog is where EDLD shows those.
@@ -23,7 +21,6 @@ from PySide6.QtWidgets import (
 )
 
 from core.palette import rgb
-from gui.funding import SupportBar
 from gui.theme import stylesheet
 
 
@@ -36,7 +33,7 @@ def _rule() -> QFrame:
 
 
 class AboutDialog(QDialog):
-    """The 'about' window, including attribution and funding notices."""
+    """The 'about' window, including attribution notices."""
 
     def __init__(self, parent, program: str, version: str, author: str,
                  github_repo: str, theme: str = "default") -> None:
@@ -84,12 +81,6 @@ class AboutDialog(QDialog):
         project.setOpenExternalLinks(False)
         project.linkActivated.connect(lambda u: QDesktopServices.openUrl(QUrl(u)))
         lay.addWidget(project)
-
-        lay.addWidget(_rule())
-
-        # ── Funding ───────────────────────────────────────────────────────────
-        support = SupportBar(theme=theme, program=program)
-        lay.addWidget(support)
 
         lay.addWidget(_rule())
 

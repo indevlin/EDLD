@@ -70,6 +70,12 @@ them, connected under Preferences › Data, and that a goal joined at its
 station appears from the journal. Goals already joined are listed above it as
 before.
 
+### Removed: support links
+
+The "Support EDLD Development" strip along the bottom of the desktop window,
+its View menu toggle and the same links in Help → About are gone, along with
+`.github/FUNDING.yml`.
+
 ### Changed: EDCARS's sections
 
 The rail now runs Alerts, Command, Helm, Objectives, Exploration, Mining,

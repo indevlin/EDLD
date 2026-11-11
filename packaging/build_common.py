@@ -34,7 +34,6 @@ DATA_FILES = [
     (str(ROOT / "THIRD-PARTY-NOTICES.md"), "."),
     (str(ROOT / "licenses"), "licenses"),
     (str(ROOT / "gui" / "resources"), "gui/resources"),
-    (str(ROOT / ".github" / "FUNDING.yml"), ".github"),
     (str(ROOT / "packaging" / "icons" / "edld.png"), "packaging/icons"),
     (str(ROOT / "themes"), "themes"),
     # Overlay typefaces. Registered with Qt at runtime from this directory, so
@@ -294,7 +293,6 @@ HIDDEN_IMPORTS = (
         "core.palette",
         "gui.app",
         "gui.about",
-        "gui.funding",
         "gui.markup",
         "gui.preferences",
         "gui.search_dialog",

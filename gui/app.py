@@ -39,7 +39,6 @@ from core.layout_model import (
 )
 from core.palette import rgb
 from gui.about import AboutDialog
-from gui.funding import SupportBar
 from gui.preferences import PreferencesDialog
 from gui.sell_dialog import SellDialog
 from gui.theme import stylesheet
@@ -204,9 +203,6 @@ class EdldWindow(QMainWindow):
             self._content = self._build_dashboard()
         outer.addWidget(self._content, 1)
 
-        self._support = SupportBar(theme=theme, program=program)
-        outer.addWidget(self._support)
-
         self.setCentralWidget(central)
         self._build_menus()
         self.statusBar().showMessage("Monitoring journal…")
@@ -364,12 +360,6 @@ class EdldWindow(QMainWindow):
         sell_act.setShortcut(QKeySequence("Ctrl+S"))
         sell_act.triggered.connect(self.action_sell_table)
         view_menu.addAction(sell_act)
-        view_menu.addSeparator()
-        support_act = QAction("Show &Support Bar", self)
-        support_act.setCheckable(True)
-        support_act.setChecked(True)
-        support_act.triggered.connect(self._support.setVisible)
-        view_menu.addAction(support_act)
 
         help_menu = bar.addMenu("&Help")
         repo = QAction("Project on &GitHub", self)
