@@ -1,6 +1,6 @@
 # EDLD Roadmap
 
-Last updated: 20261110
+Last updated: 20261111
 
 ---
 
@@ -13,6 +13,10 @@ where the law asks for one, and a one-time purchase that removes the ads.
 ---
 
 ## Recently shipped
+
+**Community goals** (20261111) — the Missions tab lists the community goals
+signed up for, with your contribution, band and reward, those waiting to be
+handed in, and those still open to join.
 
 **Quiet logs** (20261110) — the diagnostic log is written only under
 `--debug` or `--trace`, and log files older than a week are deleted at start-up.

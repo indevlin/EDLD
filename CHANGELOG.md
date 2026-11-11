@@ -1,6 +1,51 @@
 # EDLD CHANGELOG
 
-Last updated: 20261110
+Last updated: 20261111
+
+---
+
+## Released in 20261111
+
+### Added: community goals in the Missions tab
+
+The Missions tab now ends with a Community Goals section whenever there is a
+goal to show. First come the goals you have signed up for, from the journal's
+own CommunityGoal list: those still running, with the time left, then those
+that have finished and wait to be handed in, marked in green. Each shows its
+station and system, the tier reached of the tiers it has, the number of
+contributors and your contribution; once you have handed something in, your
+band and the reward it pays. The list is replaced each time the game writes
+it, so a goal handed in or left drops out, and a new session starts empty
+because the game lists nothing at start-up when you have signed up for
+nothing. After those come the goals still running that you have not signed up
+for, from Frontier's companion API or, without it, Inara, with what each asks
+for. The section is in the desktop window, the terminal dashboard and EDCARS,
+and reaches EDAM unchanged.
+
+### Fixed: community goals from Frontier were never read
+
+EDLD has asked Frontier's companion API for `/communitygoals` at every dock,
+but looked for the answer under names Frontier does not use — `communityGoals`,
+`starsystem`, `contribution` — rather than `activeCommunityGoals`,
+`starsystem_name`, `market_name` and `commander_progress`. The list it kept was
+always empty, and since nothing showed it, nothing looked missing. It is read
+in the documented shape now, and an answer that yields no goals in a shape
+other than that is noted in the diagnostic log.
+
+### Fixed: Inara's community goals request
+
+The hourly request for the goals Inara has recorded sent its `eventData` as an
+object where Inara's documentation asks for an empty array. Its answer was
+kept but shown nowhere, so whether Inara took it was never seen. It sends the
+array now, and the Missions tab redraws when an answer arrives.
+
+### Fixed: Options page names cut short in ORDER and REBEL
+
+Opened from EDCARS dressed as ORDER or REBEL, the column of Options pages lost
+the first letters of NOTIFICATIONS and SESSION MGMT. The column was a fixed
+156 pixels, enough for those names in EDCARS's own dress, but the two consoles
+space their letters wider, and the names needed 163 and 169. The column now
+widens to its widest page name, and the buttons under the pages move with it.
 
 ---
 
@@ -31,6 +76,17 @@ journal never writes. Only the dossier shows these names, which is why it
 went unseen. Both tables now use the journal's own names, the localised
 experimental name from the journal still comes first, and a name the tables
 do not know reads as words rather than run together.
+
+### Fixed: the wiki's links, and two pages it was missing
+
+On the wiki, a link from one page under `docs/` to another, or up to the
+README, led nowhere: the sync rewrote only links written from the repository's
+root. On GitHub itself every link worked, which is where they were checked.
+Links now resolve from the page they are on; a link to another synced page
+becomes that wiki page, an image its raw file, and anything else in the
+repository its file or folder on GitHub. The survey sheet guide and this
+changelog are published as Survey Sheet and Release Notes, pages no file
+produces any more are removed, and the sidebar is rebuilt each time.
 
 ---
 
