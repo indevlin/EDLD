@@ -92,8 +92,9 @@ EDCARS opens on Command, though Alerts leads the rail.
 **Fitting** shows one ship at a time, chosen from the list at its top: every
 ship you own, then the builds you have planned for hulls you do not own yet,
 then **New (Planned)…**, which asks for the hull and starts one. The slots run
-down the window with what is fitted in one column and the target build in the
-next; a module that differs is in red, engineering still to do in amber.
+down the window in two equal halves, each slot and what is fitted on the
+left and the target build on the right, with Work left and Materials beneath
+them in the same halves; a module that differs is in red, engineering still to do in amber.
 **Target…** (**Build…** for a planned build) takes an EDSY or Coriolis link,
 long or short, an EDOMH link, or SLEF JSON exported by EDSY, Coriolis or EDSX;
 a build for another hull is refused. A planned build has **Apply to**, which
@@ -102,7 +103,7 @@ makes it the target of an owned ship of its hull and drops the plan.
 Under the slots, **Work left** lists each slot still to change: the module to
 buy, or to take out of storage when you have that module stored, the grades
 still to roll with the rolls they take, and the experimental effect.
-**Materials** totals what that costs against what you hold, and
+**Materials** lists each material that costs against what you hold, and
 **Shopping list…** suggests the trades that cover a shortfall from what the
 build does not need — within a trader's column first, since crossing columns
 costs six times as much — with the nearest material trader of each kind.

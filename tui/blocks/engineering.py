@@ -1,18 +1,22 @@
 """tui/blocks/engineering.py — Engineering window (Textual): Fitting and Materials.
 
-Fitting draws core/windows/engineering.py's rows: each slot fitted, with the
-target beside it, the work left and the materials it takes. The ship list,
-and the buttons for the target build, run along the top.
+Fitting draws core/windows/engineering.py's view in two equal halves: each
+slot and what is fitted on the left, the target on the right, and below them
+the work left beside the materials it takes. The ship list, and the buttons
+for the target build, run along the top.
 """
 from __future__ import annotations
 
 from rich.text import Text
 from textual.app import ComposeResult
-from textual.containers import Horizontal, VerticalScroll
+from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widgets import Label, Select, Static, TabbedContent, TabPane
 
 from core.windows import engineering as EW
 from tui.block_base import TuiBlock
+
+#: Slot states → the target's class.
+_STATE_CLS = {"module": "health-crit", "added": "health-crit", "eng": "health-warn"}
 
 
 class EngineeringBlock(TuiBlock):
@@ -40,6 +44,9 @@ class EngineeringBlock(TuiBlock):
                         yield Static(">> Delete plan", id="eng-delete-btn",
                                      classes="footer-lbl")
                 yield VerticalScroll(id="eng-fit")
+                with Horizontal(id="eng-lower"):
+                    yield VerticalScroll(id="eng-work", classes="eng-half")
+                    yield VerticalScroll(id="eng-needs", classes="eng-half")
             with TabPane("Materials", id="eng-pane-materials"):
                 with TabbedContent(id="eng-mat-tabs"):
                     for key, label in EW.GRADES:
@@ -66,7 +73,61 @@ class EngineeringBlock(TuiBlock):
             self.query_one("#eng-plan-bar").display = v.planned
         except Exception:
             pass
-        self._fill("#eng-fit", EW.fitting_tab(self.core).rows)
+        self._fill_slots(v)
+        self._fill("#eng-work", [EW.R.hdr("Work left")]
+                   + (v.work if v.has_target else []))
+        self._fill("#eng-needs", [EW.R.hdr("Materials")] + v.needs)
+
+    def _fill_slots(self, v) -> None:
+        try:
+            scroll = self.query_one("#eng-fit", VerticalScroll)
+        except Exception:
+            return
+        scroll.remove_children()
+        widgets = self.render_rows(EW.head_rows(v))
+        lead = max((len(s.label) for s in v.slots), default=4)
+        right_head = "BUILD" if v.planned else "TARGET"
+        lead = max(lead, 4)
+        widgets.append(self._pair(
+            self._cell("SLOT", lead, right_head if v.planned else "FITTED", "",
+                       "section-hdr", ""),
+            [] if v.planned else [Label(right_head, classes="eng-mod section-hdr")]))
+        for s in v.slots:
+            if v.planned:
+                left = self._cell(s.label, lead, s.target, s.target_eng, "", "dim")
+                widgets.append(self._pair(left, []))
+                continue
+            left = self._cell(s.label, lead, s.current, s.current_eng,
+                              "dim" if s.state == "removed" else "", "dim")
+            right: list = []
+            if v.has_target:
+                eng_cls = "health-warn" if s.state in ("eng", "module", "added") else "dim"
+                right = self._cell("", 0, s.target if s.state != "removed" else "—",
+                                   s.target_eng,
+                                   _STATE_CLS.get(s.state, "") if s.state != "eng" else "",
+                                   eng_cls)
+            widgets.append(self._pair(left, right))
+        scroll.mount(*widgets)
+
+    @staticmethod
+    def _cell(label: str, lead: int, name: str, eng: str, cls: str, eng_cls: str) -> list:
+        mod = Label(name or "—", classes=f"eng-mod {cls}".strip())
+        if lead:
+            key = Label(label, classes="section-hdr" if "section-hdr" in cls else "eng-slot")
+            key.styles.width = lead + 2
+            out: list = [Horizontal(key, mod, classes="eng-line")]
+        else:
+            out = [mod]
+        if eng:
+            sub = Label(eng, classes=f"eng-mod {eng_cls}")
+            sub.styles.padding = (0, 1, 0, 3 + (lead + 2 if lead else 0))
+            out.append(sub)
+        return out
+
+    @staticmethod
+    def _pair(left: list, right: list) -> Horizontal:
+        return Horizontal(Vertical(*left, classes="eng-half"),
+                          Vertical(*right, classes="eng-half"), classes="eng-pair")
 
     def _sync_select(self, selector: str, options, value, attr: str) -> None:
         try:

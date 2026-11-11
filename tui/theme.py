@@ -458,7 +458,15 @@ SellModal { align: center middle; }
 #eng-actions .footer-lbl, #eng-plan-actions .footer-lbl { width: auto; margin-right: 2; }
 #eng-plan-bar { height: auto; width: 100%; layout: vertical; }
 #eng-apply { width: 100%; max-width: 70; }
-#eng-fit { height: 1fr; }
+#eng-fit { height: 3fr; }
+#eng-lower { height: 2fr; }
+.eng-pair { height: auto; width: 100%; }
+.eng-half { width: 1fr; height: auto; }
+#eng-lower .eng-half { height: 100%; }
+.eng-pair .eng-half:first-child, #eng-work { margin-right: 1; }
+.eng-line { height: 1; width: 100%; padding: 0 0 0 1; }
+.eng-slot { color: $dim; }
+.eng-mod { width: 1fr; padding: 0 1; }
 TargetModal, NewPlanModal, ShoppingModal { align: center middle; }
 #eng-modal-outer {
     width: 76%;

@@ -425,11 +425,6 @@ def need_rows(needs) -> list:
         cls = "val health-crit" if n.short else "val health-good"
         rows.append(R.cells(n.name, [f"G{n.grade}", str(n.need), str(n.have),
                                      str(n.short) if n.short else "—"], cls))
-    need = sum(n.need for n in needs)
-    short = sum(n.short for n in needs)
-    rows.append(R.rule())
-    rows.append(R.cells("Total", ["", str(need), "", str(short) if short else "—"],
-                        "val health-crit" if short else "val health-good"))
     return rows
 
 
@@ -498,16 +493,7 @@ def fitting_tab(core) -> Tab:
     """The Fitting tab as rows, for a device: the ship, each slot fitted and
     planned, the work left and the materials it takes."""
     v = fitting(core)
-    rows: list = []
-    if v.label:
-        rows.append(R.hdr(v.label))
-    if v.status:
-        rows.append(R.text(v.status, "dim"))
-    if v.has_target:
-        rows.append(R.text(f"Target: {v.target_source or 'build'}", "dim"))
-    if v.planned and v.has_target and not v.apply_to:
-        rows.append(R.text(f"No {_ship_type_name(v.ship_type)} owned to apply it to yet.",
-                           "dim"))
+    rows: list = head_rows(v)
     for s in v.slots:
         if v.planned:
             rows.append(R.kv(s.label, s.target or "—", "val"))
@@ -527,6 +513,21 @@ def fitting_tab(core) -> Tab:
     if v.needs:
         rows += [R.rule(), R.hdr("Materials")] + v.needs
     return Tab("fitting", "Fitting", rows)
+
+
+def head_rows(v: FittingView) -> list:
+    """The lines above the slots: the ship, a status, where the target came from."""
+    rows: list = []
+    if v.label:
+        rows.append(R.hdr(v.label))
+    if v.status:
+        rows.append(R.text(v.status, "dim"))
+    if v.has_target:
+        rows.append(R.text(f"Target: {v.target_source or 'build'}", "dim"))
+    if v.planned and v.has_target and not v.apply_to:
+        rows.append(R.text(f"No {_ship_type_name(v.ship_type)} owned to apply it to yet.",
+                           "dim"))
+    return rows
 
 
 def tabs(core) -> list[Tab]:

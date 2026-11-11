@@ -11,19 +11,19 @@ Last updated: 20261112
 Engineering is a window of its own again, with two tabs. Fitting shows one
 ship at a time, picked from a list of every ship owned, then the builds
 planned for hulls not owned yet, then New (Planned)…, which asks for the hull
-from a list and starts one. Each slot is listed with what is fitted beside the
-target build, a module that differs in red and engineering still to do in
-amber. Target… takes the build: an EDSY or Coriolis link, long or short, an
+from a list and starts one. The window is split into equal halves: each slot
+and what is fitted on the left, the target build on the right, a module that
+differs in red and engineering still to do in amber. Target… takes the build: an EDSY or Coriolis link, long or short, an
 EDOMH link, or SLEF JSON exported by EDSY, Coriolis or EDSX, and refuses a
 build for another hull. A planned build is edited the same way and has Apply
 to, which makes it the target of an owned ship of its hull, drops the plan and
 shows that ship.
 
-Under the slots, Work left lists what each slot still needs — the module to
+Under the slots, in the same two halves, Work left lists what each slot still needs — the module to
 buy, or to take out of storage when one of that kind is stored, the grades
 still to roll with the rolls each takes, the experimental effect — and
-Materials totals what the work costs against what is held, with what is
-short. Shopping list… suggests the trades that cover a shortfall from what
+Materials lists each material the work costs against what is held, with
+what is short. Shopping list… suggests the trades that cover a shortfall from what
 the build does not need, within a trader's column before across one, and the
 nearest material trader of each kind. A grade takes as many rolls as its
 number, so G1 to G5 is fifteen; a grade rolled part way takes the rest of its

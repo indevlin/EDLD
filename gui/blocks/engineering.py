@@ -5,7 +5,7 @@ fitted and planned side by side, the work left and the materials it takes.
 """
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import (
     QComboBox, QGridLayout, QHBoxLayout, QLabel, QMessageBox, QPushButton,
     QScrollArea, QSizePolicy, QTabWidget, QVBoxLayout, QWidget,
@@ -17,6 +17,9 @@ from gui.markup import to_html
 
 #: Slot states → how the target cell is colored.
 _STATE_TONE = {"module": "red", "added": "red", "eng": "amber"}
+
+#: Space between the two halves, above and below.
+_GAP = 12
 
 
 class EngineeringBlock(GuiBlock):
@@ -30,6 +33,8 @@ class EngineeringBlock(GuiBlock):
 
         # ── Fitting ──────────────────────────────────────────────────────────
         fit = QWidget()
+        self._fit = fit
+        fit.installEventFilter(self)
         fl = QVBoxLayout(fit)
         fl.setContentsMargins(0, 4, 0, 0)
         fl.setSpacing(4)
@@ -72,26 +77,28 @@ class EngineeringBlock(GuiBlock):
         self._grid_host = QWidget()
         self._grid = QGridLayout(self._grid_host)
         self._grid.setContentsMargins(6, 2, 6, 2)
-        self._grid.setHorizontalSpacing(14)
+        self._grid.setHorizontalSpacing(_GAP)
         self._grid.setVerticalSpacing(2)
+        self._grid_host.installEventFilter(self)
         grid_scroll = QScrollArea()
         grid_scroll.setWidgetResizable(True)
         grid_scroll.setWidget(self._grid_host)
         fl.addWidget(grid_scroll, 3)
 
-        # The work left, and what it takes.
+        # The work left, and what it takes: two equal halves.
         lower = QHBoxLayout()
-        lower.setSpacing(12)
-        work = QVBoxLayout()
-        work.addWidget(self.hdr("Work left"))
+        lower.setSpacing(_GAP)
         self._work = RowScroll()
-        work.addWidget(self._work, 1)
-        mats = QVBoxLayout()
-        mats.addWidget(self.hdr("Materials"))
         self._mats = RowScroll()
-        mats.addWidget(self._mats, 1)
-        lower.addLayout(work, 1)
-        lower.addLayout(mats, 1)
+        for title, scroll in (("Work left", self._work), ("Materials", self._mats)):
+            half = QWidget()
+            half.setSizePolicy(QSizePolicy.Ignored, QSizePolicy.Preferred)
+            col = QVBoxLayout(half)
+            col.setContentsMargins(0, 0, 0, 0)
+            col.addWidget(self.hdr(title))
+            col.addWidget(scroll, 1)
+            lower.addWidget(half, 1)
+        self._lower = lower
         fl.addLayout(lower, 2)
         self._tabs.addTab(fit, "Fitting")
 
@@ -227,9 +234,30 @@ class EngineeringBlock(GuiBlock):
                     tone if s.state in ("module", "added") else "",
                     "amber" if s.state in ("eng", "module", "added") else ""), r, 2, Qt.AlignTop)
         self._grid.setColumnStretch(0, 0)
-        for c in range(1, len(heads)):
-            self._grid.setColumnStretch(c, 1)
+        self._grid.setColumnStretch(1, 0)
+        self._grid.setColumnStretch(2, 1)
         self._grid.setRowStretch(len(v.slots) + 1, 1)
+        self._sync_halves()
+
+    def eventFilter(self, obj, event) -> bool:
+        if event.type() == QEvent.Resize and obj in (self._fit, self._grid_host):
+            self._sync_halves()
+        return super().eventFilter(obj, event)
+
+    def _sync_halves(self) -> None:
+        """Slot and Fitted fill the left half, Target the right, with the
+        right half starting where Materials does below."""
+        g = self._grid
+        if not g.count():
+            return
+        lead = max((item.widget().sizeHint().width() for i in range(g.rowCount())
+                    if (item := g.itemAtPosition(i, 0)) is not None and item.widget()),
+                   default=0)
+        half = (self._fit.width() - _GAP) // 2
+        right = half + _GAP - self._grid_host.mapTo(self._fit, self._grid_host.rect().topLeft()).x()
+        left_margin = g.contentsMargins().left()
+        g.setColumnMinimumWidth(0, lead)
+        g.setColumnMinimumWidth(1, max(0, right - left_margin - lead - 2 * _GAP))
 
     # ── Actions ───────────────────────────────────────────────────────────────
 
