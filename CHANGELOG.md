@@ -25,17 +25,50 @@ still to roll with the rolls each takes, the experimental effect — and
 Materials totals what the work costs against what is held, with what is
 short. Shopping list… suggests the trades that cover a shortfall from what
 the build does not need, within a trader's column before across one, and the
-nearest material trader of each kind, from Spansh. A grade takes as many
-rolls as its number, so G1 to G5 is fifteen; a grade rolled part way takes
-the rest of its rolls. Recipes, EDSY links and EDOMH ships are read with
-EDSY's own tables, downloaded the first time they are needed and kept in the
-data folder, refreshed weekly.
+nearest material trader of each kind. A grade takes as many rolls as its
+number, so G1 to G5 is fifteen; a grade rolled part way takes the rest of its
+rolls.
+
+Recipes, EDSY links and EDOMH ships are read with tables EDLD ships with,
+`data/eddb.sqlite`, made from EDSY's `eddb.js` and refreshed with each
+release; nothing is downloaded for them. Every `EngineerCraft` in the journals
+is checked against the tables at start-up and as it happens, and where they
+disagree the journal's recipe is the one used and the difference is logged
+once. The traders come from the journals first: every station docked at that
+has a Material Trader, its kind taken from a `MaterialTrade` made there, the
+nearest first and marked as traded at. Spansh fills in the rest, but only
+stations whose kind it states; a trader's kind is no longer guessed from the
+station's economy, which named the wrong kind for some.
 
 Materials is the Ship window's former Engineering tab, moved: the materials
 travel with every ship, not the one being flown. In EDCARS the window has the
 Engineering section; in the Dashboard layout and the terminal dashboard it is
 a large window chosen under Options → Display. EDAM receives it as the
 engineering group, with Fitting showing the ship chosen on the desktop.
+
+### Changed: Discord without discord-webhook
+
+EDLD posts to the Discord webhook itself, with Python's own HTTP client, so
+discord-webhook and requests are no longer needed, installed or bundled. A
+post Discord refuses now says why in the terminal, where before nothing was
+printed; a rate limit is waited out once and the post retried.
+
+### Fixed: forum channels
+
+With `ForumChannel` on, no thread name was ever given, so Discord refused
+every post to a forum channel's webhook and, since the refusal was not
+reported, nothing appeared and nothing said why. The first post now starts a
+thread — named `CMDR <name>` with `ThreadCmdrNames` on, otherwise
+`ED Live Dashboard` and the date and time — and everything after goes into
+it. Turning `ForumChannel` off returns posts to the channel itself.
+
+### Changed: community goals with neither CAPI nor Inara
+
+The Missions tab's Community Goals section now shows when neither Frontier's
+CAPI nor Inara has answered, saying that goals not joined come from one of
+them, connected under Preferences › Data, and that a goal joined at its
+station appears from the journal. Goals already joined are listed above it as
+before.
 
 ### Changed: EDCARS's sections
 

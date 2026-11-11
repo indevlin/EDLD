@@ -106,11 +106,16 @@ still to roll with the rolls they take, and the experimental effect.
 **Shopping list…** suggests the trades that cover a shortfall from what the
 build does not need — within a trader's column first, since crossing columns
 costs six times as much — with the nearest material trader of each kind.
+Traders you have docked at come first, marked *traded here*, with their kind
+learned from the trades you made there; Spansh names the rest, and only those
+whose kind it states.
 
 A grade takes as many rolls as its number, fifteen from nothing to a full G5;
 a grade rolled only part way takes the rest of its rolls. Blueprint recipes,
-EDSY links and EDOMH ships are read with EDSY's tables, which EDLD downloads
-the first time it needs them and keeps in its data folder.
+EDSY links and EDOMH ships are read with the tables EDLD ships with,
+`data/eddb.sqlite`. Every roll at an engineer in your journals is checked
+against them, and where the two differ the journal's recipe is used and the
+difference logged.
 
 **Materials** is the materials you hold, by kind, as it was on the Ship
 window: they travel with every ship rather than the one you are in.
