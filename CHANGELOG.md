@@ -4,7 +4,7 @@ Last updated: 20261112
 
 ---
 
-## 20261112-dev — added, unreleased
+## Released in 20261112
 
 ### Added: the Engineering window
 
@@ -70,7 +70,7 @@ them, connected under Preferences › Data, and that a goal joined at its
 station appears from the journal. Goals already joined are listed above it as
 before.
 
-### Removed: support links
+### Removed: funding links
 
 The "Support EDLD Development" strip along the bottom of the desktop window,
 its View menu toggle and the same links in Help → About are gone, along with
