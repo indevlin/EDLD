@@ -14,13 +14,19 @@ On the Missions bulk event:
     backfill scans backwards through journals to populate it.
   - Any stored detail for a MissionID no longer in Active is discarded.
 
-Massacre kills are not counted.
+Kills against the stack
+───────────────────────
+state.massacre_ledger (core/massacre.py) holds the kills credited to each
+massacre mission. It is not persisted: it is rebuilt from the journals at the
+Missions snapshot on every login, from the oldest active massacre's acceptance
+up to the snapshot, then fed live.
 """
 
 from datetime import datetime, timedelta
 
 from core.plugin_loader import BasePlugin
 from core.emit import fmt_credits
+from core import massacre as _massacre
 
 
 #: Journal mission names look like "Mission_Massacre_Wing_name".  These map
@@ -36,8 +42,7 @@ _MISSION_CATEGORIES = (
 )
 
 
-def _is_massacre(name) -> bool:
-    return "Mission_Massacre" in str(name or "")
+_is_massacre = _massacre.is_massacre
 
 
 def _mission_category(raw: str) -> str:
@@ -62,7 +67,7 @@ class MissionsPlugin(BasePlugin):
     PLUGIN_DISPLAY = "Missions"
     PLUGIN_DESCRIPTION = ("Active missions of every type, and the massacre stack — "
                           "progress, value, and completion tracking.")
-    PLUGIN_VERSION = "1.4.0"
+    PLUGIN_VERSION = "1.5.0"
 
     SUBSCRIBED_EVENTS = [
         "Missions",
@@ -73,6 +78,9 @@ class MissionsPlugin(BasePlugin):
         "MissionFailed",
         # Delivery progress: tons delivered of tons asked for.
         "CargoDepot",
+        # Kills against the massacre stack, and where they were made.
+        "Bounty", "CommitCrime", "ShipTargeted",
+        "FSDJump", "Location", "CarrierJump", "SupercruiseEntry",
     ]
 
     DEFAULT_COL    = 0
@@ -144,6 +152,7 @@ class MissionsPlugin(BasePlugin):
         until = str(event.get("timestamp", ""))
         accepted: dict[int, dict] = {}
         history: list[dict] = []
+        self._oldest_file = None
         jdir = getattr(self.core, "journal_dir", None)
         if active and jdir:
             try:
@@ -158,6 +167,7 @@ class MissionsPlugin(BasePlugin):
                         oldest = fname
                         if not want:
                             break
+                self._oldest_file = oldest
                 if oldest is not None:
                     files = [f for f in sorted(idx.files(), key=journal_sort_key)
                              if journal_sort_key(f) >= journal_sort_key(oldest)]
@@ -208,6 +218,54 @@ class MissionsPlugin(BasePlugin):
                 entry["collected"] = int(event.get("ItemsCollected", 0) or 0)
         return True
 
+    # ── Kills against the stack ───────────────────────────────────────────────
+
+    def _seed(self, ledger) -> None:
+        """Every held massacre on ``ledger``, redirected ones complete."""
+        for mid, info in self.core.state.mission_detail_map.items():
+            ledger.accept(mid, info.get("faction", ""), info.get("target_faction", ""),
+                          info.get("target_system", ""), info.get("kill_count", 0),
+                          info.get("accepted_at", ""), info.get("target_type", ""),
+                          info.get("wing", False))
+        for mid in self._redirected:
+            ledger.mark_done(mid)
+
+    def _ledger(self) -> "_massacre.MassacreLedger":
+        state = self.core.state
+        if getattr(state, "massacre_ledger", None) is None:
+            state.massacre_ledger = _massacre.MassacreLedger()
+            self._seed(state.massacre_ledger)
+        return state.massacre_ledger
+
+    def _rebuild_ledger(self, until: str, live_ids) -> None:
+        """The ledger for the held stack from the journals, oldest acceptance
+        to the snapshot at ``until``. A failure is logged and the stack
+        counts from here."""
+        state = self.core.state
+        ledger = _massacre.MassacreLedger()
+        jdir = getattr(self.core, "journal_dir", None)
+        oldest = getattr(self, "_oldest_file", None)
+        if live_ids and jdir and oldest is not None:
+            try:
+                from core.journal_index import index_for, journal_sort_key
+                idx = index_for(jdir)
+                files = [f for f in sorted(idx.files(), key=journal_sort_key)
+                         if journal_sort_key(f) >= journal_sort_key(oldest)]
+                ledger = _massacre.rebuild(
+                    (ev for _f, ev in idx.events(_massacre.EVENTS, files=files)),
+                    live_ids, until)
+            except Exception as exc:
+                from core import debug as _dbg
+                _dbg.exception("[Missions] massacre kills not rebuilt from the journals; "
+                               "counting from now", exc)
+                ledger = _massacre.MassacreLedger()
+        self._seed(ledger)
+        state.massacre_ledger = ledger
+
+    def _feed(self, event, gq) -> None:
+        if self._ledger().apply(event) and self.core.state.mission_detail_map:
+            if gq: gq.put(("mission_update", None))
+
     # ── Events ────────────────────────────────────────────────────────────────
 
     def _on_massacre_accepted(self, event, state, core, gq, notify) -> None:
@@ -240,6 +298,7 @@ class MissionsPlugin(BasePlugin):
             "reward":         reward,
             "accepted_at":    event.get("timestamp", ""),
         }
+        self._ledger().apply(event)
         self._persist()
         if not state.in_preload:
             total_now = len(state.active_missions)
@@ -378,6 +437,7 @@ class MissionsPlugin(BasePlugin):
                 }
                 state.missions = True
                 self._persist()
+                self._rebuild_ledger(str(event.get("timestamp", "")), live_ids)
 
                 core.emitter.emit(
                     msg_term=(
@@ -410,6 +470,10 @@ class MissionsPlugin(BasePlugin):
                 if self._progress(state, event):
                     if gq: gq.put(("mission_update", None))
 
+            case ("Bounty" | "CommitCrime" | "ShipTargeted" | "FSDJump" | "Location"
+                  | "CarrierJump" | "SupercruiseEntry"):
+                self._feed(event, gq)
+
             case "MissionCompleted" | "MissionFailed" | "MissionAbandoned":
                 # Off the board however it ended.  Likewise one arm: the
                 # massacre arm that came after this one never ran, so a
@@ -426,6 +490,13 @@ class MissionsPlugin(BasePlugin):
         mid = int(event["MissionID"])
         if mid not in state.mission_detail_map:
             return
+        ledger = self._ledger()
+        m = ledger.missions.get(mid)
+        if m is not None and not m.done:
+            from core import debug as _dbg
+            _dbg.info(f"[Missions] massacre {mid} redirected with {m.credited} of "
+                      f"{m.kill_count} kills credited before it")
+        ledger.apply(event)
         if mid in self._redirected:
             return                      # replayed: already counted and said
         self._redirected.add(mid)
@@ -456,6 +527,7 @@ class MissionsPlugin(BasePlugin):
             state.stack_value -= reward
         state.mission_target_faction_map.pop(mid, None)
         state.mission_detail_map.pop(mid, None)
+        self._ledger().drop(mid)
         self._redirected.discard(mid)
         state.active_missions = [m for m in state.active_missions if m != mid]
         state.missions_complete = len(self._redirected)
@@ -482,4 +554,9 @@ class MissionsPlugin(BasePlugin):
             if remaining == 0
             else f"{done}/{total} complete, {remaining} remaining"
         )
-        return f"- Missions: {fmt_credits(state.stack_value)} stack ({status})"
+        from core.windows.objectives import massacre_stacks
+        cells = [r for r in massacre_stacks(state) if r[0] == "cells"]
+        totals = [r for r in cells if r[1] == "Totals"] or cells[:1]
+        kills = totals[0][2][0] if totals else ""
+        return (f"- Missions: {fmt_credits(state.stack_value)} stack ({status}"
+                + (f", kills {kills})" if kills else ")"))

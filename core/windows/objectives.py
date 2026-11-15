@@ -156,48 +156,91 @@ def _kind_table(category: str, ms: list, now) -> list:
     return rows
 
 
+def kills_cell(done: int, need: int) -> str:
+    """Kills credited of kills needed, the first padded to the second: 012 / 045."""
+    return f"{int(done):0{len(str(int(need)))}d} / {int(need)}"
+
+
+def massacre_stacks(s) -> list:
+    """A table of the massacre stack: each target faction, the kills its
+    stack needs and has, then under it each source faction's share."""
+    detail = getattr(s, "mission_detail_map", {}) or {}
+    if not detail:
+        return []
+    finished = getattr(s, "massacre_redirected", set()) or set()
+    ledger = getattr(s, "massacre_ledger", None)
+    stacks: dict[str, dict] = {}
+    for mid, info in detail.items():
+        kc = int(info.get("kill_count", 0) or 0)
+        if mid in finished:
+            got = kc
+        else:
+            got = min(ledger.credited(mid), kc) if ledger is not None else 0
+        st = stacks.setdefault(info.get("target_faction") or "Unknown",
+                               {"sources": {}, "systems": set(), "types": set()})
+        if info.get("target_system"):
+            st["systems"].add(info["target_system"])
+        tt = strip_target_type(info.get("target_type", ""))
+        if tt:
+            st["types"].add(tt)
+        f = st["sources"].setdefault(info.get("faction") or "Unknown",
+                                     {"need": 0, "got": 0, "reward": 0, "held": 0, "done": 0})
+        f["need"] += kc
+        f["got"] += got
+        f["reward"] += int(info.get("reward", 0) or 0)
+        f["held"] += 1
+        f["done"] += mid in finished
+    for st in stacks.values():
+        src = st["sources"].values()
+        st["need"] = max(f["need"] for f in src)
+        st["got"] = st["need"] - max(f["need"] - f["got"] for f in src)
+        st["held"] = sum(f["held"] for f in src)
+        st["done"] = sum(f["done"] for f in src)
+        st["reward"] = sum(f["reward"] for f in src)
+    order = sorted(stacks, key=lambda k: (-stacks[k]["need"], k))
+    totals = {"need": sum(st["need"] for st in stacks.values()),
+              "got": sum(st["got"] for st in stacks.values())}
+    kills_w = max([5, len(kills_cell(totals["got"], totals["need"]))]
+                  + [len(kills_cell(f["got"], f["need"]))
+                     for st in stacks.values() for f in st["sources"].values()])
+    rows = [R.table("MASSACRE TARGET FACTION",
+                    (("KILLS", kills_w), ("MISSIONS", 8), ("REWARD", 6)))]
+    for i, name in enumerate(order):
+        st = stacks[name]
+        if i:
+            rows.append(R.text(""))
+        whole = st["done"] == st["held"]
+        rows.append(R.cells(name, [kills_cell(st["got"], st["need"]),
+                                   missions_cell(st["done"], st["held"]), fmt_reward(st["reward"])],
+                            "val health-good" if whole else "val highlight"))
+        where = " · ".join(x for x in (", ".join(sorted(st["types"])),
+                                       "in " + ", ".join(sorted(st["systems"])) if st["systems"] else "")
+                           if x)
+        if where:
+            rows.append(R.note(where))
+        for src in sorted(st["sources"], key=lambda k: (-st["sources"][k]["need"], k)):
+            f = st["sources"][src]
+            rows.append(R.cells(f"   {src}", [kills_cell(f["got"], f["need"]),
+                                              missions_cell(f["done"], f["held"]),
+                                              fmt_reward(f["reward"])],
+                                "val health-good" if f["done"] == f["held"] else "val"))
+        if len(st["types"]) > 1:
+            rows.append(R.text(f"[yellow]⚠ Mixed types: {', '.join(sorted(st['types']))}[/yellow]"))
+    if len(stacks) > 1:
+        rows.append(R.rule())
+        done = sum(st["done"] for st in stacks.values())
+        held = sum(st["held"] for st in stacks.values())
+        rows.append(R.cells("Totals", [kills_cell(totals["got"], totals["need"]),
+                                       missions_cell(done, held),
+                                       fmt_reward(sum(st["reward"] for st in stacks.values()))],
+                            "val health-good" if done == held else "val"))
+    return rows
+
+
 def missions(core, now: datetime | None = None) -> Tab:
     s = core.state
     detail = getattr(s, "mission_detail_map", {}) or {}
-    rows: list = []
-    if detail:
-        # Done is redirects only. Kills made are not shown: the journal
-        # records only about seven in ten of the kills the game credits, so
-        # a running count always fell behind the mission screen.
-        finished = getattr(s, "massacre_redirected", set()) or set()
-        factions: dict[str, dict] = {}
-        target_factions, target_types = set(), set()
-        for mid, info in detail.items():
-            src = info.get("faction", "Unknown")
-            f = factions.setdefault(src, {"kill_count": 0, "reward": 0, "held": 0, "done": 0})
-            f["kill_count"] += int(info.get("kill_count", 0))
-            f["reward"] += int(info.get("reward", 0))
-            f["held"] += 1
-            f["done"] += mid in finished
-            if info.get("target_faction"):
-                target_factions.add(info["target_faction"])
-            tt = strip_target_type(info.get("target_type", ""))
-            if tt:
-                target_types.add(tt)
-        kills_w = max(5, len(str(sum(f["kill_count"] for f in factions.values()))))
-        rows.append(R.table("MASSACRE SOURCE FACTION",
-                            (("KILLS", kills_w), ("MISSIONS", 8), ("REWARD", 6))))
-        for name in sorted(factions, key=lambda k: -factions[k]["kill_count"]):
-            f = factions[name]
-            rows.append(R.cells(name, [str(f["kill_count"]), missions_cell(f["done"], f["held"]),
-                                       fmt_reward(f["reward"])],
-                                "val health-good" if f["done"] == f["held"] else "val"))
-        rows.append(R.rule())
-        done = sum(f["done"] for f in factions.values())
-        held = sum(f["held"] for f in factions.values())
-        rows.append(R.cells("Totals", [str(max(f["kill_count"] for f in factions.values())),
-                                       missions_cell(done, held),
-                                       fmt_reward(sum(f["reward"] for f in factions.values()))],
-                            "val health-good" if done == held else "val"))
-        if len(target_factions) > 1:
-            rows.append(R.text(f"[yellow]⚠ Mixed targets: {', '.join(sorted(target_factions))}[/yellow]"))
-        if len(target_types) > 1:
-            rows.append(R.text(f"[yellow]⚠ Mixed types: {', '.join(sorted(target_types))}[/yellow]"))
+    rows: list = massacre_stacks(s)
 
     # Every other mission, a table per kind.
     board = getattr(s, "all_missions", {}) or {}

@@ -340,6 +340,9 @@ class MonitorState:
         # Massacre missions that have redirected (complete — turn in), kept
         # by components/missions.py and drawn by the Objectives window.
         self.massacre_redirected: set = set()
+        # Kills credited per massacre mission (core/massacre.py), rebuilt
+        # from the journals at each login by components/missions.py.
+        self.massacre_ledger = None
         self.all_missions: dict = {}
         self.stack_value             = 0
         self.has_fighter_bay         = False
@@ -517,6 +520,7 @@ class MonitorState:
         self.mission_value_map          = {}
         self.mission_detail_map         = {}
         self.massacre_redirected        = set()
+        self.massacre_ledger            = None
         self.all_missions               = {}
         self.mission_target_faction_map = {}
 

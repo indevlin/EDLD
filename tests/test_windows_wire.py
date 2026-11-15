@@ -70,19 +70,20 @@ def test_engineering_reaches_the_device_as_pages():
     assert any("Iron" in (r["label"] + r["value"]) for r in raw)
 
 
-def test_missions_stack_is_a_kills_missions_reward_table_with_a_warning():
+def test_missions_stack_is_a_table_per_target_faction_with_its_sources():
     core = _core(mission_detail_map={
         1: {"faction": "A", "kill_count": 10, "reward": 5_000_000, "target_faction": "X"},
         2: {"faction": "B", "kill_count": 6, "reward": 3_000_000, "target_faction": "Y"},
     }, active_missions=[1, 2])
     rows = _panels(core)["missions.missions"]["rows"]
     head = next(r for r in rows if r["kind"] == "head")
-    assert head["label"] == "MASSACRE SOURCE FACTION"
+    assert head["label"] == "MASSACRE TARGET FACTION"
     assert head["cells"] == ["KILLS", "MISSIONS", "REWARD"]
+    labels = [r["label"] for r in rows if r["kind"] == "cells"]
+    assert labels == ["X", "   A", "Y", "   B", "Totals"]
     totals = next(r for r in rows if r["label"] == "Totals")
-    assert totals["cells"] == ["10", "00 / 02", "8.0M"]
-    warn = [r for r in rows if r.get("tone") == "warn"]
-    assert warn and "Mixed targets" in warn[0]["value"]
+    assert totals["cells"] == ["00 / 16", "00 / 02", "8.0M"]
+    assert next(r for r in rows if r["label"] == "X")["tone"] == "accent"
 
 
 def test_every_desktop_window_has_its_panels():

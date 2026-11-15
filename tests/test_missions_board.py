@@ -180,29 +180,55 @@ def _rows(state):
     return O.missions(SimpleNamespace(state=state, app_settings={"FullStackSize": 20}), NOW).rows
 
 
-def _stack_state(done=()):
+def _stack_state(done=(), credited=None):
+    from core.massacre import MassacreLedger
     s = MonitorState()
     s.mission_detail_map = {
-        1: {"faction": "A", "kill_count": 20, "reward": 5_000_000, "target_faction": TGT},
-        2: {"faction": "A", "kill_count": 25, "reward": 4_000_000, "target_faction": TGT},
-        3: {"faction": "B", "kill_count": 12, "reward": 1_000_000, "target_faction": TGT},
+        1: {"faction": "A", "kill_count": 20, "reward": 5_000_000, "target_faction": TGT,
+            "target_system": SYS, "target_type": "$MissionUtil_FactionTag_Pirate;"},
+        2: {"faction": "A", "kill_count": 25, "reward": 4_000_000, "target_faction": TGT,
+            "target_system": SYS},
+        3: {"faction": "B", "kill_count": 12, "reward": 1_000_000, "target_faction": TGT,
+            "target_system": SYS},
     }
     s.active_missions = [1, 2, 3]
     s.massacre_redirected = set(done)
     s.missions_complete = len(done)
+    s.massacre_ledger = MassacreLedger()
+    for mid, info in s.mission_detail_map.items():
+        s.massacre_ledger.accept(mid, info["faction"], TGT, SYS, info["kill_count"], f"t{mid}")
+        s.massacre_ledger.missions[mid].credited = (credited or {}).get(mid, 0)
+    for mid in done:
+        s.massacre_ledger.mark_done(mid)
     return s
 
 
-def test_the_massacre_table_reports_missions_done_of_missions_held():
-    rows = _rows(_stack_state(done={3}))
-    assert rows[0] == ("table", "MASSACRE SOURCE FACTION",
-                       [("KILLS", 5), ("MISSIONS", 8), ("REWARD", 6)])
-    cells = {r[1]: (r[2], r[3]) for r in rows if r[0] == "cells"}
-    assert cells["A"] == (["45", "00 / 02", "9.0M"], "val")
-    assert cells["B"] == (["12", "01 / 01", "1.0M"], "val health-good")
-    assert cells["Totals"] == (["45", "01 / 03", "10.0M"], "val")
-    # No summary lines above the table: the MISSIONS column says it.
-    assert not [r for r in rows if r[0] == "kv"]
+def test_the_massacre_table_is_each_target_faction_then_its_source_factions():
+    rows = _rows(_stack_state(done={3}, credited={1: 7}))
+    assert rows[0] == ("table", "MASSACRE TARGET FACTION",
+                       [("KILLS", 7), ("MISSIONS", 8), ("REWARD", 6)])
+    cells = [(r[1], r[2], r[3]) for r in rows if r[0] == "cells"]
+    assert cells == [
+        (TGT, ["07 / 45", "01 / 03", "10.0M"], "val highlight"),
+        ("   A", ["07 / 45", "00 / 02", "9.0M"], "val"),
+        ("   B", ["12 / 12", "01 / 01", "1.0M"], "val health-good"),
+    ]
+    notes = [r[1] for r in rows if r[0] == "note"]
+    assert notes == [f"Pirate · in {SYS}"]
+    # One target faction: its row is the total.
+    assert not [r for r in rows if r[0] == "kv"] and "Totals" not in [c[0] for c in cells]
+
+
+def test_two_target_factions_are_two_stacks_and_a_totals_row():
+    s = _stack_state()
+    s.mission_detail_map[4] = {"faction": "B", "kill_count": 9, "reward": 2_000_000,
+                               "target_faction": "Other Pirates", "target_system": SYS}
+    s.massacre_ledger.accept(4, "B", "Other Pirates", SYS, 9, "t4")
+    rows = _rows(s)
+    heads = [r[1] for r in rows if r[0] == "cells" and not r[1].startswith(" ")]
+    assert heads == [TGT, "Other Pirates", "Totals"]
+    totals = next(r for r in rows if r[0] == "cells" and r[1] == "Totals")
+    assert totals[2] == ["00 / 54", "00 / 04", "12.0M"]
 
 
 def test_every_other_kind_gets_a_table_of_its_own():
@@ -278,12 +304,12 @@ def test_a_table_heading_is_drawn_as_a_heading_on_the_desktop():
     from core.palette import rgb
     block = GuiBlock.__new__(GuiBlock)
     block.palette_map = rgb("default")
-    out = block.render_rows([R.table("Massacre Source Faction",
+    out = block.render_rows([R.table("Massacre Target Faction",
                                      (("KILLS", 5), ("MISSIONS", 8), ("REWARD", 6)))])
     hdr = out[0]
     assert isinstance(hdr, TableHdr)
     assert hdr._key.property("role") == "section"
-    assert "MASSACRE SOURCE FACTION" in hdr._key.text()
+    assert "MASSACRE TARGET FACTION" in hdr._key.text()
     assert hdr._val.property("role") == "highlight" and hdr._val.property("col") == "value"
 
 
