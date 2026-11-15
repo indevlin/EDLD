@@ -1,8 +1,61 @@
 # EDLD CHANGELOG
 
-Last updated: 20261112
+Last updated: 20261115
 
 ---
+
+## 20261115-dev — added, unreleased
+
+### Changed: the massacre stack by target faction
+
+The massacre table was a row for each source faction, with the kills its
+missions needed, so it never said whom the kills were against: a stack
+against two pirate factions read as one, with a warning line under it. The
+table is now MASSACRE TARGET FACTION. Each target faction has a row, with
+what its stack needs, the type of target and the system the kills must be
+made in under it, then a row for each source faction that gave missions
+against it. KILLS is kills made of kills needed: a source faction's own, and
+for the target faction its stack's, measured against the tallest source
+faction, since every kill of the target counts once for each. MISSIONS is
+missions done of missions held and REWARD what they pay; a row turns green
+when all its missions are ready. Two target factions are two stacks, with a
+Totals row under them. The terminal's summary line gives the kills too, and
+EDAM shows the same table with no change of its own.
+
+### Added: massacre kills counted again
+
+Kills were dropped from the stack on 6 November because a count of `Bounty`
+events fell behind the game's mission screen, and the missing kills were
+taken to leave no trace. Some of them are recorded, just not as bounties. A
+clean ship of the target faction counts
+for the mission but pays no bounty, so killing it writes `CommitCrime` with
+`murder` and the victim's name, never a `Bounty`; and a ship destroyed before
+your scan of it finishes pays no bounty either, which the journal shows only
+as the locked target dropping at no hull. Both were ignored, so a stack with
+clean targets in it fell further behind with every one. Kills now come from
+all three: a `Bounty` naming the victim's faction, a murder of a pilot a full
+scan found to be of the target faction, and a dropped lock at no hull with no
+`Bounty` or murder for that pilot within three seconds, counted only when one
+target faction is held for the system, since its faction was never read.
+Each goes to the oldest unfinished mission of each source faction, in the
+mission's target system, as the game credits it, and a mission is held one
+short of its count until it redirects, which sets it exactly.
+
+Checked against 60 redirects in another commander's journals, 990 kills in
+all, it saw 921 where bounties alone saw 905, and it was never ahead of the
+game; the kills it still cannot see are ships destroyed before their scan
+finished while not locked, which leave nothing in the journal. Between
+redirects the count is therefore a floor. It is rebuilt from the journals at
+every login, from the oldest active massacre's acceptance, and each redirect
+is logged with the kills credited before it, so a lag can be measured from
+real play.
+
+### Changed: a brighter EDLD logo
+
+The scope in the logo, the window icon, the Windows and macOS icons and the
+Discord avatar was drawn so dark that at small sizes it read as a black
+disc. Its green lines and glow are brighter now; the near-black field behind
+them is unchanged.
 
 ## Released in 20261112
 

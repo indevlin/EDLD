@@ -2,7 +2,8 @@
 
 EDLD tracks two mission views. The general board records every mission you
 have, of any type: what it asks for, where, by when, and whether it is ready
-to turn in. The massacre stack sums the massacres by source faction. Both
+to turn in. The massacre stack groups the massacres by target faction, then
+by the source factions that gave them, with the kills each has made. Both
 need a bootstrap, because the game's `Missions` event at login lists each
 active mission's ID, name and time left, and nothing else.
 
@@ -26,24 +27,41 @@ This means your stack value and completion count are accurate from the moment mo
 
 ---
 
-## Why the stack does not count kills
+## How the stack counts kills
 
-The massacre table reports missions done of missions held (`01 / 05`), not
-kills made. Counting kills was tried twice, and both times the figure fell
-behind the game's own mission screen.
+The massacre table has a row for each target faction, the faction whose ships
+are to be killed, and under it a row for each source faction that gave
+missions against it. A source faction's KILLS are the kills credited to its
+missions of the kills they need (`12 / 45`); the target faction's are the
+stack's, measured against its tallest source faction, since every kill of the
+target counts once for each source faction. MISSIONS is missions done of
+missions held. A row turns green when all its missions are ready to turn in.
+Two target factions are two stacks, with a Totals row under them.
 
-The game credits a kill to the oldest unfinished mission of each source
-faction, and writes a `Bounty` for only some of the kills it credits. Over
-every massacre stack in the journals the second attempt was checked against
-(178 redirects), the bounties covered about seven kills in ten; at the moment
-a mission redirected there was often no `Bounty` at all. The kills without
-one leave no other trace either: across all those journals, a ship of a
-target faction seen at zero hull without a bounty happened once. On the Wolf
-359 stack of 6 November the game showed 12 of 45 while the journal held 10
-bounties, one of them that single zero-hull sighting and the other nothing at
-all.
+The game credits a kill of a target faction ship, made in the mission's
+target system, to the oldest unfinished mission of each source faction. EDLD
+does the same with every kill the journal shows:
 
-`MissionRedirected` is exact: it is written the moment a mission reaches its
-count. So that is what the stack reports. Anchoring a kill count on redirects
-was tried too: it never read high, but with one 45-kill mission there is no
-redirect until the end, so it could still only lag.
+- `Bounty`, naming the victim's faction. Skimmers and on-foot targets are not
+  ships and do not count.
+- `CommitCrime` with `murder`, when the victim was scanned in full
+  (`ShipTargeted` stage 3) and found to be of the target faction. A clean
+  ship of the target faction counts for the mission, but pays no bounty, so
+  no `Bounty` is written for it.
+- The locked target dropping (`ShipTargeted` with `TargetLocked` false) when
+  its last reading was at no hull and its scan had not finished, with no
+  `Bounty` or murder for that pilot within three seconds. A ship destroyed
+  before the scan completes pays no bounty either. Its faction is not known,
+  so it is counted only when one target faction is held for the system.
+
+A mission is held one short of its count until `MissionRedirected`, which is
+written the moment the game finds it complete and sets it to its count. Kills
+of ships destroyed before a scan finished and while not locked leave nothing
+in the journal, so between redirects the count can lag the game's mission
+screen, never lead it; each redirect brings it back in step. Each redirect
+is logged with the kills credited before it, so a lag can be measured from
+real journals.
+
+The kills are not stored: at every `Missions` snapshot they are rebuilt from
+the journal index, from the journal holding the oldest active massacre's
+acceptance up to the snapshot, then fed live.
