@@ -1,8 +1,45 @@
 # EDLD CHANGELOG
 
-Last updated: 20261115
+Last updated: 20261116
 
 ---
+
+## 20261116-dev — added, unreleased
+
+### Changed: the Helm panel follows you
+
+The Helm panel showed the ship's controls wherever the commander was. On foot
+or in an SRV its buttons pressed the ship's bindings, which did nothing or
+something else, and the controls that do work there — an SRV's headlights,
+handbrake and turret, a suit's flashlight, night vision and tools — were not
+on it at all, so the panel looked complete while being useless off the ship.
+It now shows the controls for where you are: the ship, a ship-launched
+fighter you are flying, an SRV (Scarab, Scorpion, Nomad or Rhino, with the
+SRV's own bindings) or on foot, and changes as you launch, dock, embark or
+disembark. The line under the buttons names where it is for — "SRV Nomad",
+"On foot" — before the last press.
+
+The ship gains Hyperspace, Rotation correction, throttle presets (0% to 100%
+and Reverse), the Colonisation module, a Targeting group (target ahead, next
+and previous target, hostile and subsystem, highest threat, target's target,
+wingmen and wing nav lock), the fire groups, Fighter orders (request dock,
+defend, engage at will, attack target, hold fire, hold position, follow and
+the orders panel) and the cockpit panels, codex, orbit lines and camera.
+Flying a fighter keeps what a fighter can do, and its orders go to the ship's
+crew. The SRV has Drive assist, Handbrake, Headlights, Night vision, Cargo
+scoop, Turret view, Recall ship, its target, fire groups, pips and panels. On
+foot there are the suit (Flashlight, Night vision, Shields, Medkit, Energy
+cell, Recall ship), the tools (Energylink, Profile analyser, Suit tool, Tool
+mode), the weapons (Primary, Secondary, Sidearm, Switch, Holster, Reload),
+the grenades and the panels.
+
+A control left empty in the game's Controls is one you do not use, and is
+left off; one bound only to a controller is grayed with what to add, as
+before. Check bindings goes through every context. EDAM is sent only the
+current context's controls, named for it, and a press from it meant for
+somewhere else — a ship's button tapped as you disembark — is refused and
+says why. In the terminal, a change of context waits for the old buttons to
+go before mounting the new, whose names they share.
 
 ## 20261115-dev — added, unreleased
 

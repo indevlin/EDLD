@@ -148,16 +148,62 @@ search box is not where the script expects, change the steps before `type`.
 ## The Helm panel
 
 The Helm panel puts the automations and the game's own controls on buttons,
-grouped by what they are for:
+grouped by what they are for, and follows you: it shows the controls for
+where you are — the ship, a ship-launched fighter you are flying, an SRV
+(Scarab, Scorpion, Nomad or Rhino), or on foot — and changes as you launch,
+dock, embark or disembark. The line under the buttons names where it is for
+("SRV Nomad", "On foot"), then what the last press came to.
+
+In the ship:
 
 | Group | Buttons |
 |---|---|
 | Automation | **Honk** — what auto honk does, now, in supercruise or normal space; **Next stop** — plot the galaxy map to the next stop of the route EDLD plotted |
-| Flight | Supercruise, Jump, Next system (target the next system in the route), Boost, Flight assist |
-| Ship | Landing gear, Cargo scoop, Lights, Night vision |
-| Combat | Hardpoints, Heat sink, Chaff, Shield cell, Silent running |
+| Flight | Supercruise, Jump, Hyperspace, Next system (target the next system in the route), Boost, Flight assist, Rotation correction |
+| Throttle | 0%, 25%, 50%, 75%, 100%, Reverse |
+| Ship | Landing gear, Cargo scoop, Lights, Night vision, Colonisation module |
+| Targeting | Target ahead, Next and Previous target, Highest threat, Next and Previous hostile, Next and Previous subsystem, Target's target, Wingman 1–3, Wing nav lock |
+| Combat | Hardpoints, Next and Previous fire group, Heat sink, Chaff, Shield cell, Silent running |
+| Fighter orders | Request dock, Defend, Engage at will, Attack target, Hold fire, Hold position, Follow, Orders panel |
 | Power | SYS, ENG, WEP (a pip each), Reset pips |
-| Panels | Galaxy map, System map, FSS, HUD mode |
+| Panels | Galaxy map, System map, FSS, HUD mode, Left panel, Comms, Role panel, Right panel, Codex, Orbit lines, Camera suite |
+
+Flying a fighter, the panel keeps what a fighter can do — Boost, Flight
+assist, the throttle, its lights and night vision, targeting, the fire
+groups, the pips and the cockpit panels — and its orders, which go to the
+ship's crew from there. Supercruise, the jump, the landing gear, the scoop,
+heat sinks and the automations are left off.
+
+In an SRV, with the SRV's own bindings:
+
+| Group | Buttons |
+|---|---|
+| Vehicle | Drive assist, Handbrake, Headlights, Night vision, Cargo scoop, Turret view, Recall ship |
+| Targeting | Target ahead |
+| Combat | Next and Previous fire group |
+| Power | SYS, ENG, WEP, Reset pips |
+| Panels | Galaxy map, System map, HUD mode, Left panel, Comms, Role panel, Right panel, Codex, Camera suite |
+
+On foot:
+
+| Group | Buttons |
+|---|---|
+| Suit | Flashlight, Night vision, Shields, Medkit, Energy cell, Recall ship |
+| Tools | Energylink, Profile analyser, Suit tool, Tool mode |
+| Weapons | Primary, Secondary, Sidearm, Switch weapon, Holster, Reload |
+| Grenades | Frag, EMP, Shield, Next grenade, Throw |
+| Panels | Galaxy map, System map, Comms, Mission help, Ping, Camera suite |
+
+A control whose binding is empty in the game's Controls — no key, no button,
+nothing — is one you do not use, and is left off the panel. One bound only to
+a controller, or with a controller button held with it, is shown grayed: EDLD
+can press keys and mouse buttons, not a controller, and its tooltip says what
+it is bound to and what to add. **Check bindings** goes through every
+context: how many of its controls can be pressed, how many are left off, and
+what each grayed one needs. Controls the game holds rather than presses — the
+SRV's vertical thrusters, the item wheel, the access panel — and those that
+need a charge, such as the ECM, are not on the panel; neither is jettisoning
+all cargo, one tap from losing a hold.
 
 <div align="center">
 <img src="../images/edcars-helm.png" alt="EDCARS, Helm section" width="900"/>
@@ -166,7 +212,7 @@ grouped by what they are for:
 
 Where it is:
 
-- **EDCARS** gives it a section of its own, second on the rail (`Ctrl+2`),
+- **EDCARS** gives it a section of its own, third on the rail (`Ctrl+3`),
   with the buttons as large as the section allows.
 - **The Dashboard**, in the desktop window and the terminal, runs it along
   the foot of the window while automation is on: on a wide screen every group
@@ -179,10 +225,12 @@ Where it is:
   only those; it cannot type, hold or press anything else. With none, its
   Helm section says why. See [SERVER.md](SERVER.md) for the protocol.
 
-On EDLD's own panel every control is shown; one that cannot be pressed —
-automation off, or bound only to a controller — is grayed, and its tooltip
-says what it is bound to and what to change. The line under the buttons says
-what the last press came to, or what the automation is set to do on its own.
+On EDLD's own panel a control that cannot be pressed — automation off, or
+bound only to a controller — is grayed, and its tooltip says what it is bound
+to and what to change. A device is sent only the current context's controls
+that can be pressed, with the context's name for its Helm section to show,
+and a press from it for somewhere else — a ship's button tapped just as you
+disembark — is refused and says why.
 
 A button that cannot do its job now says why: Honk, for one, needs the ship
 in flight — not docked, landed, in the SRV, on foot or at the main menu — and

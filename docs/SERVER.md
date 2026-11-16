@@ -378,9 +378,10 @@ The client sends `{"t":"ping","id":n}` every 30 s (answered with
              {"id":"pips-sys","label":"SYS","group":"power"}],
  "helm":{"name":"Helm","section":"helm",
          "groups":[{"id":"automation","label":"Automation"},{"id":"flight","label":"Flight"},
-                   {"id":"ship","label":"Ship"},{"id":"combat","label":"Combat"},
+                   {"id":"throttle","label":"Throttle"},{"id":"ship","label":"Ship"},
+                   …,
                    {"id":"power","label":"Power"},{"id":"panels","label":"Panels"}],
-         "note":null}}
+         "note":null,"context":"ship","where":"Ship"}}
 ```
 
 `tools` (below, under Commands) are the Navigation window's forms.
@@ -396,6 +397,14 @@ or nothing bound — for the device to show in place of the buttons. Two
 controls are sequences rather than one key: `honk` holds the discovery
 scanner in its fire group, and `nextstop` plots the galaxy map to the next
 stop of the route EDLD plotted; their answer can take several seconds.
+
+The panel follows the commander: `context` is where they are — `ship`,
+`fighter` (flying a ship-launched fighter), `srv` or `foot` — and `controls`
+holds only that context's, changing as they launch, dock, embark or
+disembark. `where` names it for the device to show above the buttons: "Ship",
+"Fighter", the SRV by name ("SRV Nomad") or "On foot". The groups are named
+for the context too: in a fighter `ship` is "Fighter" and `orders` "Orders".
+A press of a control for another context is refused, with why.
 
 `theme` is the theme EDLD is drawing with:
 
