@@ -56,7 +56,7 @@ _MSG_DISPATCH: dict[str, list[str]] = {
     "crew_update":        ["block-status"],
     "slf_update":         ["block-status"],
     "vessel_update":      ["block-commander", "block-ship", "block-nav",
-                           "block-engineering"],
+                           "block-engineering", "block-helm"],
     "ship_health_update": ["block-ship", "block-engineering"],
     "location_update":    ["block-commander", "block-nav"],
     # Missions now render inside the Session window's Missions tab.

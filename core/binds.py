@@ -27,7 +27,8 @@ MOUSE_KEYS = ("Mouse_1", "Mouse_2", "Mouse_3", "Mouse_4", "Mouse_5")
 _PAD = {"A": "A", "B": "B", "X": "X", "Y": "Y", "LBumper": "LB", "RBumper": "RB",
         "LTrigger": "LT", "RTrigger": "RT", "LThumb": "LS", "RThumb": "RS",
         "Back": "Back", "Start": "Start", "DPadUp": "D-pad up", "DPadDown": "D-pad down",
-        "DPadLeft": "D-pad left", "DPadRight": "D-pad right"}
+        "DPadLeft": "D-pad left", "DPadRight": "D-pad right",
+        "FaceDown": "A", "FaceRight": "B", "FaceLeft": "X", "FaceUp": "Y"}
 
 
 def key_text(device: str, key: str) -> str:
@@ -39,7 +40,7 @@ def key_text(device: str, key: str) -> str:
             return key.replace("_", " ")
         return {"Mouse_ZAxisInc": "wheel up", "Mouse_ZAxisDec": "wheel down"}.get(
             key, key.replace("Mouse_", "mouse "))
-    pad = re.sub(r"^(GamePad|Pad)_", "", key)
+    pad = re.sub(r"^(Pos_|Neg_)?(GamePad|Pad)_", "", key)
     if pad != key and pad in _PAD:
         return _PAD[pad]
     m = re.fullmatch(r"Joy_(\d+)", key)
@@ -212,6 +213,69 @@ ACTION_NAMES = {
     "IncreaseEnginesPower": "Divert Power to Engines",
     "IncreaseWeaponsPower": "Divert Power to Weapons",
     "ExplorationFSSEnter": "Enter FSS Mode", "PlayerHUDModeToggle": "Switch HUD Mode",
+    "Hyperspace": "Hyperspace Jump", "DisableRotationCorrectToggle": "Rotational Correction",
+    "SetSpeedZero": "Set Speed to 0%", "SetSpeed25": "Set Speed to 25%",
+    "SetSpeed50": "Set Speed to 50%", "SetSpeed75": "Set Speed to 75%",
+    "SetSpeed100": "Set Speed to 100%", "ToggleReverseThrottleInput": "Toggle Reverse Throttle",
+    "TriggerColonisationModule": "Trigger Colonisation Module",
+    "SelectTarget": "Select Target Ahead", "CycleNextTarget": "Cycle Next Ship",
+    "CyclePreviousTarget": "Cycle Previous Ship", "SelectHighestThreat": "Select Highest Threat",
+    "CycleNextHostileTarget": "Cycle Next Hostile Ship",
+    "CyclePreviousHostileTarget": "Cycle Previous Hostile Ship",
+    "CycleNextSubsystem": "Cycle Next Subsystem",
+    "CyclePreviousSubsystem": "Cycle Previous Subsystem",
+    "SelectTargetsTarget": "Select Wingman's Target", "TargetWingman0": "Select Wingman 1",
+    "TargetWingman1": "Select Wingman 2", "TargetWingman2": "Select Wingman 3",
+    "WingNavLock": "Wingman Nav-Lock",
+    "OrderRequestDock": "Request Dock", "OrderDefensiveBehaviour": "Defend",
+    "OrderAggressiveBehaviour": "Engage at Will", "OrderFocusTarget": "Attack Target",
+    "OrderHoldFire": "Hold Fire", "OrderHoldPosition": "Hold Position", "OrderFollow": "Follow",
+    "OpenOrders": "Open Orders",
+    "FocusLeftPanel": "Focus Left Panel", "FocusCommsPanel": "Focus Comms Panel",
+    "FocusRadarPanel": "Focus Role Panel", "FocusRightPanel": "Focus Right Panel",
+    "OpenCodexGoToDiscovery": "Open Codex", "OrbitLinesToggle": "Show Orbit Lines",
+    "PhotoCameraToggle": "Camera Suite",
+    "ToggleDriveAssist": "Drive Assist", "AutoBreakBuggyButton": "Handbrake",
+    "HeadlightsBuggyButton": "Headlights", "ToggleCargoScoop_Buggy": "Cargo Scoop (SRV)",
+    "ToggleBuggyTurretButton": "Turret Mode", "RecallDismissShip": "Recall/Dismiss Ship",
+    "SelectTarget_Buggy": "Select Target (SRV)",
+    "BuggyCycleFireGroupNext": "Cycle Next Fire Group (SRV)",
+    "BuggyCycleFireGroupPrevious": "Cycle Previous Fire Group (SRV)",
+    "IncreaseSystemsPower_Buggy": "Divert Power to Systems (SRV)",
+    "IncreaseEnginesPower_Buggy": "Divert Power to Engines (SRV)",
+    "IncreaseWeaponsPower_Buggy": "Divert Power to Weapons (SRV)",
+    "ResetPowerDistribution_Buggy": "Reset Power Distribution (SRV)",
+    "GalaxyMapOpen_Buggy": "Open Galaxy Map (SRV)", "SystemMapOpen_Buggy": "Open System Map (SRV)",
+    "PlayerHUDModeToggle_Buggy": "Switch HUD Mode (SRV)",
+    "FocusLeftPanel_Buggy": "Focus Left Panel (SRV)",
+    "FocusCommsPanel_Buggy": "Focus Comms Panel (SRV)",
+    "FocusRadarPanel_Buggy": "Focus Role Panel (SRV)",
+    "FocusRightPanel_Buggy": "Focus Right Panel (SRV)",
+    "OpenCodexGoToDiscovery_Buggy": "Open Codex (SRV)",
+    "PhotoCameraToggle_Buggy": "Camera Suite (SRV)",
+    "HumanoidToggleFlashlightButton": "Toggle Flashlight",
+    "HumanoidToggleNightVisionButton": "Toggle Night Vision (on foot)",
+    "HumanoidToggleShieldsButton": "Toggle Shields", "HumanoidHealthPack": "Use Medkit",
+    "HumanoidBattery": "Use Energy Cell",
+    "HumanoidSwitchToRechargeTool": "Switch to Energylink",
+    "HumanoidSwitchToCompAnalyser": "Switch to Profile Analyser",
+    "HumanoidSwitchToSuitTool": "Switch to Suit Tool",
+    "HumanoidToggleToolModeButton": "Toggle Tool Mode",
+    "HumanoidSelectPrimaryWeaponButton": "Select Primary Weapon",
+    "HumanoidSelectSecondaryWeaponButton": "Select Secondary Weapon",
+    "HumanoidSelectUtilityWeaponButton": "Select Utility Weapon",
+    "HumanoidSwitchWeapon": "Switch Weapon", "HumanoidHideWeaponButton": "Holster Weapon",
+    "HumanoidReloadButton": "Reload",
+    "HumanoidSelectFragGrenade": "Select Frag Grenade",
+    "HumanoidSelectEMPGrenade": "Select EMP Grenade",
+    "HumanoidSelectShieldGrenade": "Select Shield Projector",
+    "HumanoidSelectNextGrenadeTypeButton": "Select Next Grenade",
+    "HumanoidThrowGrenadeButton": "Throw Grenade",
+    "GalaxyMapOpen_Humanoid": "Open Galaxy Map (on foot)",
+    "SystemMapOpen_Humanoid": "Open System Map (on foot)",
+    "FocusCommsPanel_Humanoid": "Focus Comms Panel (on foot)",
+    "HumanoidToggleMissionHelpPanelButton": "Toggle Mission Help Panel",
+    "HumanoidPing": "Ping", "PhotoCameraToggle_Humanoid": "Camera Suite (on foot)",
 }
 
 

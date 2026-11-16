@@ -262,7 +262,7 @@ class HelmBlock(GuiBlock):
         self._make_groups(v)
         self._note.setText(v.note)
         self._note.setVisible(bool(v.note))
-        self._status.setText(v.status)
+        self._status.setText(H.status_line(v))
         for g in v.groups:
             for b in g.buttons:
                 btn = self._buttons.get(b.id)

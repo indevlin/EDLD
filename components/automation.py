@@ -230,6 +230,28 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
             return False
         return all(self.bindings.get(a) is not None for a in need)
 
+    def _listed(self, control) -> bool:
+        """Whether a control belongs on the panel: a sequence, or a binding
+        given anything at all in the game's Controls. One left empty there is
+        not used, and is left off; one bound only to a controller is shown,
+        grayed, with what would let EDLD press it."""
+        if not control.binding or self.bindings.folder is None:
+            return True
+        return (self.bindings.get(control.binding) is not None
+                or bool(self.bindings.slots(control.binding)))
+
+    def helm_context(self) -> tuple[str, str]:
+        """(context, what the panel says it is for): "SRV Nomad", "On foot"."""
+        from core import helm as H
+        state = self.core.state
+        ctx = H.context_of(state)
+        where = H.context_label(ctx)
+        if ctx == H.SRV:
+            srv = str(getattr(state, "srv_type", "") or "")
+            if srv:
+                where = srv if srv.upper().startswith("SRV") else f"SRV {srv}"
+        return ctx, where
+
     def _why_unbound(self, control) -> str:
         from core import automation as A
         from core import helm as H
@@ -261,7 +283,9 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
                 if cfg.get(key)]
         status = ("Pressing…" if self._pressing else self.last_result or
                   (("On its own: " + " and ".join(auto) + ".") if enabled and auto else ""))
-        return H.build_view(enabled, self._bound, self._why_unbound, note, status)
+        ctx, where = self.helm_context()
+        return H.build_view(enabled, self._bound, self._why_unbound, note, status,
+                            context=ctx, shown=self._listed, where=where)
 
     def controls(self) -> list[dict]:
         """The controls a paired device may press right now: those allowed
@@ -271,8 +295,9 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
             return []
         from core import helm as H
         self._engine()
+        ctx, _where = self.helm_context()
         return [{"id": c.id, "label": c.label, "group": c.group}
-                for c in H.CONTROLS if self._bound(c)]
+                for c in H.CONTROLS if H.in_context(c, ctx) and self._bound(c)]
 
     def controls_note(self) -> str:
         """Why a device has nothing to press, for its Helm section; "" when
@@ -284,8 +309,11 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
             return ("EDLD does not let paired devices press keys: turn on \"Allow paired "
                     "devices to press keys\" in Options → Automation.")
         if not self.controls():
-            return ("None of the game's controls is bound to a key or a mouse button "
-                    "EDLD can press (Options → Automation → Check bindings).")
+            from core import helm as H
+            ctx, where = self.helm_context()
+            here = "on foot" if ctx == H.FOOT else f"in the {where}"
+            return (f"None of the game's controls {here} is bound to a key or a mouse "
+                    "button EDLD can press (Options → Automation → Check bindings).")
         return ""
 
     def press_control(self, control_id: str, here: bool = False) -> tuple[bool, str]:
@@ -302,6 +330,10 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
         if not here and not cfg.get("AllowControl"):
             return False, "not available"
         self._engine()
+        ctx, where = self.helm_context()
+        if not H.in_context(control, ctx):
+            here = "on foot" if ctx == H.FOOT else f"in the {where}"
+            return False, f"{control.label} is not available {here}"
         if not self._bound(control):
             return False, self._why_unbound(control) or "not available"
         if here:
@@ -386,9 +418,18 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
         script = str(cfg.get("PlotScript") or "").strip() or A.DEFAULT_PLOT_SCRIPT
         lines.append("Next route stop")
         lines += [line(a) for a in A.script_actions(script)]
-        rail_ok = [label for action, label, _g in A.CONTROLS.values()
-                   if self.bindings.get(action) is not None]
-        lines.append(f"Helm panel: {len(rail_ok)} of {len(A.CONTROLS)} controls can be pressed")
-        lines += [line(action) for action, _l, _g in A.CONTROLS.values()
-                  if self.bindings.get(action) is None]
+        from core import helm as H
+        for ctx, label in H.CONTEXTS:
+            mine = [c for c in H.CONTROLS if c.binding and H.in_context(c, ctx)]
+            listed = [c for c in mine if self._listed(c)]
+            ok = [c for c in listed if self.bindings.get(c.binding) is not None]
+            unused = len(mine) - len(listed)
+            lines.append(f"Helm panel, {label.lower() if ctx != H.FOOT else 'on foot'}: "
+                         f"{len(ok)} of {len(listed)} controls can be pressed"
+                         + (f"; {unused} not bound in the game, left off" if unused else ""))
+            seen = set()
+            for c in listed:
+                if self.bindings.get(c.binding) is None and c.binding not in seen:
+                    seen.add(c.binding)
+                    lines.append(line(c.binding))
         return "\n".join(lines)

@@ -290,16 +290,22 @@ class SnapshotBuilder:
         device has nothing to press — why, for its Helm section to say."""
         from core import helm
         note = ""
+        ctx = helm.context_of(getattr(self.core, "state", None))
+        where = helm.context_label(ctx)
         auto = (getattr(self.core, "_plugins", None) or {}).get("automation")
         if auto is None:
             note = "Automation is not available in this EDLD."
         else:
             try:
                 note = auto.controls_note()
+                ctx, where = auto.helm_context()
             except Exception as exc:
                 self._fault("helm note", exc)
+        # The context: the controls sent are only those for where the
+        # commander is, and "where" says so above them.
         return {"name": helm.HELM_NAME, "section": helm.HELM_SECTION,
-                "groups": helm.wire_groups(), "note": note or None}
+                "groups": helm.wire_groups(ctx), "note": note or None,
+                "context": ctx, "where": where}
 
     def theme(self) -> dict | None:
         """The theme EDLD is drawing with, so a device can follow it."""

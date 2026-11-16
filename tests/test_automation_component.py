@@ -136,8 +136,9 @@ def test_the_binding_check_says_what_each_sequence_presses(tmp_path, monkeypatch
     assert any(line.startswith("  ✗ Cycle Next Fire Group is bound only to controller X+RB")
                for line in report)
     assert any(line.startswith("  ✗ Open Galaxy Map is not bound") for line in report)
-    rail = next(line for line in report if line.startswith("Helm panel:"))
-    assert rail.startswith("Helm panel: 2 of ")         # hardpoints (key), lights (mouse)
+    rail = next(line for line in report if line.startswith("Helm panel, ship:"))
+    assert rail.startswith("Helm panel, ship: 2 of ")   # hardpoints (key), lights (mouse)
+    assert "not bound in the game, left off" in rail
     p, _ = _auto({"BindingsDir": str(tmp_path)})
     assert any("not needed" in line for line in p.settings_action("check-binds").splitlines())
 

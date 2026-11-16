@@ -107,11 +107,14 @@ class HelmBlock(TuiBlock):
             return
         v = self.view()
         self._build(v)
+        self._show(v)
+
+    def _show(self, v: H.View) -> None:
         try:
             note = self.query_one("#helm-note", Label)
             note.update(v.note)
             note.display = bool(v.note)
-            self.query_one("#helm-status", Label).update(v.status)
+            self.query_one("#helm-status", Label).update(H.status_line(v))
         except Exception:
             return
         for g in v.groups:
@@ -132,15 +135,25 @@ class HelmBlock(TuiBlock):
             host = self.query_one("#helm-groups", Grid)
         except Exception:
             return
-        host.remove_children()
         boxes = []
         for g in v.groups:
             buttons = [Button(b.label, id=f"helm-{b.id}") for b in g.buttons]
             boxes.append(Vertical(Label(g.label.upper(), classes="helm-group-title"),
                                   Grid(*buttons, classes="helm-buttons"),
                                   classes="helm-group"))
-        host.mount_all(boxes)
         self._layout = ()
+        if not host.children:
+            host.mount_all(boxes)
+            self.call_after_refresh(self._arrange)
+            return
+        # Another context's buttons share ids with these: the old ones go
+        # first, then the new are mounted and given their state.
+        self.run_worker(self._remount(host, boxes, v), exclusive=True, group="helm-build")
+
+    async def _remount(self, host, boxes, v: H.View) -> None:
+        await host.remove_children()
+        await host.mount_all(boxes)
+        self._show(v)
         self.call_after_refresh(self._arrange)
 
     # ── Layout ────────────────────────────────────────────────────────────────

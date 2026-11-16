@@ -23,12 +23,25 @@ from core.state import MonitorState  # noqa: E402
 
 # ── The model ─────────────────────────────────────────────────────────────────
 
+SHIP_GROUPS = ["automation", "flight", "throttle", "ship", "targeting", "combat",
+               "orders", "power", "panels"]
+
+
 def test_every_control_is_in_a_known_group_once():
     groups = [g for g, _ in H.GROUPS]
-    assert groups == ["automation", "flight", "ship", "combat", "power", "panels"]
     ids = [c.id for c in H.CONTROLS]
     assert len(ids) == len(set(ids))
     assert all(c.group in groups for c in H.CONTROLS)
+    contexts = {c for c, _ in H.CONTEXTS}
+    assert all(c.contexts and set(c.contexts) <= contexts for c in H.CONTROLS)
+    # Each context's groups, in drawing order.
+    def groups_of(ctx):
+        return [g for g in groups if any(c.group == g and ctx in c.contexts
+                                         for c in H.CONTROLS)]
+    assert groups_of(H.SHIP) == SHIP_GROUPS
+    assert groups_of(H.SRV) == ["vehicle", "targeting", "combat", "power", "panels"]
+    assert groups_of(H.FOOT) == ["suit", "tools", "weapons", "grenades", "panels"]
+    assert "automation" not in groups_of(H.FIGHTER)
     # The automata are sequences; everything else is one binding.
     assert [c.id for c in H.CONTROLS if c.sequence] == [H.HONK, H.NEXT_STOP]
 
@@ -48,7 +61,8 @@ def test_what_a_device_could_press_before_it_still_can():
 def test_the_view_keeps_the_order_and_says_why():
     v = H.build_view(True, lambda c: c.id != "nightvision",
                      lambda c: "Night Vision is not bound", status="Pressed Jump.")
-    assert [g.id for g in v.groups] == [g for g, _ in H.GROUPS]
+    assert [g.id for g in v.groups] == SHIP_GROUPS
+    assert v.where == "Ship" and H.status_line(v) == "Ship · Pressed Jump."
     ship = next(g for g in v.groups if g.id == "ship")
     nv = next(b for b in ship.buttons if b.id == "nightvision")
     assert not nv.ready and nv.tip == "Night Vision is not bound"
@@ -71,9 +85,11 @@ def test_the_panel_setting():
 
 # ── The automation component ──────────────────────────────────────────────────
 
-def _auto(cfg, bound=("LandingGearToggle", "PrimaryFire", "Supercruise")):
+def _auto(cfg, bound=("LandingGearToggle", "PrimaryFire", "Supercruise"), pad_all=False):
+    """``pad_all``: every other Helm binding given a controller button, so
+    the whole panel is drawn, those grayed."""
     from components.automation import AutomationPlugin
-    from core.binds import Binding, Bindings
+    from core.binds import Binding, Bindings, Slot
     state = MonitorState()
     state.in_preload = False
     queued = []
@@ -87,6 +103,12 @@ def _auto(cfg, bound=("LandingGearToggle", "PrimaryFire", "Supercruise")):
     p.bindings = Bindings()
     p.bindings._map = {b: Binding("Key_L") for b in bound}
     p.bindings._map["ToggleCargoScoop"] = None
+    p.bindings._slots = {"ToggleCargoScoop": (Slot("28DE11FF", "GamePad_DPadUp"),)}
+    if pad_all:
+        for c in H.CONTROLS:
+            if c.binding and c.binding not in bound:
+                p.bindings._map.setdefault(c.binding, None)
+                p.bindings._slots.setdefault(c.binding, (Slot("28DE11FF", "GamePad_FaceUp"),))
     p.bindings._path = Path("/x")
     p._auto, p._honked_here, p._arrival_seq = None, False, 0
     p._binds_loaded_at = time.monotonic() + 1e9
@@ -106,8 +128,10 @@ def test_the_view_greys_what_cannot_be_pressed():
     v = p.helm_view()
     ready = {b.id: b for g in v.groups for b in g.buttons}
     assert ready["gear"].ready and ready["supercruise"].ready and ready["honk"].ready
-    assert not ready["scoop"].ready and ready["scoop"].tip.startswith("Cargo Scoop")
+    assert not ready["scoop"].ready and "controller" in ready["scoop"].tip
     assert not ready["nextstop"].ready           # the galaxy-map script's keys
+    # Bound to nothing in the game: not used, so not drawn.
+    assert "lights" not in ready and "chaff" not in ready
     assert v.status == "On its own: auto honk."
 
 
@@ -217,7 +241,7 @@ def test_the_dashboard_strip_shows_only_while_automation_is_on():
     app = _qt()
     from PySide6.QtWidgets import QVBoxLayout, QWidget
     from gui.blocks.helm import HelmBlock
-    p, _ = _auto({})
+    p, _ = _auto({}, pad_all=True)
     win = QWidget()
     lay = QVBoxLayout(win)
     block = HelmBlock(_host(p), compact=True)
@@ -230,10 +254,10 @@ def test_the_dashboard_strip_shows_only_while_automation_is_on():
     p.settings = lambda: {"Enabled": True}
     block.refresh_data()
     app.processEvents()
-    assert block.isVisible() and len(block._buttons) == len(H.CONTROLS)
+    ship = [c for c in H.CONTROLS if H.SHIP in c.contexts]
+    assert block.isVisible() and len(block._buttons) == len(ship)
     assert block._buttons["gear"].isEnabled() and not block._buttons["scoop"].isEnabled()
-    # Wide enough: every group in one row, two rows of buttons each.
-    assert block._per_row == len(H.GROUPS)
+    assert block._status.text().startswith("Ship")
     block.core.cfg.ui_cfg["HelmPanel"] = False
     block.refresh_data()
     assert not block.isVisible()
@@ -243,13 +267,13 @@ def test_the_dashboard_strip_shows_only_while_automation_is_on():
 def test_a_narrow_strip_wraps_and_edcars_fills_its_section():
     app = _qt()
     from gui.blocks.helm import HelmBlock
-    p, _ = _auto({"Enabled": True})
+    p, _ = _auto({"Enabled": True}, pad_all=True)
     strip = HelmBlock(_host(p), compact=True)
     strip.resize(700, 300)
     strip.show()
     strip.refresh_data()
     app.processEvents()
-    assert strip._per_row < len(H.GROUPS)
+    assert strip._per_row < len(SHIP_GROUPS)
     big = HelmBlock(_host(p), compact=False)
     big.resize(1400, 800)
     big.show()
@@ -276,7 +300,13 @@ def test_a_click_presses_from_edlds_window():
 
 # ── The terminal ──────────────────────────────────────────────────────────────
 
-LABELS = [[c.label for c in H.CONTROLS if c.group == g] for g, _ in H.GROUPS]
+#: The panel as it was before contexts: six groups, the arrangement's case.
+LABELS = [["Honk", "Next stop"],
+          ["Supercruise", "Jump", "Next system", "Boost", "Flight assist"],
+          ["Landing gear", "Cargo scoop", "Lights", "Night vision"],
+          ["Hardpoints", "Heat sink", "Chaff", "Shield cell", "Silent running"],
+          ["SYS", "ENG", "WEP", "Reset pips"],
+          ["Galaxy map", "System map", "FSS", "HUD mode"]]
 
 
 def test_the_terminal_strip_is_as_short_as_it_can_be():
@@ -299,7 +329,7 @@ def test_the_terminal_strip_draws_and_presses():
     from textual.app import App
     from tui.blocks.helm import HelmBlock
     from tui.theme import build_css
-    p, _ = _auto({"Enabled": True})
+    p, _ = _auto({"Enabled": True}, pad_all=True)
     pressed = []
     p.press_here = pressed.append
     host = _host(p)
@@ -313,7 +343,7 @@ def test_the_terminal_strip_draws_and_presses():
 
     async def run():
         app = One()
-        async with app.run_test(size=(200, 14)) as pilot:
+        async with app.run_test(size=(200, 40)) as pilot:
             block = app.query_one(HelmBlock)
             block.refresh_data()
             await pilot.pause(0.2)
