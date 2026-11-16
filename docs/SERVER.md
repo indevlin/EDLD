@@ -413,7 +413,7 @@ side by side when the width holds them, one under another when not, and a
 group with no controls leaves its line to the rest. `columns` fixes a group's
 button columns (`orders` is drawn two to a row, in its pairs). A client
 should draw a group missing from `rows` on a line of its own after them. Both
-are absent from an EDLD before 20261115.
+are absent from an EDLD before 20261116.
 
 `theme` is the theme EDLD is drawing with:
 

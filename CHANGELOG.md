@@ -1,10 +1,10 @@
 # EDLD CHANGELOG
 
-Last updated: 20261115
+Last updated: 20261116
 
 ---
 
-## 20261115-dev — added, unreleased
+## Released in 20261116
 
 ### Changed: the Helm panel packs into fewer rows
 
