@@ -207,3 +207,31 @@ def test_a_controllers_face_buttons_and_triggers_are_named_as_on_the_pad():
         == ["Y", "B", "RT", "LT"]
     s = Slot("28DE11FF", "GamePad_DPadLeft", (("28DE11FF", "GamePad_FaceRight"),))
     assert s.text() == "controller B+D-pad left"
+
+
+def test_fighter_orders_on_the_number_pad_are_pressable_from_the_ship(tmp_path):
+    from core.binds import Bindings
+    from core.keys import KEYS
+    orders = {"OrderRequestDock": "Numpad_0", "OrderDefensiveBehaviour": "Numpad_1",
+              "OrderAggressiveBehaviour": "Numpad_2", "OrderFocusTarget": "Numpad_3",
+              "OrderHoldFire": "Numpad_4", "OrderHoldPosition": "Numpad_5",
+              "OrderFollow": "Numpad_6"}
+    xml = "".join(f'<{a}><Primary Device="Keyboard" Key="Key_{k}" />'
+                  f'<Secondary Device="{{NoDevice}}" Key="" /></{a}>' for a, k in orders.items())
+    (tmp_path / "Custom.4.2.binds").write_text(f'<?xml version="1.0"?><Root>{xml}</Root>',
+                                              encoding="utf-8")
+    (tmp_path / "StartPreset.4.start").write_text("Custom\nCustom\nCustom\nCustom\n",
+                                                 encoding="utf-8")
+    p, _ = _auto({"Enabled": True})
+    p.bindings = Bindings()
+    assert p.bindings.load(None, str(tmp_path))
+    p._binds_loaded_at = 1e18
+    p._engine = lambda: None
+    for ctx_state in (_state(), _state(slf=True)):
+        p.core.state = ctx_state
+        btn = {b.id: b for g in p.helm_view().groups for b in g.buttons}
+        for cid in ("ord-dock", "ord-defend", "ord-engage", "ord-attack", "ord-holdfire",
+                    "ord-hold", "ord-follow"):
+            assert btn[cid].ready, (cid, btn[cid].tip)
+    for a, k in orders.items():
+        assert p.bindings.get(a).key == f"Key_{k}" and f"Key_{k}" in KEYS

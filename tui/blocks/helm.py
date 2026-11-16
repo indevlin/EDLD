@@ -151,19 +151,27 @@ class HelmBlock(TuiBlock):
         self.run_worker(self._remount(host, boxes, v), exclusive=True, group="helm-build")
 
     async def _remount(self, host, boxes, v: H.View) -> None:
-        await host.remove_children()
-        await host.mount_all(boxes)
+        self._mounting = True
+        try:
+            await host.remove_children()
+            await host.mount_all(boxes)
+        finally:
+            self._mounting = False
         self._show(v)
         self.call_after_refresh(self._arrange)
 
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _arrange(self) -> None:
+        # Mid-remount the old groups are going and the new not yet whole:
+        # the remount arranges them once it is done.
+        if getattr(self, "_mounting", False):
+            return
         try:
             host = self.query_one("#helm-groups", Grid)
         except Exception:
             return
-        boxes = list(host.query(".helm-group"))
+        boxes = [b for b in host.query(".helm-group") if b.query(".helm-buttons")]
         if not boxes:
             return
         width = max(1, host.size.width or self.size.width - 4)
@@ -178,7 +186,7 @@ class HelmBlock(TuiBlock):
         # Textual names the gap between columns the vertical gutter.
         host.styles.grid_gutter_vertical = gap
         for box, cols in zip(boxes, cols_of):
-            grid = box.query_one(".helm-buttons", Grid)
+            grid = box.query(".helm-buttons").first(Grid)
             grid.styles.grid_size_columns = cols
             # Heights set outright: "auto" kept the height of the columns
             # before, and left blank lines under a group that now has fewer
