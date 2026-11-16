@@ -96,7 +96,7 @@ BAR_ROWS = 2
 #: to a row.
 STEPS: dict[str, int] = {"orders": 2}
 
-#: What an EDLD before 20261117 sent for STEPS, kept for the EDAM of then.
+#: STEPS as ``columns``, for a client that reads only that.
 COLUMNS: dict[str, int] = {"orders": 2}
 
 #: Controls drawn as one cell, ◀ the first and the second ▶, with the

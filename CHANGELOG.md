@@ -4,34 +4,51 @@ Last updated: 20261116
 
 ---
 
-## 20261117-dev — added, unreleased
+## Released in 20261116
 
-### Changed: the Helm panel reads like a helm
+### Changed: the Helm panel laid out as a helm
 
-The packed panel of 20261116 fitted more on screen but still read as a list:
-a throttle of five identical buttons, Targeting a run of next and previous
-buttons in no order with the wing in among them, the cockpit's panels mixed
-in with the maps, and in EDCARS half the section left empty below small
-buttons while a phone scrolled. Labels on EDAM broke inside a word
-("HARDPOINT S") because a button could be narrower than its longest word.
+The Helm panel drew every button at a fixed width and a tall height with wide
+gaps, and set the groups out a fixed number to a row whatever their sizes, so
+a twelve-button group and a four-button group took the same space and the
+short one left a block of nothing beside it. With the panel's new groups that
+meant scrolling on a full desktop window and far more on a phone; nothing
+looked wrong in a narrow test because the empty space only shows at width.
+The groups themselves read as a list: five identical throttle buttons, next
+and previous targets scattered through Targeting with the wingmen among them,
+the cockpit's panels mixed in with the maps. On EDAM a label could break
+inside a word ("HARDPOINT S"), a button being allowed narrower than its
+longest word.
 
-The throttle, the cockpit's four panels and the pips are now upright bars,
-as tall as their line: the throttle Reverse then 0% to 100% left to right,
-the panels Nav, Comms, Deploy and Ship as they sit in the cockpit, the pips
-SYS, ENG, WEP and Reset. A control and its opposite are one cell, ◀ and ▶
-either side of its name, the left half going back and the right forward —
-Target, Hostile, Subsystem and Fire group — so Targeting is the three direct
-locks over the three cycles, and the wingmen have a Wing group of their own.
-Panels is now Systems (the four cockpit panels: the left panel is Nav, the
-right Ship, the role panel Deploy) and Views (the maps, FSS, orbit lines, HUD
-mode, Codex and the camera). The fighter orders go two or four to a row,
-always in their pairs.
+The groups are drawn in lines — in the ship Ship and Throttle; Targeting,
+Wing and Fighter orders; Systems and Views; Combat and Power — each line cut
+wherever that makes the panel shorter, its groups side by side with the
+button columns going where they save the most rows. Buttons are as wide as
+the longest label needs, never narrower than its longest word, and in EDCARS
+and on EDAM they grow taller, up to twice their height, to fill the section,
+so the panel neither scrolls nor leaves the screen half empty. The desktop
+window, the terminal and EDAM use the same rule (`core.helm.plan`).
 
-A line of groups is now cut wherever that makes the panel shorter, rather
-than all side by side or all stacked, and in EDCARS the buttons grow taller,
-up to twice their height, to fill the section, so it neither scrolls nor
-leaves the bottom half empty. On EDAM no button is narrower than its longest
-word.
+Ship takes in Honk, Next stop, the flight controls, Hardpoints and Silent
+running. The throttle, the cockpit's four panels and the pips are upright
+bars, as tall as their line: the throttle Reverse then 0% to 100% left to
+right; Systems the panels Nav, Comms, Deploy (the role panel) and Ship, as
+they sit in the cockpit; Power SYS, ENG, WEP and Reset. A control and its
+opposite are one cell, ◀ and ▶ either side of its name, the left half going
+back and the right forward — Target, Hostile, Subsystem and Fire group — so
+Targeting is the three direct locks over the three cycles, and the wingmen
+and nav lock have a Wing group. Views holds the maps, FSS, orbit lines, HUD
+mode, Codex and the camera. Fighter orders go two or four to a row, always
+in their pairs: Engage at will and Defend, Attack target and Hold fire,
+Follow and Hold position, then Request dock.
+
+### Changed: an AUTO lamp in place of the line under the panel
+
+The line under the panel said where it was for, which the group names
+already say, and "On its own: auto honk". Honk and Next stop now carry a
+small AUTO lamp, green while Options has EDLD do them on its own and red
+while not. The line shows only what a press came to, for a few seconds after
+it.
 
 ### Fixed: a Helm button left lit after it was pressed
 
@@ -40,40 +57,8 @@ like the throttle's setting when the throttle, moved by hand, said
 otherwise. A press brings the game to the front without the window being
 told the pointer has left, so a button could keep its hover look. Only the
 button just pressed is lit now, for a quarter second, and its hover look is
-cleared when the game has the focus. The game writes no throttle position to Status.json or the journal,
-so the panel cannot show the throttle's setting.
-
-### Changed: the AUTO lamp replaces the automation line
-
-The line under the panel always said "On its own: auto honk", and before
-that where the panel was for, which the group names already say. Honk and
-Next stop now carry a small AUTO lamp, green while Options has EDLD do them
-on its own and red while not. The line under the panel shows only what a
-press came to, for a few seconds after it, and is otherwise gone.
-
----
-
-## Released in 20261116
-
-### Changed: the Helm panel packs into fewer rows
-
-The Helm panel drew every button at a fixed width and a tall height with wide
-gaps, and set the groups out a fixed number to a row whatever their sizes, so
-a twelve-button group and a four-button group took the same space and the
-short one left a block of nothing beside the long one. With the panel's new
-groups that meant scrolling on a full desktop window and far more on a phone,
-and nothing looked wrong in a narrow test because the empty space only shows
-at width. Buttons are now as wide as the longest label needs and a line of
-text tall, with small gaps, and the groups are drawn in set lines — Ship and
-Throttle, Targeting and Fighter orders, Panels, then Combat and Power — each
-line's groups side by side with the button columns going where they save the
-most rows, or one under another when that is shorter. The desktop window, the
-terminal and EDAM use the same rule (`core.helm.plan`).
-
-The groups were re-cut too: Automation (Honk, Next stop) and Flight are part
-of Ship, and Hardpoints and Silent running moved from Combat to Ship. Fighter
-orders are two columns in pairs — Engage at will and Defend, Attack target
-and Hold fire, Follow and Hold position, then Request dock.
+cleared when the game has the focus. The game writes no throttle position to
+Status.json or the journal, so the panel cannot show the throttle's setting.
 
 ### Fixed: a Helm press refused as "Status.json not readable"
 
@@ -95,22 +80,22 @@ on it at all, so the panel looked complete while being useless off the ship.
 It now shows the controls for where you are: the ship, a ship-launched
 fighter you are flying, an SRV (Scarab, Scorpion, Nomad or Rhino, with the
 SRV's own bindings) or on foot, and changes as you launch, dock, embark or
-disembark. The line under the buttons names where it is for — "SRV Nomad",
-"On foot" — before the last press.
+disembark, the groups named for it.
 
 The ship gains Hyperspace, Rotation correction, throttle presets (0% to 100%
-and Reverse), the Colonisation module, a Targeting group (target ahead, next
-and previous target, hostile and subsystem, highest threat, target's target,
-wingmen and wing nav lock), the fire groups, Fighter orders (request dock,
-defend, engage at will, attack target, hold fire, hold position, follow and
-the orders panel) and the cockpit panels, codex, orbit lines and camera.
+and Reverse), the Colonisation module, Targeting (target ahead, next and
+previous target, hostile and subsystem, highest threat, target's target),
+the wing (wingmen and wing nav lock), the fire groups, Fighter orders
+(request dock, defend, engage at will, attack target, hold fire, hold
+position, follow and the orders panel), the cockpit panels, codex, orbit
+lines and camera.
 Flying a fighter keeps what a fighter can do, and its orders go to the ship's
 crew. The SRV has Drive assist, Handbrake, Headlights, Night vision, Cargo
 scoop, Turret view, Recall ship, its target, fire groups, pips and panels. On
 foot there are the suit (Flashlight, Night vision, Shields, Medkit, Energy
 cell, Recall ship), the tools (Energylink, Profile analyser, Suit tool, Tool
 mode), the weapons (Primary, Secondary, Sidearm, Switch, Holster, Reload),
-the grenades and the panels.
+the grenades and the maps.
 
 A control left empty in the game's Controls is one you do not use, and is
 left off; one bound only to a controller is grayed with what to add, as

@@ -420,9 +420,8 @@ groups drawn as upright bars, as tall as their line and at least two rows;
 row, in its pairs); `pairs` the controls drawn as one cell, ◀ `prev` and
 `next` ▶ either side of `label`, where both are among `controls`.
 core/helm.py's `plan()` is the rule; EDAM's `helmPlan()` is the same.
-`columns` is what an EDLD of 20261116 sent in place of `steps`; `rows` and
-`columns` are absent from an EDLD before 20261116, `bars`, `steps` and
-`pairs` from one before 20261117.
+`columns` holds what `steps` does, for a client that reads only it. All five
+are absent from an EDLD before 20261116.
 
 A control that EDLD also runs on its own when Options says so — `honk`,
 `nextstop` — carries `auto`: whether it is on, for the button's AUTO lamp.
