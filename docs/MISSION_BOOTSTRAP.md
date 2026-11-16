@@ -62,11 +62,26 @@ does the same with every kill the journal shows:
 A mission is held one short of its count until `MissionRedirected`, which is
 written the moment the game finds it complete and sets it to its count; the
 kills the journal missed are recovered there, and the next mission of that
-source faction counts on from it. Kills
+source faction counts on from it.
+
+A redirect also says how many kills were missed while its mission was
+current, from when it became its faction's current mission, or reached its
+target system if later, to the redirect. Every kill counts once for each
+source faction, so those kills count for every other faction current over
+that span too, but the redirect does not say when in the span they fell.
+EDLD keeps each redirect as a span of missed kills and credits each current
+mission the fewest missed kills its own span must hold under all of them,
+the missed count never falling over time: a set of difference constraints,
+solved as a shortest path, so it never claims a kill some span does not
+force. A faction that took up its mission part way through a span gains
+nothing from it. A wing mission adds no span once a wing is joined during it,
+since a wingmate's kill counts for it alone. Spans disagreeing with each
+other, which the model says cannot happen, make it claim nothing for that
+stack rather than guess. Kills
 of ships destroyed before a scan finished and while not locked leave nothing
 in the journal, so between redirects the count can lag the game's mission
 screen, never lead it; each redirect brings it back in step. Each redirect
-is logged with the kills credited before it, so a lag can be measured from
+is logged with the kills seen and those known from other redirects, so a lag can be measured from
 real journals.
 
 The kills are not stored: at every `Missions` snapshot they are rebuilt from

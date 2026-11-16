@@ -44,17 +44,33 @@ target system, as the game credits it, and a mission is held one short of
 its count until it redirects, which sets it exactly; the next mission of
 that faction starts from there.
 
+A redirect also says how many kills the journal missed while its mission was
+current, and since every kill counts once for each source faction, those
+kills count for every other faction whose mission was current over the same
+span. Each redirect is kept as a span of missed kills, from when its mission
+became current, or reached its target system, to the redirect; each current
+mission is credited the fewest missed kills its own span must hold under
+every span kept, the missed count never falling over time, which is a set of
+difference constraints solved as a shortest path. A faction that took up its
+mission part way through a span gains nothing from it, since the missed kills
+may all lie before. A wing mission adds no span once a wing is joined during
+it, as a wingmate's kill counts for it alone.
+
 Replayed over the developer's own journals, 189 redirects and 4,765 credited
-kills, it saw 3,401 and was never ahead of the game; the civil-war missions
-among them were exact at every redirect. Over 60 redirects in another
-commander's journals it saw 922 of 990. Crediting in any order other than
-acceptance read high in both. What it still cannot see is a ship destroyed
-before its scan got far enough to read its faction: the journal shows the
-lock dropping and nothing else, and about a third of such kills are of other
-factions, so they cannot be told apart. Between redirects the count is
-therefore a floor. It is rebuilt from the journals at every login, from the
-oldest active massacre's acceptance, and each redirect is logged with the
-kills credited before it, so a lag can be measured from real play.
+kills, the kills seen alone came to 3,401, and with what the redirects
+recover 4,173, 87.6%; the Bhutatani stack went from 70% to 88%, and the
+civil-war missions were exact at every redirect. Over 60 redirects in
+another commander's journals it reached 963 of 990. It was ahead of the game
+once, by one kill on one mission of the 249, where a bounty seems to have
+been paid for a kill the game did not credit. Crediting in any order other
+than acceptance read high in both. What it cannot see at all is a stack of
+one source faction, which has no other redirects to learn from, and a ship
+destroyed before its scan read its faction: the journal shows the lock
+dropping and nothing else, and about a third of such kills are of other
+factions. Between redirects the count is therefore a floor. It is rebuilt
+from the journals at every login, from the oldest active massacre's
+acceptance, and each redirect is logged with the kills seen and those known
+from other redirects, so a lag can be measured from real play.
 
 ### Changed: a brighter EDLD logo
 
