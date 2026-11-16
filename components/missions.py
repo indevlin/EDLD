@@ -79,7 +79,7 @@ class MissionsPlugin(BasePlugin):
         # Delivery progress: tons delivered of tons asked for.
         "CargoDepot",
         # Kills against the massacre stack, and where they were made.
-        "Bounty", "CommitCrime", "ShipTargeted",
+        "Bounty", "FactionKillBond", "CommitCrime", "ShipTargeted",
         "FSDJump", "Location", "CarrierJump", "SupercruiseEntry",
     ]
 
@@ -470,7 +470,7 @@ class MissionsPlugin(BasePlugin):
                 if self._progress(state, event):
                     if gq: gq.put(("mission_update", None))
 
-            case ("Bounty" | "CommitCrime" | "ShipTargeted" | "FSDJump" | "Location"
+            case ("Bounty" | "FactionKillBond" | "CommitCrime" | "ShipTargeted" | "FSDJump" | "Location"
                   | "CarrierJump" | "SupercruiseEntry"):
                 self._feed(event, gq)
 

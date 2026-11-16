@@ -3,14 +3,15 @@
 A kill of a ship of a mission's target faction, in the mission's target
 system, is credited to one mission per source faction: the oldest of that
 faction's missions not yet complete. A kill is a ``Bounty`` naming the
-victim's faction, or a ``CommitCrime`` murder of a pilot whose faction a
-full scan (``ShipTargeted`` stage 3) gave. A mission is held one short of
+victim's faction, a ``FactionKillBond`` naming it (a conflict zone kill), or
+a ``CommitCrime`` murder of a pilot whose faction a full scan
+(``ShipTargeted`` stage 3) gave. A mission is held one short of
 its count until ``MissionRedirected``, which sets it to its count.
 
 A kill made before a scan completes writes neither. The one such kill that
 shows is the locked target dropping at no hull: it is credited when exactly
 one massacre target faction is held for this system and no Bounty or murder
-for that pilot follows within a few seconds. Other unscanned kills are not
+for that pilot, and no bond, follows within a few seconds. Other unscanned kills are not
 seen, so between redirects the count is a floor.
 
 Pure logic: no state, no I/O.
@@ -22,7 +23,7 @@ from datetime import datetime
 
 #: Events the ledger reads.
 EVENTS = ("Location", "FSDJump", "CarrierJump", "SupercruiseEntry",
-          "ShipTargeted", "Bounty", "CommitCrime",
+          "ShipTargeted", "Bounty", "FactionKillBond", "CommitCrime",
           "MissionAccepted", "MissionRedirected",
           "MissionCompleted", "MissionFailed", "MissionAbandoned")
 
@@ -215,7 +216,7 @@ class MassacreLedger:
         changed = False
         if ev == "MissionRedirected":
             changed = self._settle(at, force=True)
-        elif ev not in ("Bounty", "CommitCrime"):
+        elif ev not in ("Bounty", "FactionKillBond", "CommitCrime"):
             changed = self._settle(at)
         if at is not None:
             self._ended = {n: t for n, t in self._ended.items() if at - t <= 60}
@@ -242,6 +243,10 @@ class MassacreLedger:
             target = str(event.get("Target") or "").lower()
             if any(t in target for t in _NOT_SHIPS):
                 return False
+            return self.kill(str(event.get("VictimFaction") or ""))
+        if ev == "FactionKillBond":
+            # No pilot is named: a bond while a dropped lock waits is its kill.
+            self._pending = None
             return self.kill(str(event.get("VictimFaction") or ""))
         if ev == "CommitCrime":
             if event.get("CrimeType") != "murder":

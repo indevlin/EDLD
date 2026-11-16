@@ -145,3 +145,18 @@ def test_the_component_rebuilds_kills_from_the_journals_at_login(tmp_path):
         assert L.credited(1) == 3 and state.massacre_redirected == {1}
     finally:
         forget()
+
+
+def _bond(t, faction=TGT):
+    return _ev(t, "FactionKillBond", Reward=26007, AwardingFaction="Ally", VictimFaction=faction)
+
+
+def test_a_conflict_zone_bond_is_a_kill_of_its_victim_faction():
+    L = _feed(MassacreLedger(), _stack() + [_bond("10:06:00"), _bond("10:06:05", faction="Other")])
+    assert (L.credited(1), L.credited(3)) == (1, 1)
+
+
+def test_a_bond_after_a_dropped_lock_is_that_kill_not_another():
+    L = _feed(MassacreLedger(), _stack() + _lost_lock(0, 0.0, [_bond("10:07:02"),
+                                                             _ev("10:07:09", "Music")]))
+    assert (L.credited(1), L.unscanned) == (1, 0)
