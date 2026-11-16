@@ -160,3 +160,56 @@ def test_a_bond_after_a_dropped_lock_is_that_kill_not_another():
     L = _feed(MassacreLedger(), _stack() + _lost_lock(0, 0.0, [_bond("10:07:02"),
                                                              _ev("10:07:09", "Music")]))
     assert (L.credited(1), L.unscanned) == (1, 0)
+
+
+# ── Kills missed, recovered from redirects ────────────────────────────────────
+
+from core.massacre import least_missed  # noqa: E402
+
+
+def test_least_missed_takes_only_what_every_span_guarantees():
+    assert least_missed([(0, 10, 3)], 0, 10) == 3
+    assert least_missed([(0, 10, 3)], 5, 12) == 0          # may all lie before 5
+    assert least_missed([(0, 10, 3), (0, 5, 0)], 5, 12) == 3
+    assert least_missed([(0, 4, 1), (6, 10, 2)], 0, 12) == 3
+    assert least_missed([(0, 10, 1), (0, 10, 2)], 0, 10) == 0   # disagreeing: nothing
+
+
+def _two_factions():
+    return [_arrive("10:00:00", "Cemiess"), _accept("10:00:01", 1, "A", 5),
+            _accept("10:00:02", 2, "B", 10), _arrive("10:05:00")]
+
+
+def test_kills_a_redirect_uncovers_count_for_every_faction_current_over_its_span():
+    L = _feed(MassacreLedger(), _two_factions() + [_bounty(f"10:06:{i:02d}") for i in range(3)])
+    assert (L.credited(1), L.credited(2)) == (3, 3)
+    L.apply(_ev("10:07:00", "MissionRedirected", MissionID=1))
+    # Five kills made, two of them unseen: they count for B as well.
+    assert L.credited(1) == 5 and L.credited(2) == 5
+
+
+def test_a_faction_current_only_after_part_of_the_span_gains_nothing_unsure():
+    events = _two_factions() + [_bounty("10:06:00"), _bounty("10:06:01"),
+                                _accept("10:06:30", 3, "C", 8), _bounty("10:06:40"),
+                                _ev("10:07:00", "MissionRedirected", MissionID=1)]
+    L = _feed(MassacreLedger(), events)
+    assert L.credited(2) == 5          # B was current the whole span
+    assert L.credited(3) == 1          # the missed two may predate C
+
+
+def test_the_next_mission_of_a_faction_counts_on_from_its_redirect():
+    events = _two_factions()[:-1] + [_accept("10:00:03", 4, "A", 6), _arrive("10:05:00"),
+                                     _bounty("10:06:00"),
+                                     _ev("10:07:00", "MissionRedirected", MissionID=1),
+                                     _bounty("10:07:10")]
+    L = _feed(MassacreLedger(), events)
+    # A saw 1 of 5: four missed, so B had five when A redirected, then one more.
+    assert (L.credited(1), L.credited(4), L.credited(2)) == (5, 1, 6)
+
+
+def test_a_wing_mission_with_a_wing_joined_adds_no_span():
+    events = [_arrive("10:00:00"), _accept("10:00:01", 1, "A", 5, wing=True),
+              _accept("10:00:02", 2, "B", 10), _ev("10:01:00", "WingJoin", Others=[]),
+              _bounty("10:06:00"), _ev("10:07:00", "MissionRedirected", MissionID=1)]
+    L = _feed(MassacreLedger(), events)
+    assert L.credited(2) == 1

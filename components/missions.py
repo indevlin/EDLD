@@ -494,8 +494,9 @@ class MissionsPlugin(BasePlugin):
         m = ledger.missions.get(mid)
         if m is not None and not m.done:
             from core import debug as _dbg
-            _dbg.info(f"[Missions] massacre {mid} redirected with {m.credited} of "
-                      f"{m.kill_count} kills credited before it")
+            _dbg.info(f"[Missions] massacre {mid} redirected with {m.seen} of "
+                      f"{m.kill_count} kills seen and {m.hidden} more known from "
+                      f"other redirects")
         ledger.apply(event)
         if mid in self._redirected:
             return                      # replayed: already counted and said

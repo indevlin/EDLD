@@ -11,8 +11,18 @@ its count until ``MissionRedirected``, which sets it to its count.
 A kill made before a scan completes writes neither. The one such kill that
 shows is the locked target dropping at no hull: it is credited when exactly
 one massacre target faction is held for this system and no Bounty or murder
-for that pilot, and no bond, follows within a few seconds. Other unscanned kills are not
-seen, so between redirects the count is a floor.
+for that pilot, and no bond, follows within a few seconds.
+
+Every kill counts once for each source faction, so a redirect that uncovers
+kills the journal missed says those kills happened within the span its
+mission was current, and they count for every other source faction current
+over the same span. Each redirect is kept as a constraint: the kills missed
+in (became current, redirected] number exactly kill count less those seen.
+A current mission is credited the fewest missed kills its own span must hold
+under every constraint, the kills missed never decreasing over time: a
+system of difference constraints, solved as a shortest path. Wing missions
+add no constraint once a wing is joined during them, since a wingmate's kill
+counts for them alone.
 
 Pure logic: no state, no I/O.
 """
@@ -25,7 +35,8 @@ from datetime import datetime
 EVENTS = ("Location", "FSDJump", "CarrierJump", "SupercruiseEntry",
           "ShipTargeted", "Bounty", "FactionKillBond", "CommitCrime",
           "MissionAccepted", "MissionRedirected",
-          "MissionCompleted", "MissionFailed", "MissionAbandoned")
+          "MissionCompleted", "MissionFailed", "MissionAbandoned",
+          "WingJoin", "WingAdd", "WingLeave")
 
 #: Hull left, in percent, at or under which a dropped lock is a kill.
 DEAD_HULL = 1.0
@@ -67,12 +78,26 @@ class Mission:
     accepted_at: str = ""
     target_type: str = ""
     wing: bool = False
-    credited: int = 0
+    seen: int = 0               # kills seen credited to it, uncapped
+    hidden: int = 0             # kills missed it must hold, from redirects
+    since: int | None = None    # event index from which it could take kills
+    waiting: bool = False       # current, but not yet in its target system
+    winged: bool = False        # a wing was joined while it was current
     done: bool = False
 
     @property
     def order(self) -> tuple:
         return (self.accepted_at or "", self.mid)
+
+    @property
+    def credited(self) -> int:
+        if self.done:
+            return self.kill_count
+        return max(0, min(self.kill_count - 1, self.seen + self.hidden))
+
+    @credited.setter
+    def credited(self, value: int) -> None:
+        self.seen, self.hidden = int(value), 0
 
 
 class MassacreLedger:
@@ -86,6 +111,10 @@ class MassacreLedger:
         self._pending: dict | None = None       # name, at
         self._ended: dict[str, float] = {}      # pilot → when a Bounty or murder named them
         self.unscanned = 0
+        self._n = 0                             # events applied
+        self._wing = False
+        # (target faction, target system) → [(from, to, kills missed)]
+        self._spans: dict[tuple, list] = {}
 
     # ── Missions ──────────────────────────────────────────────────────────────
 
@@ -96,9 +125,11 @@ class MassacreLedger:
         mid = int(mid)
         m = self.missions.get(mid)
         if m is None:
-            self.missions[mid] = Mission(mid, source or "", target_faction or "",
-                                         target_system or "", int(kill_count or 0),
-                                         accepted_at or "", target_type or "", bool(wing))
+            m = self.missions[mid] = Mission(mid, source or "", target_faction or "",
+                                             target_system or "", int(kill_count or 0),
+                                             accepted_at or "", target_type or "", bool(wing))
+            if self._current(m.source, m.target_faction) is m:
+                self._make_current(m)
             return
         m.source = m.source or source or ""
         m.target_faction = m.target_faction or target_faction or ""
@@ -112,11 +143,70 @@ class MassacreLedger:
         m = self.missions.get(int(mid))
         if m is None or m.done:
             return False
-        m.done, m.credited = True, m.kill_count
+        missed = m.kill_count - m.seen
+        if (m.since is not None and m.since < self._n and missed >= 0
+                and m.target_faction and not (m.wing and m.winged)):
+            self._spans.setdefault(self._key(m), []).append((m.since, self._n, missed))
+        m.done = True
+        nxt = self._current(m.source, m.target_faction)
+        if nxt is not None and nxt.since is None and not nxt.waiting:
+            self._make_current(nxt)
+        self._resolve(self._key(m))
         return True
 
+    # ── Kills missed, from redirects ──────────────────────────────────────────
+
+    @staticmethod
+    def _key(m: Mission) -> tuple:
+        return (m.target_faction, m.target_system)
+
+    def _make_current(self, m: Mission) -> None:
+        """``m`` is its faction's current mission: it can take kills from now,
+        or from its arrival in its target system."""
+        m.winged = self._wing
+        if not m.target_system or not self.system or m.target_system == self.system:
+            m.since, m.waiting = self._n, False
+        else:
+            m.since, m.waiting = None, True
+
+    def _arrived(self) -> None:
+        for m in self.missions.values():
+            if m.waiting and not m.done and m.target_system == self.system:
+                m.since, m.waiting = self._n, False
+                m.winged = m.winged or self._wing
+
+    def _current(self, source: str, target_faction: str) -> Mission | None:
+        """The oldest unfinished mission of ``source`` against ``target_faction``."""
+        best = None
+        for m in self.missions.values():
+            if not m.done and m.source == source and m.target_faction == target_faction:
+                if best is None or m.order < best.order:
+                    best = m
+        return best
+
+    def _resolve(self, key: tuple) -> None:
+        """Each current mission of a stream credited the kills missed its span
+        must hold."""
+        current = [m for m in self.missions.values()
+                   if not m.done and self._key(m) == key and m.since is not None]
+        spans = self._spans.get(key, [])
+        if not current:
+            self._spans.pop(key, None)
+            return
+        start = min(m.since for m in current)
+        spans = [c for c in spans if c[1] > start]
+        self._spans[key] = spans
+        for m in current:
+            m.hidden = least_missed(spans, m.since, self._n)
+
     def drop(self, mid) -> bool:
-        return self.missions.pop(int(mid), None) is not None
+        m = self.missions.pop(int(mid), None)
+        if m is None:
+            return False
+        nxt = self._current(m.source, m.target_faction)
+        if nxt is not None and nxt.since is None and not nxt.waiting:
+            self._make_current(nxt)
+        return True
 
     def credited(self, mid) -> int:
         m = self.missions.get(int(mid))
@@ -137,12 +227,9 @@ class MassacreLedger:
             o = oldest.get(m.source)
             if o is None or m.order < o.order:
                 oldest[m.source] = m
-        changed = False
         for m in oldest.values():
-            if m.credited < m.kill_count - 1:
-                m.credited += 1
-                changed = True
-        return changed
+            m.seen += 1
+        return bool(oldest)
 
     def _sole_target(self) -> str:
         here = {m.target_faction for m in self.missions.values()
@@ -213,6 +300,7 @@ class MassacreLedger:
         """Feed one journal event. True if a mission's credit changed."""
         ev = event.get("event")
         at = _secs(event.get("timestamp", ""))
+        self._n += 1
         changed = False
         if ev == "MissionRedirected":
             changed = self._settle(at, force=True)
@@ -223,12 +311,22 @@ class MassacreLedger:
         return self._apply(ev, event, at) or changed
 
     def _apply(self, ev, event, at) -> bool:
+        if ev in ("WingJoin", "WingAdd"):
+            self._wing = True
+            for m in self.missions.values():
+                if not m.done and m.since is not None:
+                    m.winged = True
+            return False
+        if ev == "WingLeave":
+            self._wing = False
+            return False
         if ev in ("Location", "FSDJump", "CarrierJump"):
             system = event.get("StarSystem")
             if system and system != self.system:
                 self._pilots.clear()
             self.system = system or self.system
             self._lock = self._pending = None
+            self._arrived()
             return False
         if ev == "SupercruiseEntry":
             self._pilots.clear()
@@ -268,6 +366,36 @@ class MassacreLedger:
         if ev in ("MissionCompleted", "MissionFailed", "MissionAbandoned"):
             return event.get("MissionID") is not None and self.drop(event["MissionID"])
         return False
+
+
+def least_missed(spans, a: int, b: int) -> int:
+    """The fewest kills missed in (a, b] over every nondecreasing count that
+    meets each span (from, to, missed) exactly: −(shortest path b → a), with
+    an edge to → from of −missed and from → to of +missed for each span and
+    a zero edge from each point to the one before it."""
+    if b <= a or not spans:
+        return 0
+    pts = sorted({a, b} | {x for x, _y, _v in spans} | {y for _x, y, _v in spans})
+    at = {p: i for i, p in enumerate(pts)}
+    edges = [(i + 1, i, 0) for i in range(len(pts) - 1)]
+    for x, y, v in spans:
+        edges.append((at[x], at[y], v))
+        edges.append((at[y], at[x], -v))
+    inf = float("inf")
+    dist = [inf] * len(pts)
+    dist[at[b]] = 0
+    for _ in range(len(pts)):
+        moved = False
+        for u, w, c in edges:
+            if dist[u] + c < dist[w]:
+                dist[w] = dist[u] + c
+                moved = True
+        if not moved:
+            break
+    else:
+        return 0                        # spans disagree: claim nothing
+    d = dist[at[a]]
+    return 0 if d == inf else max(0, int(-d))
 
 
 def rebuild(events, active, until: str = "") -> MassacreLedger:
