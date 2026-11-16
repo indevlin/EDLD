@@ -4,6 +4,27 @@ Last updated: 20261116
 
 ---
 
+## Unreleased
+
+### Added: HUD panels on the overlay
+
+The overlay's panels were all reporting: who you are, your ship, what the
+session has earned, figures for the record and the camera. Nothing on it
+helped with the job in hand, so a commander running a massacre stack or a
+mining run still looked away to the dashboard for the one number that
+mattered. The panels now come in two kinds, listed apart in Options:
+Reporting, the panels there were, and HUD, a line or a few on what you are
+doing now, each drawn in `auto` only while it has something to say.
+
+The first HUD panels: `massacre`, each target faction's kills made of kills
+needed; `mining_missions`, each commodity the mining missions still want with
+what the ship holds of it, and no destinations or deadlines; and for the
+current system `system_exploration`, bodies scanned, those worth mapping not
+yet mapped, and its value, and `system_exobio`, each body with biology left
+to sample and, on the body underfoot, the species in hand.
+
+---
+
 ## Released in 20261116
 
 ### Changed: the Helm panel laid out as a helm

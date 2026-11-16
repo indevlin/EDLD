@@ -11,6 +11,16 @@ Panels belong to the components that own the data.
     def overlay_panel(self, panel_id: str, ctx: PanelContext) -> Panel | None:
         ...                                        # None means "not now"
 
+    OVERLAY_CATEGORY = {"cargo_srv": "hud"}        # optional; else "reporting"
+
+Categories
+----------
+``reporting``  figures for the record and the camera: credits, session and
+               career rates, ranks.
+``hud``        what bears on what you are doing now, in a line or a few:
+               the massacre stack's kills, the ore the missions want, the
+               current system's bodies left to map and biology left to sample.
+
 Hidden panels
 -------------
 When a panel in ``auto`` mode is not currently eligible, the stack either closes up or holds the space.
@@ -43,6 +53,17 @@ ZONE_WINDOW = {
 }
 
 WINDOWS = ("top", "dock-left", "dock-right")
+
+#: The kinds of panel, in the order Options lists them: (id, label).
+CATEGORIES: tuple[tuple[str, str], ...] = (("reporting", "Reporting"), ("hud", "HUD"))
+
+
+def category_of(comp, panel_id: str) -> str:
+    """A component's panel's category: its OVERLAY_CATEGORY entry, else
+    reporting."""
+    cat = (getattr(comp, "OVERLAY_CATEGORY", None) or {}).get(panel_id, "reporting")
+    return cat if cat in dict(CATEGORIES) else "reporting"
+
 
 #: Positions a panel can take within its zone. A closed vocabulary, so it is a
 #: picker rather than a number field.

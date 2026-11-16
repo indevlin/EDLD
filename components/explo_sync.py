@@ -161,6 +161,80 @@ class ExploSyncPlugin(BasePlugin):
         """Db id of the active commander, or None."""
         return self._ingestor.current_commander_id() if self._ingestor else None
 
+    # ── Overlay: HUD ──────────────────────────────────────────────────────────
+
+    OVERLAY_PANELS = ("system_exploration", "system_exobio")
+    OVERLAY_CATEGORY = {"system_exploration": "hud", "system_exobio": "hud"}
+
+    #: How long a frame's system views are reused: the overlay asks twice a
+    #: second, and each view is a read of the body database.
+    _HUD_TTL_S = 3.0
+
+    def _hud_views(self):
+        import time
+        now = time.monotonic()
+        key = (self.current_system_address(), self.current_commander_id())
+        cached = getattr(self, "_hud_cache", None)
+        if cached and cached[0] == key and now - cached[1] < self._HUD_TTL_S:
+            return cached[2]
+        v = bio = None
+        if key[0] is not None:
+            from core.explo_view import build_system_view
+            from core.exobio_view import build_exobio_view
+            from core.windows.exploration import position
+            try:
+                v = build_system_view(*key)
+            except Exception:
+                v = None
+            try:
+                bio = build_exobio_view(*key, position=position(self.core))
+            except Exception:
+                bio = None
+        self._hud_cache = (key, now, (v, bio))
+        return v, bio
+
+    def overlay_panel(self, panel_id: str, ctx):
+        """``system_exploration``: the current system's bodies scanned of
+        known, those worth mapping not yet mapped, and its value now of its
+        value mapped. ``system_exobio``: each body with biology still to
+        sample, and on the body underfoot the species in hand. Nothing once
+        there is nothing left to do."""
+        from core.overlay_panels import Panel
+        from core.windows.exploration import abbr, short
+        v, bio = self._hud_views()
+        if panel_id == "system_exploration":
+            if not v:
+                return None
+            sysd, tot = v["system"], v["totals"]
+            rows = [("Bodies", f"{tot['scanned']} / {sysd['body_count'] or tot['bodies']}")]
+            todo = [b for b in v["bodies"]
+                    if not b["is_star"] and b["high_value"] and not b["mapped"]]
+            if todo:
+                rows.append(("Map", " · ".join(f"{b['short'] or b['name']} {abbr(b)}"
+                                                for b in todo[:4])
+                                    + (f" +{len(todo) - 4}" if len(todo) > 4 else "")))
+            rows.append(("Value", f"{short(tot['value_now'])} / {short(tot['value_max'])}"))
+            return Panel(id="system_exploration",
+                         title=(sysd.get("name") or "SYSTEM").upper(), rows=rows)
+        if panel_id == "system_exobio":
+            bodies = [b for b in (bio or {}).get("bodies") or []
+                      if b.get("bio_signals") and not b.get("complete")]
+            if not bodies:
+                return None
+            rows = []
+            for b in bodies[:4]:
+                name = b.get("short") or b.get("name") or "?"
+                rows.append((("▸ " if b.get("current") else "") + str(name),
+                             f"{b.get('analysed', 0)} / {b['bio_signals']} sampled"))
+                if b.get("current"):
+                    for f in b.get("flora") or []:
+                        if not f.get("logged"):
+                            rows.append((f"  {f['name']}", f"{f['stage']}/3 · ≥{f['clonal']} m"))
+            if len(bodies) > 4:
+                rows.append(("", f"+{len(bodies) - 4} more"))
+            return Panel(id="system_exobio", title="EXOBIOLOGY", rows=rows)
+        return None
+
     # ── health (for the Exploration / Exobiology windows) ─────────────────────
 
     def health(self) -> Optional[str]:

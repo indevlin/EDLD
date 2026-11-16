@@ -38,7 +38,15 @@ the first link that breaks.
 ## Panels
 
 A panel belongs to the component that owns its data, so what a panel can show
-is whatever that part of EDLD already knows.
+is whatever that part of EDLD already knows. Panels come in two kinds, listed
+apart in Options:
+
+- **Reporting** — figures for the record and the camera: who you are, what
+  you are flying, what the session has earned.
+- **HUD** — what bears on what you are doing now, in a line or a few, and
+  nothing once there is nothing left to do.
+
+### Reporting
 
 | Panel | Shows |
 |---|---|
@@ -49,6 +57,19 @@ is whatever that part of EDLD already knows.
 | `cargo` | How full the hold is; both holds when you are in an SRV |
 | `survey_compass` | Distance and bearing to the nearest deposits recorded on this body, leaving out any marked depleted |
 | `combat`, `exploration`, `exobiology`, `mining`, `trade`, `missions_session`, `odyssey` | That activity's figures |
+
+### HUD
+
+| Panel | Shows |
+|---|---|
+| `massacre` | Each target faction of the massacre stack, with the kills its stack has made of the kills it needs, or *done* once every mission is. Nothing without massacre missions |
+| `mining_missions` | Each commodity the mining missions still want, with what the ship holds of the tons still to deliver, or ✓ once it holds enough. No destinations, no deadlines |
+| `system_exploration` | The current system: bodies scanned of bodies known, the bodies worth mapping not yet mapped, and its value now of its value mapped |
+| `system_exobio` | Each body in the current system with biology left to sample, how many of its signals are sampled, and on the body you are on, the species in hand with its stage and clonal distance. Nothing once every body is sampled |
+
+In `auto` a HUD panel is drawn only while it has something to say, so a
+stack of them takes no room until a mission, a system or a body gives it
+some.
 
 <div align="center">
 <img src="../images/overlay-survey-compass.png" alt="The survey_compass panel with every visibility tweak on, over a stand-in background" width="340"/>

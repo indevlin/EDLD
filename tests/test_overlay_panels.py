@@ -1155,9 +1155,10 @@ def test_income_panel_shows_credits_before_any_income():
 
 def test_the_panel_list_is_alphabetical():
     """Grouping by zone made a row jump the moment its zone changed — the
-    setting you had just edited moved somewhere else in the list."""
+    setting you had just edited moved somewhere else in the list. By
+    category, which no setting changes, then by name."""
     src = (ROOT / "components" / "overlay.py").read_text(encoding="utf-8")
-    assert "key=lambda r: r[0]" in src
+    assert "key=lambda r: (rank.get(r[6], 0), r[0])" in src
     assert "ZONE_ORDER.get" not in src
 
 

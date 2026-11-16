@@ -93,6 +93,44 @@ class MissionsPlugin(BasePlugin):
         self._restore()
         core.register_block(self, priority=30)
 
+    # ── Overlay: HUD ──────────────────────────────────────────────────────────
+
+    OVERLAY_PANELS = ("massacre", "mining_missions")
+    OVERLAY_CATEGORY = {"massacre": "hud", "mining_missions": "hud"}
+
+    def overlay_panel(self, panel_id: str, ctx):
+        """``massacre``: each target faction's kills made of kills needed.
+        ``mining_missions``: each commodity the mining missions still want,
+        what the ship holds of what is still to deliver. Nothing while there
+        are no such missions."""
+        from core.overlay_panels import Panel
+        from core.windows import objectives as O
+        s = getattr(self.core, "state", None)
+        if s is None:
+            return None
+        if panel_id == "massacre":
+            stacks = O.massacre_summary(s)
+            if not stacks:
+                return None
+            rows = []
+            for name, st in stacks.items():
+                kills = "done" if st["done"] == st["held"] else O.kills_cell(st["got"], st["need"])
+                rows.append((name, kills))
+            return Panel(id="massacre", title="MASSACRE", rows=rows)
+        if panel_id == "mining_missions":
+            need = O.ore_needed(O.mining_missions(s))
+            if not need:
+                return None
+            hold = getattr(s, "cargo_items", {}) or {}
+            rows = []
+            for key, (name, still) in sorted(need.items(), key=lambda kv: kv[1][0]):
+                if still <= 0:
+                    continue
+                have = O.held(hold, key)
+                rows.append((name, "✓" if have >= still else f"{have} / {still} t"))
+            return Panel(id="mining_missions", title="MINING", rows=rows) if rows else None
+        return None
+
     # ── Persistence ───────────────────────────────────────────────────────────
 
     def _restore(self) -> None:

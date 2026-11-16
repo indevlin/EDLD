@@ -464,15 +464,17 @@ class OverlayPlugin(BasePlugin):
             **{f"ovp-{pid}-{part}": ("OverlayPanels",
                                      op.placement_keys(pid)[part],
                                      int if part == "order" else str)
-               for pid, _z, _m, _o, _s, _c in self._panel_rows()
+               for pid, _z, _m, _o, _s, _c, _k in self._panel_rows()
                for part in ("zone", "mode", "order")},
             **{f"ovp-{pid}-scope": ("OverlayPanels",
                                     op.placement_keys(pid)["scope"], str)
-               for pid, _z, _m, _o, _s, scoped in self._panel_rows() if scoped},
+               for pid, _z, _m, _o, _s, scoped, _k in self._panel_rows() if scoped},
         }
 
-    def _panel_rows(self) -> list[tuple[str, str, str, int, str, bool]]:
-        """(panel_id, zone, mode) for every panel any component can produce.
+    def _panel_rows(self) -> list[tuple[str, str, str, int, str, bool, str]]:
+        """(panel_id, zone, mode, order, scope, scoped, category) for every
+        panel any component can produce, by category (op.CATEGORIES), then
+        name.
 
         Read from the components.
         """
@@ -489,9 +491,10 @@ class OverlayPlugin(BasePlugin):
                             p.order if p else 100,
                             str(self._layout_cfg.get(
                                 f"{op.KEY_SCOPE}{pid}", "session")),
-                            scoped))
-        # Alphabetical.
-        return sorted(set(out), key=lambda r: r[0])
+                            scoped,
+                            op.category_of(comp, pid)))
+        rank = {c: i for i, (c, _l) in enumerate(op.CATEGORIES)}
+        return sorted(set(out), key=lambda r: (rank.get(r[6], 0), r[0]))
 
     def _status_line(self) -> str:
         if not self._window_cfg.get("Enabled"):
@@ -631,8 +634,17 @@ class OverlayPlugin(BasePlugin):
                 head = QLabel(heading)
                 head.setProperty("role", "dim")
                 grid.addWidget(head, 0, col)
-            for r, (pid, zone, mode, order, scope, scoped) in enumerate(
-                    self._panel_rows(), 1):
+            # The panels by category, each under its own heading.
+            r = 0
+            last = None
+            for pid, zone, mode, order, scope, scoped, cat in self._panel_rows():
+                r += 1
+                if cat != last:
+                    last = cat
+                    head = QLabel(dict(op.CATEGORIES)[cat].upper())
+                    head.setProperty("role", "dim")
+                    grid.addWidget(head, r, 0, 1, 5)
+                    r += 1
                 grid.addWidget(QLabel(pid), r, 0)
                 grid.addWidget(dlg._choice_combo(str(min(max(order, 1), 9)),
                                                  "OverlayPanels",
@@ -790,7 +802,12 @@ class OverlayPlugin(BasePlugin):
             # Pickers, not labels.  A read-only row telling the commander what
             # a setting is, in a window whose purpose is changing settings, is
             # the worst of both.
-            for pid, zone, mode, order, scope, scoped in self._panel_rows():
+            last = None
+            for pid, zone, mode, order, scope, scoped, cat in self._panel_rows():
+                if cat != last:
+                    last = cat
+                    yield Label(f"PANELS · {dict(op.CATEGORIES)[cat].upper()}",
+                                classes="pref-section")
                 yield from row(f"{pid} position",
                                Select([(n, n) for n in op.POSITIONS],
                                       value=str(min(max(order, 1), 9)),

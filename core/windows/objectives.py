@@ -97,12 +97,8 @@ _KINDS = {
 }
 
 
-def _ore_held(core, ms: list) -> list:
-    """Mining missions' commodities held: ship hold + own carrier (not the
-    squadron carrier). Green when held covers what is still to deliver."""
-    s = core.state
-    ship = getattr(s, "cargo_items", {}) or {}
-    carrier = getattr(s, "assets_carrier_hold", None) or {}
+def ore_needed(ms: list) -> dict[str, list]:
+    """Mining missions' commodities: key → [name, tons still to deliver]."""
     need: dict[str, list] = {}
     for m in ms:
         key = m.get("commodity_key")
@@ -110,11 +106,30 @@ def _ore_held(core, ms: list) -> list:
             continue
         rec = need.setdefault(key, [m.get("commodity") or key, 0])
         rec[1] += max(0, int(m.get("total") or m.get("count") or 0) - int(m.get("delivered", 0) or 0))
+    return need
+
+
+def mining_missions(s) -> list:
+    """The active mining missions on the board."""
+    return [m for m in (getattr(s, "all_missions", {}) or {}).values()
+            if m.get("category") == "Mining"]
+
+
+def held(hold: dict, key: str) -> int:
+    c = (hold or {}).get(key, 0)
+    return int(c.get("count", 0) if isinstance(c, dict) else c or 0)
+
+
+def _ore_held(core, ms: list) -> list:
+    """Mining missions' commodities held: ship hold + own carrier (not the
+    squadron carrier). Green when held covers what is still to deliver."""
+    s = core.state
+    ship = getattr(s, "cargo_items", {}) or {}
+    carrier = getattr(s, "assets_carrier_hold", None) or {}
+    need = ore_needed(ms)
     if not need:
         return []
-    def count(hold, key):
-        c = hold.get(key, 0)
-        return int(c.get("count", 0) if isinstance(c, dict) else c or 0)
+    count = held
     rows = [R.text(""), R.table("MINING ORE HELD", (("SHIP", 5), ("CARRIER", 7), ("HELD", 5)))]
     for key, (name, still) in sorted(need.items(), key=lambda kv: kv[1][0]):
         a, b = count(ship, key), count(carrier, key)
@@ -161,12 +176,13 @@ def kills_cell(done: int, need: int) -> str:
     return f"{int(done):0{len(str(int(need)))}d} / {int(need)}"
 
 
-def massacre_stacks(s) -> list:
-    """A table of the massacre stack: each target faction, the kills its
-    stack needs and has, then under it each source faction's share."""
+def massacre_summary(s) -> dict:
+    """The massacre stack by target faction: each with ``need``, ``got``,
+    ``held``, ``done``, ``reward``, ``types``, ``systems`` and its
+    ``sources``, each source with the same counts."""
     detail = getattr(s, "mission_detail_map", {}) or {}
     if not detail:
-        return []
+        return {}
     finished = getattr(s, "massacre_redirected", set()) or set()
     ledger = getattr(s, "massacre_ledger", None)
     stacks: dict[str, dict] = {}
@@ -197,7 +213,16 @@ def massacre_stacks(s) -> list:
         st["held"] = sum(f["held"] for f in src)
         st["done"] = sum(f["done"] for f in src)
         st["reward"] = sum(f["reward"] for f in src)
-    order = sorted(stacks, key=lambda k: (-stacks[k]["need"], k))
+    return dict(sorted(stacks.items(), key=lambda kv: (-kv[1]["need"], kv[0])))
+
+
+def massacre_stacks(s) -> list:
+    """A table of the massacre stack: each target faction, the kills its
+    stack needs and has, then under it each source faction's share."""
+    stacks = massacre_summary(s)
+    if not stacks:
+        return []
+    order = list(stacks)
     totals = {"need": sum(st["need"] for st in stacks.values()),
               "got": sum(st["got"] for st in stacks.values())}
     kills_w = max([5, len(kills_cell(totals["got"], totals["need"]))]
