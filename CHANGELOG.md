@@ -27,28 +27,34 @@ EDAM shows the same table with no change of its own.
 Kills were dropped from the stack on 6 November because a count of `Bounty`
 events fell behind the game's mission screen, and the missing kills were
 taken to leave no trace. Some of them are recorded, just not as bounties. A
-clean ship of the target faction counts
-for the mission but pays no bounty, so killing it writes `CommitCrime` with
-`murder` and the victim's name, never a `Bounty`; and a ship destroyed before
-your scan of it finishes pays no bounty either, which the journal shows only
-as the locked target dropping at no hull. Both were ignored, so a stack with
-clean targets in it fell further behind with every one. Kills now come from
-all three: a `Bounty` naming the victim's faction, a murder of a pilot a full
-scan found to be of the target faction, and a dropped lock at no hull with no
-`Bounty` or murder for that pilot within three seconds, counted only when one
-target faction is held for the system, since its faction was never read.
-Each goes to the oldest unfinished mission of each source faction, in the
-mission's target system, as the game credits it, and a mission is held one
-short of its count until it redirects, which sets it exactly.
+kill in a conflict zone pays a combat bond, `FactionKillBond`, not a bounty,
+yet a civil-war massacre counts it like any other kill of the faction it
+names, so those missions never moved at all. A clean ship of the target
+faction counts for the mission but pays no bounty, so killing it writes
+`CommitCrime` with `murder` and the victim's name; and a ship destroyed
+before your scan of it finishes pays no bounty either, which the journal
+shows only as the locked target dropping at no hull. Kills now come from all
+four: a `Bounty` or a `FactionKillBond` naming the victim's faction, a murder
+of a pilot a full scan found to be of the target faction, and a dropped lock
+at no hull with no `Bounty`, bond or murder for that pilot within three
+seconds, counted only when one target faction is held for the system, since
+its faction was never read. Each goes to the oldest unfinished mission of
+each source faction, in the order they were accepted, in the mission's
+target system, as the game credits it, and a mission is held one short of
+its count until it redirects, which sets it exactly; the next mission of
+that faction starts from there.
 
-Checked against 60 redirects in another commander's journals, 990 kills in
-all, it saw 921 where bounties alone saw 905, and it was never ahead of the
-game; the kills it still cannot see are ships destroyed before their scan
-finished while not locked, which leave nothing in the journal. Between
-redirects the count is therefore a floor. It is rebuilt from the journals at
-every login, from the oldest active massacre's acceptance, and each redirect
-is logged with the kills credited before it, so a lag can be measured from
-real play.
+Replayed over the developer's own journals, 189 redirects and 4,765 credited
+kills, it saw 3,401 and was never ahead of the game; the civil-war missions
+among them were exact at every redirect. Over 60 redirects in another
+commander's journals it saw 922 of 990. Crediting in any order other than
+acceptance read high in both. What it still cannot see is a ship destroyed
+before its scan got far enough to read its faction: the journal shows the
+lock dropping and nothing else, and about a third of such kills are of other
+factions, so they cannot be told apart. Between redirects the count is
+therefore a floor. It is rebuilt from the journals at every login, from the
+oldest active massacre's acceptance, and each redirect is logged with the
+kills credited before it, so a lag can be measured from real play.
 
 ### Changed: a brighter EDLD logo
 

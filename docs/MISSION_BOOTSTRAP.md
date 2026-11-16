@@ -39,23 +39,30 @@ missions held. A row turns green when all its missions are ready to turn in.
 Two target factions are two stacks, with a Totals row under them.
 
 The game credits a kill of a target faction ship, made in the mission's
-target system, to the oldest unfinished mission of each source faction. EDLD
+target system, to the oldest unfinished mission of each source faction, in
+the order they were accepted. Replayed over 249 redirects in two commanders'
+journals, crediting in any other order (mission ID aside) read high. EDLD
 does the same with every kill the journal shows:
 
 - `Bounty`, naming the victim's faction. Skimmers and on-foot targets are not
   ships and do not count.
+- `FactionKillBond`, naming the victim's faction: a kill in a conflict zone
+  pays a combat bond rather than a bounty, and counts for a civil-war
+  massacre like any other kill of that faction.
 - `CommitCrime` with `murder`, when the victim was scanned in full
   (`ShipTargeted` stage 3) and found to be of the target faction. A clean
   ship of the target faction counts for the mission, but pays no bounty, so
   no `Bounty` is written for it.
 - The locked target dropping (`ShipTargeted` with `TargetLocked` false) when
   its last reading was at no hull and its scan had not finished, with no
-  `Bounty` or murder for that pilot within three seconds. A ship destroyed
+  `Bounty`, bond or murder for that pilot within three seconds. A ship destroyed
   before the scan completes pays no bounty either. Its faction is not known,
   so it is counted only when one target faction is held for the system.
 
 A mission is held one short of its count until `MissionRedirected`, which is
-written the moment the game finds it complete and sets it to its count. Kills
+written the moment the game finds it complete and sets it to its count; the
+kills the journal missed are recovered there, and the next mission of that
+source faction counts on from it. Kills
 of ships destroyed before a scan finished and while not locked leave nothing
 in the journal, so between redirects the count can lag the game's mission
 screen, never lead it; each redirect brings it back in step. Each redirect
