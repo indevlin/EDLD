@@ -104,7 +104,7 @@ TuiBlock > TabbedContent  { height: 1fr; }
 #block-helm { height: auto; }
 #helm-note { color: $amber; padding: 0 1; height: auto; }
 #helm-status { color: $dim; padding: 0 1; height: 1; }
-#helm-groups { height: auto; grid-gutter: 0 2; padding: 0 1; grid-rows: auto; }
+#helm-groups { height: auto; grid-gutter: 0 0; padding: 0 1; grid-rows: auto; }
 .helm-group { height: auto; }
 .helm-group-title { color: $accent; text-style: bold; height: 1; }
 .helm-buttons { height: auto; grid-gutter: 0 1; grid-rows: 1; }

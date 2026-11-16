@@ -17,47 +17,22 @@ from tui.block_base import TuiBlock
 GROUP_CELLS = 24
 
 
-def balanced_columns(width: int, min_width: int, n: int) -> int:
-    cols = H.columns_for(width, min_width, n)
-    rows = ceil(n / cols) if n else 1
-    return max(1, ceil(n / rows)) if n else 1
-
-
-#: Cells between groups, and between buttons in a group (the grid gutters).
+#: Cells between groups on a line, and between buttons in a group.
 GROUP_GAP = 2
 BUTTON_GAP = 1
 
 
-def arrange(width: int, labels: list[list[str]]) -> tuple[int, list[int], str, int]:
-    """(groups per row, each group's button columns, the grid's column
-    widths, the gap between groups) that make the panel as short as it can
-    be in ``width`` cells, with every button's name whole where it can be.
-    """
-    n = len(labels)
-    cell = [max((len(t) for t in g), default=4) + 2 for g in labels]
-    cands = []
-    two = [max(1, ceil(len(g) / 2)) for g in labels]
-    need = [c * w + BUTTON_GAP * (c - 1) for c, w in zip(two, cell)]
-    if sum(need) + (n - 1) <= width:
-        height = 1 + max(ceil(len(g) / c) for g, c in zip(labels, two))
-        # Each group exactly as wide as it needs, the last taking what is
-        # left: shares (fr) round a narrow group down past its longest name.
-        widths = " ".join([str(w) for w in need[:-1]] + ["1fr"])
-        cands.append((0, height, ceil(max(len(g) for g in labels) / 2), -n,
-                      n, two, widths, 1))
-    for per_row in range(n, 0, -1):
-        group_w = (width - GROUP_GAP * (per_row - 1)) // per_row
-        cols = [max(1, min(len(g), (group_w + BUTTON_GAP) // (w + BUTTON_GAP)))
-                for g, w in zip(labels, cell)]
-        cut = int(any(w > group_w for w in cell))
-        height = sum(1 + max(ceil(len(g) / c) for g, c in
-                             zip(labels[i:i + per_row], cols[i:i + per_row]))
-                     for i in range(0, n, per_row))
-        deepest = max(ceil(len(g) / c) for g, c in zip(labels, cols))
-        cands.append((cut, height, deepest, -per_row, per_row, cols,
-                      " ".join(["1fr"] * per_row), GROUP_GAP))
-    best = min(cands, key=lambda c: c[:4])
-    return best[4], best[5], best[6], best[7]
+def spans(width: int, line: list[tuple[str, int]], button: int) -> list[int]:
+    """Cells each group of a line takes of ``width``: as its columns need,
+    the rest shared out by columns, the last taking what rounding leaves."""
+    need = [c * button + BUTTON_GAP * (c - 1) for _g, c in line]
+    gaps = GROUP_GAP * (len(line) - 1)
+    spare = max(0, width - sum(need) - gaps)
+    total = sum(c for _g, c in line) or 1
+    out = [n + spare * c // total + (GROUP_GAP if i < len(line) - 1 else 0)
+           for i, (n, (_g, c)) in enumerate(zip(need, line))]
+    out[-1] = max(1, width - sum(out[:-1]))
+    return out
 
 
 class HelmBlock(TuiBlock):
@@ -70,6 +45,7 @@ class HelmBlock(TuiBlock):
         super().__init__(core, **kw)
         self._sig: tuple = ()
         self._layout: tuple = ()
+        self._helm_context = H.SHIP
 
     def _compose_body(self) -> ComposeResult:
         yield Label("", id="helm-note")
@@ -127,10 +103,11 @@ class HelmBlock(TuiBlock):
                 btn.tooltip = b.tip or None
 
     def _build(self, v: H.View) -> None:
-        sig = tuple((g.id, tuple(b.id for b in g.buttons)) for g in v.groups)
+        sig = (v.context,) + tuple((g.id, tuple(b.id for b in g.buttons)) for g in v.groups)
         if sig == self._sig:
             return
         self._sig = sig
+        self._helm_context = v.context
         try:
             host = self.query_one("#helm-groups", Grid)
         except Exception:
@@ -140,7 +117,7 @@ class HelmBlock(TuiBlock):
             buttons = [Button(b.label, id=f"helm-{b.id}") for b in g.buttons]
             boxes.append(Vertical(Label(g.label.upper(), classes="helm-group-title"),
                                   Grid(*buttons, classes="helm-buttons"),
-                                  classes="helm-group"))
+                                  classes="helm-group", id=f"helm-group-{g.id}"))
         self._layout = ()
         if not host.children:
             host.mount_all(boxes)
@@ -174,27 +151,37 @@ class HelmBlock(TuiBlock):
         boxes = [b for b in host.query(".helm-group") if b.query(".helm-buttons")]
         if not boxes:
             return
-        width = max(1, host.size.width or self.size.width - 4)
-        labels = [[str(b.label) for b in box.query(Button)] for box in boxes]
-        per_row, cols_of, widths, gap = arrange(width, labels)
-        layout = (per_row, tuple(cols_of), widths, gap)
+        width = max(1, (host.size.width or self.size.width - 4) - 2)
+        groups = [(str(b.id or "")[len("helm-group-"):], b) for b in boxes]
+        labels = [str(btn.label) for _g, b in groups for btn in b.query(Button)]
+        button = max([6] + [len(t) + 2 for t in labels])
+        lines = H.plan([(g, len(b.query(Button))) for g, b in groups], self._helm_context,
+                       width, button, BUTTON_GAP, GROUP_GAP)
+        layout = (width, tuple(tuple(line) for line in lines))
         if layout == self._layout:
             return
         self._layout = layout
-        host.styles.grid_size_columns = per_row
-        host.styles.grid_columns = widths
-        # Textual names the gap between columns the vertical gutter.
-        host.styles.grid_gutter_vertical = gap
-        for box, cols in zip(boxes, cols_of):
-            grid = box.query(".helm-buttons").first(Grid)
-            grid.styles.grid_size_columns = cols
-            # Heights set outright: "auto" kept the height of the columns
-            # before, and left blank lines under a group that now has fewer
-            # rows.
-            rows = ceil(len(grid.children) / cols)
-            grid.styles.height = rows
-            box.styles.height = rows + 1
-            box.refresh(layout=True)
+        # One grid column a cell: each group spans the cells core.helm.plan's
+        # line gives it, so a line's groups sit side by side and the next
+        # line starts below.
+        host.styles.grid_size_columns = width
+        host.styles.grid_columns = "1"
+        host.styles.grid_gutter_vertical = 0
+        by_id = dict(groups)
+        for line in lines:
+            for i, ((gid, cols), cells) in enumerate(zip(line, spans(width, line, button))):
+                box = by_id[gid]
+                box.styles.column_span = cells
+                box.styles.padding = (0, GROUP_GAP if i < len(line) - 1 else 0, 0, 0)
+                grid = box.query(".helm-buttons").first(Grid)
+                grid.styles.grid_size_columns = cols
+                # Heights set outright: "auto" kept the height of the columns
+                # before, and left blank lines under a group that now has fewer
+                # rows.
+                rows = ceil(len(grid.children) / cols)
+                grid.styles.height = rows
+                box.styles.height = rows + 1
+                box.refresh(layout=True)
         host.refresh(layout=True)
         self.refresh(layout=True)
 

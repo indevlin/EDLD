@@ -6,6 +6,36 @@ Last updated: 20261115
 
 ## 20261115-dev — added, unreleased
 
+### Changed: the Helm panel packs into fewer rows
+
+The Helm panel drew every button at a fixed width and a tall height with wide
+gaps, and set the groups out a fixed number to a row whatever their sizes, so
+a twelve-button group and a four-button group took the same space and the
+short one left a block of nothing beside the long one. With the panel's new
+groups that meant scrolling on a full desktop window and far more on a phone,
+and nothing looked wrong in a narrow test because the empty space only shows
+at width. Buttons are now as wide as the longest label needs and a line of
+text tall, with small gaps, and the groups are drawn in set lines — Ship and
+Throttle, Targeting and Fighter orders, Panels, then Combat and Power — each
+line's groups side by side with the button columns going where they save the
+most rows, or one under another when that is shorter. The desktop window, the
+terminal and EDAM use the same rule (`core.helm.plan`).
+
+The groups were re-cut too: Automation (Honk, Next stop) and Flight are part
+of Ship, and Hardpoints and Silent running moved from Combat to Ship. Fighter
+orders are two columns in pairs — Engage at will and Defend, Attack target
+and Hold fire, Follow and Hold position, then Request dock.
+
+### Fixed: a Helm press refused as "Status.json not readable"
+
+Every Helm press read Status.json to check the game first, and the game
+truncates and rewrites that file several times a second, so a press that
+landed mid-write was refused — most often Codex and the panels, which are
+pressed while nothing else is happening and so were the ones noticed. The
+check never needed the file: a press needs only the game to have the focus.
+Presses no longer read Status.json, and where EDLD does read it, a read that
+catches it empty or half-written tries again a moment later.
+
 ### Changed: the Helm panel follows you
 
 The Helm panel showed the ship's controls wherever the commander was. On foot

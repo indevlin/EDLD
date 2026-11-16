@@ -377,10 +377,12 @@ The client sends `{"t":"ping","id":n}` every 30 s (answered with
              {"id":"gear","label":"Landing gear","group":"ship"},
              {"id":"pips-sys","label":"SYS","group":"power"}],
  "helm":{"name":"Helm","section":"helm",
-         "groups":[{"id":"automation","label":"Automation"},{"id":"flight","label":"Flight"},
-                   {"id":"throttle","label":"Throttle"},{"id":"ship","label":"Ship"},
+         "groups":[{"id":"ship","label":"Ship"},{"id":"throttle","label":"Throttle"},
+                   {"id":"targeting","label":"Targeting"},{"id":"orders","label":"Fighter orders"},
                    …,
-                   {"id":"power","label":"Power"},{"id":"panels","label":"Panels"}],
+                   {"id":"power","label":"Power"}],
+         "rows":[["ship","throttle"],["targeting","orders"],["panels"],["combat","power"]],
+         "columns":{"orders":2},
          "note":null,"context":"ship","where":"Ship"}}
 ```
 
@@ -405,6 +407,13 @@ disembark. `where` names it for the device to show above the buttons: "Ship",
 "Fighter", the SRV by name ("SRV Nomad") or "On foot". The groups are named
 for the context too: in a fighter `ship` is "Fighter" and `orders` "Orders".
 A press of a control for another context is refused, with why.
+
+`rows` are the lines the groups are drawn in, in order; a line's groups go
+side by side when the width holds them, one under another when not, and a
+group with no controls leaves its line to the rest. `columns` fixes a group's
+button columns (`orders` is drawn two to a row, in its pairs). A client
+should draw a group missing from `rows` on a line of its own after them. Both
+are absent from an EDLD before 20261115.
 
 `theme` is the theme EDLD is drawing with:
 

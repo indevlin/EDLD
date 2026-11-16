@@ -136,9 +136,9 @@ closes.
 <br><em>EDCARS — every button EDLD can press for you, grouped by what it is for</em>
 </div>
 
-The Helm section is the Helm panel at its largest: the groups side by side as
-many as fit, evened out over the rows, and the buttons growing to fill the
-section. A button that cannot be pressed — automation off, or the control
+The Helm section is the Helm panel at its largest: the groups in their
+lines, side by side where the width holds them, and the buttons widening to
+fill each line at the large size. A button that cannot be pressed — automation off, or the control
 bound to nothing EDLD can press — is grayed, and its tooltip says why. See
 [AUTOMATION.md](AUTOMATION.md#the-helm-panel).
 
@@ -290,7 +290,7 @@ desktop window's foot is not there (the ad banner is), and the band carries
 EDAM's connection status beside the clock, and the Settings pill at the end
 of the rail opens EDAM's own settings rather than EDLD's Options. The Helm section draws the controls EDLD lets the device press
 (Options → Automation → *Allow paired devices to press keys*), in the same
-groups as the desktop; with none, it says why. An urgent alert flashes the Alerts pill for ten seconds and then
+groups and lines as the desktop; with none, it says why. An urgent alert flashes the Alerts pill for ten seconds and then
 holds it red until Alerts is opened, as on the desktop. Both draw EDCARS's
 scrollbars thin: a 3-pixel thumb, and only where there is more to see. In portrait the header shrinks to a short elbow
 with the strip wrapping beneath it, the pills run along the bottom, and a

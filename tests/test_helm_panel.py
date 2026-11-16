@@ -23,8 +23,7 @@ from core.state import MonitorState  # noqa: E402
 
 # ── The model ─────────────────────────────────────────────────────────────────
 
-SHIP_GROUPS = ["automation", "flight", "throttle", "ship", "targeting", "combat",
-               "orders", "power", "panels"]
+SHIP_GROUPS = ["ship", "throttle", "targeting", "orders", "panels", "combat", "power"]
 
 
 def test_every_control_is_in_a_known_group_once():
@@ -38,10 +37,14 @@ def test_every_control_is_in_a_known_group_once():
     def groups_of(ctx):
         return [g for g in groups if any(c.group == g and ctx in c.contexts
                                          for c in H.CONTROLS)]
-    assert groups_of(H.SHIP) == SHIP_GROUPS
-    assert groups_of(H.SRV) == ["vehicle", "targeting", "combat", "power", "panels"]
-    assert groups_of(H.FOOT) == ["suit", "tools", "weapons", "grenades", "panels"]
-    assert "automation" not in groups_of(H.FIGHTER)
+    assert set(groups_of(H.SHIP)) == set(SHIP_GROUPS)
+    assert set(groups_of(H.SRV)) == {"vehicle", "targeting", "combat", "power", "panels"}
+    assert set(groups_of(H.FOOT)) == {"suit", "tools", "weapons", "grenades", "panels"}
+    # Every context's groups are in its lines, and the lines name no other.
+    for ctx, _l in H.CONTEXTS:
+        lined = [g for row in H.ROWS[ctx] for g in row]
+        assert sorted(lined) == sorted(groups_of(ctx))
+        assert H.group_order(ctx)[:len(lined)] == lined
     # The automata are sequences; everything else is one binding.
     assert [c.id for c in H.CONTROLS if c.sequence] == [H.HONK, H.NEXT_STOP]
 
@@ -71,10 +74,31 @@ def test_the_view_keeps_the_order_and_says_why():
     assert not any(b.ready for g in off.groups for b in g.buttons)
 
 
-@pytest.mark.parametrize("width, want", [(2000, 6), (1000, 3), (700, 2), (200, 1)])
-def test_groups_to_a_row(width, want):
-    from gui.blocks.helm import balanced_columns
-    assert balanced_columns(width, 330, 6) == want
+def test_the_ship_and_its_throttle_share_a_line_then_targeting_and_the_orders():
+    groups = [("ship", 7), ("throttle", 5), ("targeting", 9), ("orders", 7), ("panels", 8)]
+    wide = H.plan(groups, H.SHIP, 1200, 104, 4, 16)
+    assert [[g for g, _c in line] for line in wide] == [
+        ["ship", "throttle"], ["targeting", "orders"], ["panels"]]
+    # The orders read in pairs, whatever the width.
+    assert all(c == 2 for line in wide for g, c in line if g == "orders")
+    # A phone, upright: still two to a line, the columns shared.
+    narrow = H.plan(groups, H.SHIP, 360, 84, 4, 10)
+    assert [[g for g, _c in line] for line in narrow][:2] == [
+        ["ship", "throttle"], ["targeting", "orders"]]
+
+
+def test_a_line_too_narrow_for_two_groups_stacks_them():
+    lines = H.plan([("ship", 16), ("throttle", 6)], H.SHIP, 200, 90, 4, 10)
+    assert lines == [[("ship", 2)], [("throttle", 2)]]
+
+
+def test_columns_go_where_they_save_rows_and_no_row_is_left_with_one():
+    lines = H.plan([("ship", 7), ("throttle", 6)], H.SHIP, 600, 84, 4, 10)
+    (ship, s_cols), (thr, t_cols) = lines[0]
+    assert -(-7 // s_cols) <= 2 and -(-6 // t_cols) <= 3
+    assert H.plan([("panels", 8)], H.SHIP, 2000, 84, 4, 10) == [[("panels", 8)]]
+    # Seven buttons over six columns would leave one alone: four and three.
+    assert H.plan([("panels", 7)], H.SHIP, 540, 84, 4, 10) == [[("panels", 4)]]
 
 
 def test_the_panel_setting():
@@ -264,23 +288,25 @@ def test_the_dashboard_strip_shows_only_while_automation_is_on():
     win.close()
 
 
-def test_a_narrow_strip_wraps_and_edcars_fills_its_section():
+def test_a_narrow_strip_stacks_and_edcars_packs_at_the_top():
     app = _qt()
     from gui.blocks.helm import HelmBlock
     p, _ = _auto({"Enabled": True}, pad_all=True)
     strip = HelmBlock(_host(p), compact=True)
-    strip.resize(700, 300)
+    strip.resize(380, 300)
     strip.show()
     strip.refresh_data()
     app.processEvents()
-    assert strip._per_row < len(SHIP_GROUPS)
+    assert any(len(line) == 1 and line[0][0] == "targeting" for line in strip._layout)
     big = HelmBlock(_host(p), compact=False)
     big.resize(1400, 800)
     big.show()
     big.refresh_data()
     app.processEvents()
-    assert big._per_row == 3
-    assert big._buttons["gear"].height() > HelmBlock.LARGE[2]
+    assert [[g for g, _c in line] for line in big._layout][:2] == [
+        ["ship", "throttle"], ["targeting", "orders"]]
+    # Buttons keep their height, whatever room the section has.
+    assert big._buttons["gear"].height() == HelmBlock.LARGE[1]
     strip.close()
     big.close()
 
@@ -300,28 +326,12 @@ def test_a_click_presses_from_edlds_window():
 
 # ── The terminal ──────────────────────────────────────────────────────────────
 
-#: The panel as it was before contexts: six groups, the arrangement's case.
-LABELS = [["Honk", "Next stop"],
-          ["Supercruise", "Jump", "Next system", "Boost", "Flight assist"],
-          ["Landing gear", "Cargo scoop", "Lights", "Night vision"],
-          ["Hardpoints", "Heat sink", "Chaff", "Shield cell", "Silent running"],
-          ["SYS", "ENG", "WEP", "Reset pips"],
-          ["Galaxy map", "System map", "FSS", "HUD mode"]]
-
-
-def test_the_terminal_strip_is_as_short_as_it_can_be():
-    from tui.blocks.helm import arrange
-    per_row, cols, widths, gap = arrange(196, LABELS)
-    assert per_row == 6 and cols == [1, 3, 2, 3, 2, 2] and gap == 1
-    # Every name whole: each group as wide as two rows of its buttons need.
-    sizes = [int(w) for w in widths.split()[:-1]]
-    for g, c, w in zip(LABELS, cols, sizes):
-        assert w >= c * (max(len(t) for t in g) + 2) + (c - 1)
-    per_row, cols, widths, gap = arrange(156, LABELS)
-    assert per_row == 3 and gap == 2
-    per_row, cols, _w, _g = arrange(78, LABELS)
-    group_w = (78 - 2 * (per_row - 1)) // per_row
-    assert all(max(len(t) for t in g) + 2 <= group_w for g in LABELS)
+def test_the_terminal_shares_a_line_out_in_whole_cells():
+    from tui.blocks.helm import GROUP_GAP, spans
+    line = [("ship", 6), ("throttle", 2)]
+    cells = spans(196, line, 16)
+    assert sum(cells) == 196 and cells[0] > cells[1]
+    assert cells[0] >= 6 * 16 + 5 + GROUP_GAP and cells[1] >= 2 * 16 + 1
 
 
 def test_the_terminal_strip_draws_and_presses():

@@ -7,21 +7,13 @@ from __future__ import annotations
 from math import ceil
 
 from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QFontMetrics
 from PySide6.QtWidgets import (
-    QGridLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
+    QGridLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
 
 from core import helm as H
 from gui.block_base import GuiBlock
-
-
-def balanced_columns(width: float, min_width: float, n: int) -> int:
-    """Groups per row: as many as fit (core.helm.columns_for), then evened
-    out over the rows that makes — six groups three and three.
-    """
-    cols = H.columns_for(width, min_width, n)
-    rows = ceil(n / cols) if n else 1
-    return max(1, ceil(n / rows)) if n else 1
 
 
 class _GroupBox(QWidget):
@@ -32,14 +24,14 @@ class _GroupBox(QWidget):
         self.setObjectName("helmGroup")
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
-        lay.setSpacing(3 if compact else 6)
+        lay.setSpacing(2 if compact else 3)
         self.title = QLabel(label.upper())
         self.title.setObjectName("helmGroupTitle")
         lay.addWidget(self.title)
         self.grid = QGridLayout()
         self.grid.setContentsMargins(0, 0, 0, 0)
-        self.grid.setHorizontalSpacing(4 if compact else 6)
-        self.grid.setVerticalSpacing(4 if compact else 6)
+        self.grid.setHorizontalSpacing(HelmBlock.GAP[compact])
+        self.grid.setVerticalSpacing(HelmBlock.GAP[compact])
         lay.addLayout(self.grid)
         lay.addStretch(1)
         self.buttons: list[QPushButton] = []
@@ -70,12 +62,16 @@ class _Host(QWidget):
 class HelmBlock(GuiBlock):
     BLOCK_TITLE = "HELM"
 
-    #: (narrowest group, narrowest button, button height) for the strip along
-    #: the Dashboard's foot, and for EDCARS's section.
-    COMPACT = (190, 92, 26)
-    LARGE = (330, 140, 48)
-    #: The tallest a button grows to fill EDCARS's section.
-    TALLEST = 96
+    #: (narrowest button, button height) for the strip along the Dashboard's
+    #: foot, and for EDCARS's section. A button is never narrower than the
+    #: longest name on the panel needs.
+    COMPACT = (84, 24)
+    LARGE = (104, 32)
+    #: Between buttons, between groups on a line, and between lines:
+    #: [large, compact].
+    GAP = (4, 3)
+    GROUP_GAP = (16, 12)
+    LINE_GAP = (10, 6)
 
     def __init__(self, core, theme: str = "default", parent=None,
                  compact: bool = False) -> None:
@@ -94,15 +90,15 @@ class HelmBlock(GuiBlock):
         layout.addWidget(self._note)
 
         # Laid out again whenever the host itself is resized: the block's
-        # own resize comes before the host has its new width.
+        # own resize comes before the host has its new width. Lines of groups
+        # (core.helm.plan), packed at the top.
         self._host = _Host(self._arrange)
-        self._grid = QGridLayout(self._host)
-        m = 4 if self._compact else 8
-        self._grid.setContentsMargins(m, m, m, 2)
-        self._grid.setHorizontalSpacing(14 if self._compact else 24)
-        self._grid.setVerticalSpacing(8 if self._compact else 18)
-        # In EDCARS the panel has the section to itself, and its buttons grow
-        # to fill the height (up to TALLEST).
+        self._lines = QVBoxLayout(self._host)
+        m = 4 if self._compact else 6
+        self._lines.setContentsMargins(m, m, m, 2)
+        self._lines.setSpacing(self.LINE_GAP[self._compact])
+        self._lines.addStretch(1)
+        self._line_widgets: list[QWidget] = []
         layout.addWidget(self._host, 0 if self._compact else 1)
 
         self._status = QLabel("")
@@ -113,9 +109,9 @@ class HelmBlock(GuiBlock):
 
         self._groups: dict[str, _GroupBox] = {}
         self._buttons: dict[str, QPushButton] = {}
-        self._per_row = 0
         self._layout: tuple = ()
-        self._button_h = 0
+        self._button_w = self._sizes[0]
+        self._helm_context = H.SHIP
         self._sig: tuple = ()
         self._button_font = None
         self._title_font = None
@@ -128,18 +124,23 @@ class HelmBlock(GuiBlock):
             btn.setFont(button)
         for box in self._groups.values():
             box.title.setFont(title)
+        self._measure()
+        self._layout = ()
+        self._arrange()
 
     def _make_groups(self, view: H.View) -> None:
-        sig = tuple((g.id, tuple(b.id for b in g.buttons)) for g in view.groups)
+        sig = (view.context,) + tuple((g.id, tuple(b.id for b in g.buttons))
+                                      for g in view.groups)
         if sig == self._sig:
             return
         self._sig = sig
+        self._helm_context = view.context
         for box in self._groups.values():
-            self._grid.removeWidget(box)
             box.setParent(None)
+            box.deleteLater()
         self._groups.clear()
         self._buttons.clear()
-        _w, _bw, bh = self._sizes
+        _bw, bh = self._sizes
         for g in view.groups:
             box = _GroupBox(g.label, self._compact)
             if self._title_font is not None:
@@ -156,72 +157,55 @@ class HelmBlock(GuiBlock):
                 box.buttons.append(btn)
                 self._buttons[b.id] = btn
             self._groups[g.id] = box
-        self._per_row = 0
+        self._measure()
         self._layout = ()
-        self._button_h = 0
         self._arrange()
+
+    def _measure(self) -> None:
+        """The narrowest a button may be: the longest name on the panel,
+        whole, with room either side."""
+        least = self._sizes[0]
+        for btn in self._buttons.values():
+            text = QFontMetrics(btn.font()).horizontalAdvance(btn.text())
+            least = max(least, text + 18)
+        self._button_w = least
 
     # ── Layout ────────────────────────────────────────────────────────────────
 
     def _arrange(self) -> None:
+        """Lay the groups out in core.helm.plan's lines for this width: a
+        line's groups side by side, each as wide as its columns, the buttons
+        at their own height and what is left below them."""
         if not getattr(self, "_groups", None):
             return
-        gw, bw, _bh = self._sizes
-        width = max(1, self._host.width())
-        boxes = list(self._groups.values())
-        n = len(boxes)
-        # The strip: every group in one row, two rows of buttons, each group
-        # as wide as its buttons need — when the window is wide enough.
-        two_rows = [ceil(len(b.buttons) / 2) for b in boxes]
-        if self._compact and (sum(two_rows) * bw
-                              + self._grid.horizontalSpacing() * (n - 1)) <= width:
-            per_row, cols_of, weight = n, two_rows, two_rows
-        else:
-            per_row = balanced_columns(width, gw, n)
-            cols = max(1, int((width / per_row) // bw))
-            cols_of = [min(cols, max(1, len(b.buttons))) for b in boxes]
-            weight = [1] * n
-        layout = (per_row, tuple(cols_of))
-        changed = layout != self._layout
+        c = self._compact
+        m = self._lines.contentsMargins()
+        width = max(1, self._host.width() - m.left() - m.right())
+        counts = [(gid, len(box.buttons)) for gid, box in self._groups.items()]
+        lines = H.plan(counts, self._helm_context, width, self._button_w,
+                       self.GAP[c], self.GROUP_GAP[c])
+        layout = tuple(tuple(line) for line in lines)
+        if layout == self._layout:
+            return
         self._layout = layout
-        self._per_row = per_row
-        for box, cols in zip(boxes, cols_of):
-            box.place(cols)
-        if changed:
-            for i, box in enumerate(boxes):
-                self._grid.removeWidget(box)
-                self._grid.addWidget(box, i // per_row, i % per_row, Qt.AlignTop)
-            stretch = (weight if per_row == n else [1] * per_row)
-            for c in range(max(per_row, self._grid.columnCount())):
-                self._grid.setColumnStretch(c, stretch[c] if c < per_row else 0)
-            # What the buttons leave goes below them, not between the rows.
-            rows = ceil(n / per_row)
-            for r in range(max(rows + 1, self._grid.rowCount())):
-                self._grid.setRowStretch(r, 1 if r == rows else 0)
-        self._fit_height(per_row)
-
-    def _fit_height(self, per_row: int) -> None:
-        """EDCARS: the buttons as tall as the section allows, so the panel
-        fills it.
-        """
-        _gw, _bw, least = self._sizes
-        height = least
-        if not self._compact:
-            boxes = list(self._groups.values())
-            rows = [boxes[i:i + per_row] for i in range(0, len(boxes), per_row)]
-            button_rows = [max(ceil(len(b.buttons) / max(1, b._cols)) for b in row)
-                           for row in rows]
-            title = max(b.title.sizeHint().height() for b in boxes)
-            m = self._grid.contentsMargins()
-            spare = (self._host.height() - m.top() - m.bottom()
-                     - self._grid.verticalSpacing() * (len(rows) - 1)
-                     - len(rows) * (title + 6)
-                     - 6 * sum(n - 1 for n in button_rows))
-            height = max(least, min(self.TALLEST, int(spare / max(1, sum(button_rows)))))
-        if height != self._button_h:
-            self._button_h = height
-            for btn in self._buttons.values():
-                btn.setFixedHeight(height)
+        for box in self._groups.values():
+            box.setParent(None)
+        for w in self._line_widgets:
+            self._lines.removeWidget(w)
+            w.deleteLater()
+        self._line_widgets = []
+        for i, line in enumerate(lines):
+            w = QWidget()
+            row = QHBoxLayout(w)
+            row.setContentsMargins(0, 0, 0, 0)
+            row.setSpacing(self.GROUP_GAP[c])
+            for gid, cols in line:
+                box = self._groups[gid]
+                box.place(cols)
+                row.addWidget(box, cols, Qt.AlignTop)
+                box.show()
+            self._lines.insertWidget(i, w)
+            self._line_widgets.append(w)
 
     # ── Refresh ───────────────────────────────────────────────────────────────
 

@@ -379,7 +379,9 @@ def test_the_helm_panel(server, tmp_path):
     assert snap["header"]["controls"] == auto.allowed
     helm = snap["header"]["helm"]
     assert helm["name"] == "Helm" and helm["section"] == "helm" and helm["note"] is None
-    assert [g["id"] for g in helm["groups"]][:2] == ["automation", "flight"]
+    assert [g["id"] for g in helm["groups"]][:2] == ["ship", "throttle"]
+    assert helm["rows"][:3] == [["ship", "throttle"], ["targeting", "orders"], ["panels"]]
+    assert helm["columns"] == {"orders": 2}
     assert snap["header"]["edcars"]["name"] == "EDCARS"
     assert any(s["id"] == "helm" for s in snap["header"]["edcars"]["sections"])
     c.send({"t": "cmd", "id": 5, "cmd": "press", "control": "gear"})

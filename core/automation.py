@@ -64,12 +64,20 @@ class Aborted(Exception):
     pass
 
 
-def read_status(journal_dir) -> dict:
-    try:
-        raw = (Path(journal_dir) / "Status.json").read_text(encoding="utf-8").strip()
-        return json.loads(raw) if raw else {}
-    except (OSError, ValueError, TypeError):
-        return {}
+def read_status(journal_dir, tries: int = 5, gap: float = 0.03) -> dict:
+    """Status.json, read again for a moment when the game is caught writing
+    it: it truncates the file, then fills it, many times a second."""
+    for attempt in range(max(1, tries)):
+        try:
+            raw = (Path(journal_dir) / "Status.json").read_text(encoding="utf-8").strip()
+            doc = json.loads(raw) if raw else {}
+            if doc:
+                return doc
+        except (OSError, ValueError, TypeError):
+            pass
+        if attempt < tries - 1:
+            time.sleep(gap)
+    return {}
 
 
 def read_navroute_end(journal_dir) -> str:
@@ -150,8 +158,12 @@ class Automation:
             return False, "not a control"
         action = CONTROLS[control_id][0]
 
+        # One key: the game in front is all it needs. Status.json says
+        # nothing a single press waits on.
         def _do():
-            self._check(gui=None, bad_flags=0)
+            ok, why = game_focused(self.assume_focus)
+            if not ok:
+                raise Aborted(why)
             self._press(action)
         return self._run(_do)
 

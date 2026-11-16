@@ -154,19 +154,27 @@ where you are — the ship, a ship-launched fighter you are flying, an SRV
 dock, embark or disembark. The line under the buttons names where it is for
 ("SRV Nomad", "On foot"), then what the last press came to.
 
+The groups are drawn in lines — in the ship Ship and Throttle, then
+Targeting and Fighter orders, then Panels, then Combat and Power. A line's
+groups sit side by side when the width holds them, the button columns going
+to whichever group they save the most rows in, and one under another when
+that is shorter. Buttons are as wide as the longest label needs and no
+taller than a line of text, so a wide window fits the panel in a few rows and
+a narrow one stacks it. Fighter orders are always two columns, in pairs:
+Engage at will and Defend, Attack target and Hold fire, Follow and Hold
+position, then Request dock.
+
 In the ship:
 
 | Group | Buttons |
 |---|---|
-| Automation | **Honk** — what auto honk does, now, in supercruise or normal space; **Next stop** — plot the galaxy map to the next stop of the route EDLD plotted |
-| Flight | Supercruise, Jump, Hyperspace, Next system (target the next system in the route), Boost, Flight assist, Rotation correction |
+| Ship | **Honk** — what auto honk does, now, in supercruise or normal space; **Next stop** — plot the galaxy map to the next stop of the route EDLD plotted; Supercruise, Jump, Hyperspace, Next system (target the next system in the route), Boost, Flight assist, Rotation correction, Landing gear, Cargo scoop, Lights, Night vision, Hardpoints, Silent running, Colonisation module |
 | Throttle | 0%, 25%, 50%, 75%, 100%, Reverse |
-| Ship | Landing gear, Cargo scoop, Lights, Night vision, Colonisation module |
 | Targeting | Target ahead, Next and Previous target, Highest threat, Next and Previous hostile, Next and Previous subsystem, Target's target, Wingman 1–3, Wing nav lock |
-| Combat | Hardpoints, Next and Previous fire group, Heat sink, Chaff, Shield cell, Silent running |
-| Fighter orders | Request dock, Defend, Engage at will, Attack target, Hold fire, Hold position, Follow, Orders panel |
-| Power | SYS, ENG, WEP (a pip each), Reset pips |
+| Fighter orders | Engage at will, Defend, Attack target, Hold fire, Follow, Hold position, Request dock, Orders panel |
 | Panels | Galaxy map, System map, FSS, HUD mode, Left panel, Comms, Role panel, Right panel, Codex, Orbit lines, Camera suite |
+| Combat | Next and Previous fire group, Heat sink, Chaff, Shield cell |
+| Power | SYS, ENG, WEP (a pip each), Reset pips |
 
 Flying a fighter, the panel keeps what a fighter can do — Boost, Flight
 assist, the throttle, its lights and night vision, targeting, the fire
@@ -174,7 +182,8 @@ groups, the pips and the cockpit panels — and its orders, which go to the
 ship's crew from there. Supercruise, the jump, the landing gear, the scoop,
 heat sinks and the automations are left off.
 
-In an SRV, with the SRV's own bindings:
+In an SRV, with the SRV's own bindings, in lines of Vehicle and Power,
+Targeting and Combat, then Panels:
 
 | Group | Buttons |
 |---|---|
@@ -184,7 +193,7 @@ In an SRV, with the SRV's own bindings:
 | Power | SYS, ENG, WEP, Reset pips |
 | Panels | Galaxy map, System map, HUD mode, Left panel, Comms, Role panel, Right panel, Codex, Camera suite |
 
-On foot:
+On foot, in lines of Suit and Tools, Weapons and Grenades, then Panels:
 
 | Group | Buttons |
 |---|---|

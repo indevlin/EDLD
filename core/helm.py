@@ -12,6 +12,7 @@ one place.
 """
 from __future__ import annotations
 
+from math import ceil
 from dataclasses import dataclass, field
 from typing import Optional
 
@@ -58,42 +59,54 @@ class Control:
 
 #: (id, label) of each group, in the order they are drawn.
 GROUPS: tuple[tuple[str, str], ...] = (
-    ("automation", "Automation"),
-    ("flight", "Flight"),
-    ("throttle", "Throttle"),
     ("ship", "Ship"),
+    ("throttle", "Throttle"),
     ("vehicle", "Vehicle"),
     ("suit", "Suit"),
     ("tools", "Tools"),
     ("weapons", "Weapons"),
     ("grenades", "Grenades"),
     ("targeting", "Targeting"),
-    ("combat", "Combat"),
     ("orders", "Fighter orders"),
+    ("combat", "Combat"),
     ("power", "Power"),
     ("panels", "Panels"),
 )
+
+#: The lines the groups are drawn in, per context: the groups of a line side
+#: by side when the width holds them, one under another when not. A group
+#: missing from the panel (nothing of it bound) leaves its line to the rest.
+ROWS: dict[str, tuple[tuple[str, ...], ...]] = {
+    SHIP: (("ship", "throttle"), ("targeting", "orders"), ("panels",), ("combat", "power")),
+    FIGHTER: (("ship", "throttle"), ("targeting", "orders"), ("panels",),
+              ("combat", "power")),
+    SRV: (("vehicle", "power"), ("targeting", "combat"), ("panels",)),
+    FOOT: (("suit", "tools"), ("weapons", "grenades"), ("panels",)),
+}
+
+#: Groups drawn in a set number of columns: the orders read in pairs.
+COLUMNS: dict[str, int] = {"orders": 2}
 
 #: A group's name where it differs by context: (group, context) → label.
 _GROUP_LABELS = {("ship", FIGHTER): "Fighter", ("orders", FIGHTER): "Orders"}
 
 CONTROLS: tuple[Control, ...] = (
-    # EDLD's own sequences: what auto honk and the next stop do on their own,
-    # on demand. Both press the ship's bindings.
-    Control(HONK, "Honk", "automation",
+    # The ship. First EDLD's own sequences: what auto honk and the next stop
+    # do on their own, on demand; both press the ship's bindings.
+    Control(HONK, "Honk", "ship",
             tip="Hold the discovery scanner in its fire group (in flight)"),
-    Control(NEXT_STOP, "Next stop", "automation",
+    Control(NEXT_STOP, "Next stop", "ship",
             tip="Plot the galaxy map to the next stop of the route EDLD plotted"),
-    # Flight: leaving, traveling, and the route.
-    Control("supercruise", "Supercruise", "flight", "Supercruise"),
-    Control("jump", "Jump", "flight", "HyperSuperCombination"),
-    Control("hyperspace", "Hyperspace", "flight", "Hyperspace",
+    # Leaving, traveling, and the route.
+    Control("supercruise", "Supercruise", "ship", "Supercruise"),
+    Control("jump", "Jump", "ship", "HyperSuperCombination"),
+    Control("hyperspace", "Hyperspace", "ship", "Hyperspace",
             tip="Hyperspace jump only, never supercruise"),
-    Control("nextroute", "Next system", "flight", "TargetNextRouteSystem",
+    Control("nextroute", "Next system", "ship", "TargetNextRouteSystem",
             tip="Target the next system in the route"),
-    Control("boost", "Boost", "flight", "UseBoostJuice", contexts=_SF),
-    Control("fa", "Flight assist", "flight", "ToggleFlightAssist", contexts=_SF),
-    Control("rotcorr", "Rotation correction", "flight", "DisableRotationCorrectToggle",
+    Control("boost", "Boost", "ship", "UseBoostJuice", contexts=_SF),
+    Control("fa", "Flight assist", "ship", "ToggleFlightAssist", contexts=_SF),
+    Control("rotcorr", "Rot. correction", "ship", "DisableRotationCorrectToggle",
             tip="Rotational correction on or off"),
     # Throttle presets.
     Control("thr-0", "0%", "throttle", "SetSpeedZero", contexts=_SF),
@@ -103,12 +116,14 @@ CONTROLS: tuple[Control, ...] = (
     Control("thr-100", "100%", "throttle", "SetSpeed100", contexts=_SF),
     Control("thr-rev", "Reverse", "throttle", "ToggleReverseThrottleInput", contexts=_SF,
             tip="Throttle to reverse, or back"),
-    # The ship: what opens, closes and lights.
+    # What opens, closes and lights, and the ship's stance.
     Control("gear", "Landing gear", "ship", "LandingGearToggle"),
     Control("scoop", "Cargo scoop", "ship", "ToggleCargoScoop"),
     Control("lights", "Lights", "ship", "ShipSpotLightToggle", contexts=_SF),
     Control("nightvision", "Night vision", "ship", "NightVisionToggle", contexts=_SF),
-    Control("colonise", "Colonisation module", "ship", "TriggerColonisationModule",
+    Control("hardpoints", "Hardpoints", "ship", "DeployHardpointToggle"),
+    Control("silent", "Silent running", "ship", "ToggleButtonUpInput"),
+    Control("colonise", "Colonisation", "ship", "TriggerColonisationModule",
             tip="Fire the colonisation module"),
     # The SRV: Scarab, Scorpion, Nomad and Rhino share the SRV's bindings.
     Control("srv-assist", "Drive assist", "vehicle", "ToggleDriveAssist", contexts=_V),
@@ -156,13 +171,13 @@ CONTROLS: tuple[Control, ...] = (
     # Targeting.
     Control("tgt-ahead", "Target ahead", "targeting", "SelectTarget", contexts=_SF),
     Control("tgt-next", "Next target", "targeting", "CycleNextTarget", contexts=_SF),
-    Control("tgt-prev", "Previous target", "targeting", "CyclePreviousTarget", contexts=_SF),
+    Control("tgt-prev", "Prev target", "targeting", "CyclePreviousTarget", contexts=_SF),
     Control("tgt-threat", "Highest threat", "targeting", "SelectHighestThreat", contexts=_SF),
     Control("tgt-hostile", "Next hostile", "targeting", "CycleNextHostileTarget", contexts=_SF),
-    Control("tgt-prevhostile", "Previous hostile", "targeting", "CyclePreviousHostileTarget",
+    Control("tgt-prevhostile", "Prev hostile", "targeting", "CyclePreviousHostileTarget",
             contexts=_SF),
     Control("tgt-sub", "Next subsystem", "targeting", "CycleNextSubsystem", contexts=_SF),
-    Control("tgt-prevsub", "Previous subsystem", "targeting", "CyclePreviousSubsystem",
+    Control("tgt-prevsub", "Prev subsystem", "targeting", "CyclePreviousSubsystem",
             contexts=_SF),
     Control("tgt-theirs", "Target's target", "targeting", "SelectTargetsTarget", contexts=_SF),
     Control("tgt-wing1", "Wingman 1", "targeting", "TargetWingman0", contexts=_SF),
@@ -170,27 +185,26 @@ CONTROLS: tuple[Control, ...] = (
     Control("tgt-wing3", "Wingman 3", "targeting", "TargetWingman2", contexts=_SF),
     Control("tgt-winglock", "Wing nav lock", "targeting", "WingNavLock"),
     Control("srv-target", "Target ahead", "targeting", "SelectTarget_Buggy", contexts=_V),
-    # Combat: weapons out, then what keeps the ship alive.
-    Control("hardpoints", "Hardpoints", "combat", "DeployHardpointToggle"),
+    # Combat: the fire groups, then what keeps the ship alive.
     Control("fg-next", "Next fire group", "combat", "CycleFireGroupNext", contexts=_SF),
-    Control("fg-prev", "Previous fire group", "combat", "CycleFireGroupPrevious",
+    Control("fg-prev", "Prev fire group", "combat", "CycleFireGroupPrevious",
             contexts=_SF),
     Control("heatsink", "Heat sink", "combat", "DeployHeatSink"),
     Control("chaff", "Chaff", "combat", "FireChaffLauncher"),
     Control("shieldcell", "Shield cell", "combat", "UseShieldCell"),
-    Control("silent", "Silent running", "combat", "ToggleButtonUpInput"),
     Control("srv-fg-next", "Next fire group", "combat", "BuggyCycleFireGroupNext",
             contexts=_V),
-    Control("srv-fg-prev", "Previous fire group", "combat", "BuggyCycleFireGroupPrevious",
+    Control("srv-fg-prev", "Prev fire group", "combat", "BuggyCycleFireGroupPrevious",
             contexts=_V),
     # Orders to a ship-launched fighter's crew; from the fighter, to the ship.
-    Control("ord-dock", "Request dock", "orders", "OrderRequestDock", contexts=_SF),
-    Control("ord-defend", "Defend", "orders", "OrderDefensiveBehaviour", contexts=_SF),
+    # In pairs, two to a line (COLUMNS): stance, target, position, then dock.
     Control("ord-engage", "Engage at will", "orders", "OrderAggressiveBehaviour", contexts=_SF),
+    Control("ord-defend", "Defend", "orders", "OrderDefensiveBehaviour", contexts=_SF),
     Control("ord-attack", "Attack target", "orders", "OrderFocusTarget", contexts=_SF),
     Control("ord-holdfire", "Hold fire", "orders", "OrderHoldFire", contexts=_SF),
-    Control("ord-hold", "Hold position", "orders", "OrderHoldPosition", contexts=_SF),
     Control("ord-follow", "Follow", "orders", "OrderFollow", contexts=_SF),
+    Control("ord-hold", "Hold position", "orders", "OrderHoldPosition", contexts=_SF),
+    Control("ord-dock", "Request dock", "orders", "OrderRequestDock", contexts=_SF),
     Control("ord-open", "Orders panel", "orders", "OpenOrders", contexts=_SF),
     # Power: the pips, in the order the game's power distributor shows them.
     Control("pips-sys", "SYS", "power", "IncreaseSystemsPower", contexts=_SF,
@@ -268,6 +282,12 @@ def context_of(state) -> str:
     return SHIP
 
 
+def group_order(context: str = SHIP) -> list[str]:
+    """The groups in the order ``context``'s lines take them, then any other."""
+    order = [g for row in ROWS.get(context, ()) for g in row]
+    return order + [g for g, _l in GROUPS if g not in order]
+
+
 def in_context(control: Control, context: str) -> bool:
     return context in control.contexts
 
@@ -331,7 +351,7 @@ def build_view(enabled: bool, bound, why_unbound, note: str = "",
     whether a control belongs on the panel at all (default: all). Only the
     controls for ``context`` are drawn."""
     groups: list[Group] = []
-    for gid, _label in GROUPS:
+    for gid in group_order(context):
         g = Group(gid, group_label(gid, context))
         for c in CONTROLS:
             if c.group != gid or not in_context(c, context):
@@ -344,6 +364,68 @@ def build_view(enabled: bool, bound, why_unbound, note: str = "",
         if g.buttons:
             groups.append(g)
     return View(enabled, note, status, groups, context, where or context_label(context))
+
+
+def _balanced(n: int, cols: int) -> int:
+    """``cols`` columns for ``n`` buttons, cut to as few as keep the rows they
+    make, so the last row is not left with one."""
+    cols = max(1, min(n, cols))
+    return max(1, ceil(n / ceil(n / cols))) if n else 1
+
+
+def _side_by_side(counts: list[int], fixed: list[int], total: int) -> list[int] | None:
+    """Button columns for groups sharing a line of ``total`` columns, each
+    column given in turn to the group with the most rows still to lose; a
+    group in ``fixed`` keeps its own. None when they do not fit."""
+    cols = [min(n, f) if f else 1 for n, f in zip(counts, fixed)]
+    if sum(cols) > total:
+        return None
+    while sum(cols) < total:
+        free = [i for i, (n, c, f) in enumerate(zip(counts, cols, fixed)) if not f and c < n]
+        if not free:
+            break
+        i = max(free, key=lambda j: (ceil(counts[j] / cols[j]), counts[j]))
+        cols[i] += 1
+    return [c if f else _balanced(n, c) for n, c, f in zip(counts, cols, fixed)]
+
+
+def fit(width: float, button: float, gap: float, k: int, group_gap: float = 0) -> int:
+    """Button columns ``k`` groups share in ``width``: buttons at least
+    ``button`` wide, ``gap`` between them and ``group_gap`` between groups."""
+    return max(k, int((width - group_gap * (k - 1) + gap * k) // (button + gap)))
+
+
+def plan(groups, context: str, width: float, button: float, gap: float,
+         group_gap: float) -> list[list[tuple[str, int]]]:
+    """The panel's lines: each a list of (group id, button columns), from
+    ``groups`` as (id, buttons) in ROWS's lines for ``context``. A line's
+    groups sit side by side, columns going where they save the most rows,
+    unless one under another is shorter; a title counts as a row. The
+    desktop window, the terminal and EDAM lay the panel out by this."""
+    count = dict(groups)
+    lines = [[g for g in row if count.get(g)] for row in ROWS.get(context, ())]
+    placed = {g for row in lines for g in row}
+    lines += [[g] for g, n in groups if n and g not in placed]
+    out: list[list[tuple[str, int]]] = []
+    one = fit(width, button, gap, 1)
+    for row in (r for r in lines if r):
+        counts = [count[g] for g in row]
+        fixed = [COLUMNS.get(g, 0) for g in row]
+        alone = [_balanced(n, min(f, one) if f else one) for n, f in zip(counts, fixed)]
+        if len(row) > 1:
+            side = _side_by_side(counts, fixed, fit(width, button, gap, len(row), group_gap))
+            if side is not None:
+                tall = max(ceil(n / c) for n, c in zip(counts, side)) + 1
+                if tall <= sum(ceil(n / c) + 1 for n, c in zip(counts, alone)):
+                    out.append(list(zip(row, side)))
+                    continue
+        out += [[(g, c)] for g, c in zip(row, alone)]
+    return out
+
+
+def wire_rows(context: str = SHIP) -> list[list[str]]:
+    """ROWS for ``context``, as a device is sent them."""
+    return [list(r) for r in ROWS.get(context, ())]
 
 
 def columns_for(width: float, min_width: float, groups: int) -> int:
@@ -359,4 +441,4 @@ def wire_groups(context: str = SHIP) -> list[dict]:
     """The groups as a device is sent them, in drawing order and named for
     ``context``, so EDAM labels and orders the buttons it is sent as the
     desktop does."""
-    return [{"id": gid, "label": group_label(gid, context)} for gid, _l in GROUPS]
+    return [{"id": gid, "label": group_label(gid, context)} for gid in group_order(context)]

@@ -305,7 +305,10 @@ class SnapshotBuilder:
         # commander is, and "where" says so above them.
         return {"name": helm.HELM_NAME, "section": helm.HELM_SECTION,
                 "groups": helm.wire_groups(ctx), "note": note or None,
-                "context": ctx, "where": where}
+                "context": ctx, "where": where,
+                # The lines the groups are drawn in, and the groups drawn in
+                # set columns: EDAM lays the pad out by core.helm.plan's rule.
+                "rows": helm.wire_rows(ctx), "columns": dict(helm.COLUMNS)}
 
     def theme(self) -> dict | None:
         """The theme EDLD is drawing with, so a device can follow it."""

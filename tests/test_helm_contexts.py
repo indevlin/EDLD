@@ -152,6 +152,8 @@ def test_the_device_is_told_where_the_panel_is_for():
     b._fault = lambda *a: None
     helm = b.helm()
     assert helm["context"] == H.FOOT and helm["where"] == "On foot"
+    assert helm["rows"] == [["suit", "tools"], ["weapons", "grenades"], ["panels"]]
+    assert helm["columns"] == {"orders": 2}
     p.core.state = _state(slf=True)
     core.state = p.core.state
     labels = {g["id"]: g["label"] for g in b.helm()["groups"]}
@@ -235,3 +237,34 @@ def test_fighter_orders_on_the_number_pad_are_pressable_from_the_ship(tmp_path):
             assert btn[cid].ready, (cid, btn[cid].tip)
     for a, k in orders.items():
         assert p.bindings.get(a).key == f"Key_{k}" and f"Key_{k}" in KEYS
+
+
+def test_one_press_needs_the_game_in_front_not_status_json(tmp_path):
+    from core.automation import Automation
+    from core.binds import Binding, Bindings
+    pressed = []
+
+    class KB:
+        def available(self):
+            return True, ""
+
+        def press(self, key, modifiers=(), hold=0.06):
+            pressed.append(key)
+            return True
+
+    b = Bindings()
+    b._map = {"OpenCodexGoToDiscovery": Binding("Key_Slash")}
+    eng = Automation(tmp_path, KB(), b, assume_focus=True)      # no Status.json at all
+    ok, why = eng.press("codex")
+    assert ok, why
+    assert pressed == ["Key_Slash"]
+
+
+def test_status_json_caught_mid_write_is_read_again(tmp_path, monkeypatch):
+    from core import automation as A
+    reads = iter(["", "{\"Flags\":", "{\"Flags\": 16}"])
+    real = A.Path.read_text
+    monkeypatch.setattr(A.Path, "read_text",
+                        lambda self, *a, **k: next(reads) if self.name == "Status.json"
+                        else real(self, *a, **k))
+    assert A.read_status(tmp_path, gap=0) == {"Flags": 16}
