@@ -374,14 +374,34 @@ class HelmBlock(GuiBlock):
 
     def _press(self, btn: _Button) -> None:
         cid = btn.target()
+        # One button lit, the one just pressed, for a quarter second.
+        were = getattr(self, "_lit", None)
+        if were is not None and were is not btn:
+            self._light(were, False)
+        self._lit = btn
         self._light(btn, True)
-        QTimer.singleShot(250, lambda b=btn: self._light(b, False))
+        QTimer.singleShot(250, lambda b=btn: self._unlight(b))
         auto = self._plugin()
         if auto is not None and hasattr(auto, "press_here"):
             auto.press_here(cid)
+
+    def _unlight(self, btn: _Button) -> None:
+        if getattr(self, "_lit", None) is btn:
+            self._lit = None
+        try:
+            self._light(btn, False)
+        except RuntimeError:                       # rebuilt meanwhile
+            return
+        # The press brought the game to the front: the pointer left this
+        # window without its leaving being told, and the button would keep
+        # its hover look until the pointer came back to it.
+        if not btn.window().isActiveWindow():
+            btn.setAttribute(Qt.WA_UnderMouse, False)
+            btn.update()
 
     @staticmethod
     def _light(btn: QPushButton, on: bool) -> None:
         btn.setProperty("lit", "true" if on else "")
         btn.style().unpolish(btn)
         btn.style().polish(btn)
+        btn.update()

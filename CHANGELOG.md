@@ -33,6 +33,16 @@ up to twice their height, to fill the section, so it neither scrolls nor
 leaves the bottom half empty. On EDAM no button is narrower than its longest
 word.
 
+### Fixed: a Helm button left lit after it was pressed
+
+A throttle preset could stay lit after another had been pressed, looking
+like the throttle's setting when the throttle, moved by hand, said
+otherwise. A press brings the game to the front without the window being
+told the pointer has left, so a button could keep its hover look. Only the
+button just pressed is lit now, for a quarter second, and its hover look is
+cleared when the game has the focus. The game writes no throttle position to Status.json or the journal,
+so the panel cannot show the throttle's setting.
+
 ### Changed: the AUTO lamp replaces the automation line
 
 The line under the panel always said "On its own: auto honk", and before

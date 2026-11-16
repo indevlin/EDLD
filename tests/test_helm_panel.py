@@ -471,3 +471,25 @@ def test_both_dashboards_place_it_and_refresh_it():
         assert '"automation":    "block-helm"' in src
     assert 'HelmBlock(self._core, id=BLOCK_DOM_ID["helm"])' in tui
     assert "HelmBlock(self._core, theme=self._theme, compact=True)" in gui
+
+
+def test_only_the_button_just_pressed_is_lit():
+    app = _qt()
+    from gui.blocks.helm import HelmBlock
+    p, _ = _auto({"Enabled": True}, pad_all=True)
+    p.press_here = lambda cid: None
+    block = HelmBlock(_host(p), compact=False)
+    block.resize(1400, 800)
+    block.show()
+    block.refresh_data()
+    app.processEvents()
+    a, b = block._buttons[("thr-50",)], block._buttons[("thr-75",)]
+    a.setEnabled(True)
+    b.setEnabled(True)
+    a.click()
+    assert a.property("lit") == "true"
+    b.click()
+    assert a.property("lit") == "" and b.property("lit") == "true"
+    block._unlight(b)
+    assert b.property("lit") == "" and block._lit is None
+    block.close()
