@@ -151,30 +151,49 @@ The Helm panel puts the automations and the game's own controls on buttons,
 grouped by what they are for, and follows you: it shows the controls for
 where you are — the ship, a ship-launched fighter you are flying, an SRV
 (Scarab, Scorpion, Nomad or Rhino), or on foot — and changes as you launch,
-dock, embark or disembark. The line under the buttons names where it is for
-("SRV Nomad", "On foot"), then what the last press came to.
+dock, embark or disembark. After a press, a line under the buttons says what
+it came to, for a few seconds.
 
-The groups are drawn in lines — in the ship Ship and Throttle, then
-Targeting and Fighter orders, then Panels, then Combat and Power. A line's
-groups sit side by side when the width holds them, the button columns going
-to whichever group they save the most rows in, and one under another when
-that is shorter. Buttons are as wide as the longest label needs and no
-taller than a line of text, so a wide window fits the panel in a few rows and
-a narrow one stacks it. Fighter orders are always two columns, in pairs:
-Engage at will and Defend, Attack target and Hold fire, Follow and Hold
-position, then Request dock.
+**Honk** and **Next stop** carry a small AUTO lamp in their top corner: green
+while Options has EDLD do them on its own (auto honk on arriving, the next
+stop after a supercharge), red while it does not.
+
+The groups are drawn in lines — in the ship Ship and Throttle; Targeting,
+Wing and Fighter orders; Systems and Views; Combat and Power. A line is cut
+wherever that makes the panel shorter, and its groups sit side by side, the
+button columns going to whichever group they save the most rows in. Buttons
+are as wide as the longest label needs. In EDCARS they grow taller to fill
+the section, up to twice their height, so the panel fills the screen rather
+than leaving it empty, and needs scrolling only when even the smallest
+buttons do not fit.
+
+Some groups are drawn their own way:
+
+* **Bars.** The throttle, Systems and Power are upright bars side by side, as
+  tall as the rest of their line and at least two rows: the throttle Reverse
+  then 0% to 100%, left to right; Systems the cockpit's four panels in the
+  order they sit; Power a bar for each pip and Reset.
+* **Pairs.** A control and its opposite are one cell, ◀ and ▶ either side of
+  its name: Target, Hostile and Subsystem cycle back on the left half and
+  forward on the right; so does Fire group. With only one of the two bound,
+  it is a button of its own ("Next target").
+* **Fighter orders** read in pairs, two or four to a row: Engage at will and
+  Defend, Attack target and Hold fire, Follow and Hold position, then
+  Request dock.
 
 In the ship:
 
 | Group | Buttons |
 |---|---|
 | Ship | **Honk** — what auto honk does, now, in supercruise or normal space; **Next stop** — plot the galaxy map to the next stop of the route EDLD plotted; Supercruise, Jump, Hyperspace, Next system (target the next system in the route), Boost, Flight assist, Rotation correction, Landing gear, Cargo scoop, Lights, Night vision, Hardpoints, Silent running, Colonisation module |
-| Throttle | 0%, 25%, 50%, 75%, 100%, Reverse |
-| Targeting | Target ahead, Next and Previous target, Highest threat, Next and Previous hostile, Next and Previous subsystem, Target's target, Wingman 1–3, Wing nav lock |
+| Throttle (bars) | Reverse, 0%, 25%, 50%, 75%, 100% |
+| Targeting | Target ahead, Highest threat, Target's target, ◀ Target ▶, ◀ Hostile ▶, ◀ Subsystem ▶ |
+| Wing | Wingman 1–3, Nav lock (wing nav lock) |
 | Fighter orders | Engage at will, Defend, Attack target, Hold fire, Follow, Hold position, Request dock, Orders panel |
-| Panels | Galaxy map, System map, FSS, HUD mode, Left panel, Comms, Role panel, Right panel, Codex, Orbit lines, Camera suite |
-| Combat | Next and Previous fire group, Heat sink, Chaff, Shield cell |
-| Power | SYS, ENG, WEP (a pip each), Reset pips |
+| Systems (bars) | Nav (the left panel), Comms, Deploy (the role panel underneath: the SRV and fighter bays, crew, disembarking), Ship (the right panel) |
+| Views | Galaxy map, System map, FSS, Orbit lines, HUD mode, Codex, Camera suite |
+| Combat | ◀ Fire group ▶, Heat sink, Chaff, Shield cell |
+| Power (bars) | SYS, ENG, WEP (a pip each), Reset |
 
 Flying a fighter, the panel keeps what a fighter can do — Boost, Flight
 assist, the throttle, its lights and night vision, targeting, the fire
@@ -183,17 +202,18 @@ ship's crew from there. Supercruise, the jump, the landing gear, the scoop,
 heat sinks and the automations are left off.
 
 In an SRV, with the SRV's own bindings, in lines of Vehicle and Power,
-Targeting and Combat, then Panels:
+Targeting and Combat, then Systems and Views:
 
 | Group | Buttons |
 |---|---|
 | Vehicle | Drive assist, Handbrake, Headlights, Night vision, Cargo scoop, Turret view, Recall ship |
 | Targeting | Target ahead |
-| Combat | Next and Previous fire group |
-| Power | SYS, ENG, WEP, Reset pips |
-| Panels | Galaxy map, System map, HUD mode, Left panel, Comms, Role panel, Right panel, Codex, Camera suite |
+| Combat | ◀ Fire group ▶ |
+| Power (bars) | SYS, ENG, WEP, Reset |
+| Systems (bars) | Nav, Comms, Deploy, SRV |
+| Views | Galaxy map, System map, HUD mode, Codex, Camera suite |
 
-On foot, in lines of Suit and Tools, Weapons and Grenades, then Panels:
+On foot, in lines of Suit and Tools, Weapons and Grenades, then Views:
 
 | Group | Buttons |
 |---|---|
@@ -201,7 +221,7 @@ On foot, in lines of Suit and Tools, Weapons and Grenades, then Panels:
 | Tools | Energylink, Profile analyser, Suit tool, Tool mode |
 | Weapons | Primary, Secondary, Sidearm, Switch weapon, Holster, Reload |
 | Grenades | Frag, EMP, Shield, Next grenade, Throw |
-| Panels | Galaxy map, System map, Comms, Mission help, Ping, Camera suite |
+| Views | Galaxy map, System map, Comms, Mission help, Ping, Camera suite |
 
 A control whose binding is empty in the game's Controls — no key, no button,
 nothing — is one you do not use, and is left off the panel. One bound only to

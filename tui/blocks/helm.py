@@ -5,6 +5,7 @@ from __future__ import annotations
 
 from math import ceil
 
+from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Grid, Vertical
 from textual.widgets import Button, Label
@@ -20,6 +21,42 @@ GROUP_CELLS = 24
 #: Cells between groups on a line, and between buttons in a group.
 GROUP_GAP = 2
 BUTTON_GAP = 1
+
+
+PREV, NEXT = "\u25C0", "\u25B6"
+
+
+class HelmButton(Button):
+    """A Helm cell: one control, or a pair (``ids`` two long) pressed by the
+    half clicked, the next by the keyboard."""
+
+    def __init__(self, label, ids: tuple[str, ...], **kw) -> None:
+        super().__init__(label, **kw)
+        self.ids = ids
+        self.side = 1 if len(ids) > 1 else 0
+
+    async def _on_click(self, event) -> None:
+        if len(self.ids) > 1:
+            self.side = 0 if event.x < self.size.width / 2 else 1
+        await super()._on_click(event)
+
+    def target(self) -> str:
+        return self.ids[self.side] if len(self.ids) > 1 else self.ids[0]
+
+
+def cell_id(ids: tuple[str, ...]) -> str:
+    return "helm-" + "--".join(ids)
+
+
+def cell_label(cell) -> Text:
+    """A cell's face: its name, a pair's between ◀ and ▶, and an AUTO lamp
+    for a sequence that runs on its own."""
+    if len(cell) > 1:
+        return Text(f"{PREV} {H.pair_label(tuple(b.id for b in cell))} {NEXT}")
+    b = cell[0]
+    if b.auto is None:
+        return Text(b.label)
+    return Text.assemble(b.label, " ", ("■", "green" if b.auto else "red"), "auto")
 
 
 def spans(width: int, line: list[tuple[str, int]], button: int) -> list[int]:
@@ -90,17 +127,31 @@ class HelmBlock(TuiBlock):
             note = self.query_one("#helm-note", Label)
             note.update(v.note)
             note.display = bool(v.note)
-            self.query_one("#helm-status", Label).update(H.status_line(v))
+            status = self.query_one("#helm-status", Label)
+            text = H.status_line(v)
+            if text != getattr(self, "_status_text", None):
+                self._status_text = text
+                status.update(text)
+                if text:
+                    wait = getattr(self._plugin(), "RESULT_SECONDS", 8.0)
+                    self.set_timer(wait + 0.1, self.refresh_data)
+            status.display = bool(text)
         except Exception:
             return
         for g in v.groups:
-            for b in g.buttons:
+            for cell in g.cells():
                 try:
-                    btn = self.query_one(f"#helm-{b.id}", Button)
+                    btn = self.query_one("#" + cell_id(tuple(b.id for b in cell)), HelmButton)
                 except Exception:
                     continue
-                btn.disabled = not b.ready
-                btn.tooltip = b.tip or None
+                btn.disabled = not any(b.ready for b in cell)
+                if len(cell) > 1:
+                    btn.tooltip = f"{PREV} {cell[0].label}  ·  {cell[1].label} {NEXT}"
+                else:
+                    btn.tooltip = cell[0].tip or None
+                face = cell_label(cell)
+                if str(face) != str(btn.label):
+                    btn.label = face
 
     def _build(self, v: H.View) -> None:
         sig = (v.context,) + tuple((g.id, tuple(b.id for b in g.buttons)) for g in v.groups)
@@ -114,7 +165,11 @@ class HelmBlock(TuiBlock):
             return
         boxes = []
         for g in v.groups:
-            buttons = [Button(b.label, id=f"helm-{b.id}") for b in g.buttons]
+            buttons = []
+            for cell in g.cells():
+                ids = tuple(b.id for b in cell)
+                buttons.append(HelmButton(cell_label(cell), ids, id=cell_id(ids),
+                                          classes="helm-bar" if g.bars else ""))
             boxes.append(Vertical(Label(g.label.upper(), classes="helm-group-title"),
                                   Grid(*buttons, classes="helm-buttons"),
                                   classes="helm-group", id=f"helm-group-{g.id}"))
@@ -153,10 +208,12 @@ class HelmBlock(TuiBlock):
             return
         width = max(1, (host.size.width or self.size.width - 4) - 2)
         groups = [(str(b.id or "")[len("helm-group-"):], b) for b in boxes]
-        labels = [str(btn.label) for _g, b in groups for btn in b.query(Button)]
-        button = max([6] + [len(t) + 2 for t in labels])
-        lines = H.plan([(g, len(b.query(Button))) for g, b in groups], self._helm_context,
-                       width, button, BUTTON_GAP, GROUP_GAP)
+        cells = [(g, btn) for g, b in groups for btn in b.query(HelmButton)]
+        button = max([6] + [len(str(btn.label)) + 2 for g, btn in cells if g not in H.BARS])
+        bar = max([4] + [len(str(btn.label)) + 2 for g, btn in cells if g in H.BARS])
+        count = {g: len(b.query(HelmButton)) for g, b in groups}
+        lines = H.plan(list(count.items()), self._helm_context, width, button,
+                       BUTTON_GAP, GROUP_GAP, bar)
         layout = (width, tuple(tuple(line) for line in lines))
         if layout == self._layout:
             return
@@ -169,16 +226,25 @@ class HelmBlock(TuiBlock):
         host.styles.grid_gutter_vertical = 0
         by_id = dict(groups)
         for line in lines:
-            for i, ((gid, cols), cells) in enumerate(zip(line, spans(width, line, button))):
+            tall = H.line_rows(line, count)
+            for i, ((gid, cols), span) in enumerate(zip(line, spans(width, line, button))):
                 box = by_id[gid]
-                box.styles.column_span = cells
+                box.styles.column_span = span
                 box.styles.padding = (0, GROUP_GAP if i < len(line) - 1 else 0, 0, 0)
                 grid = box.query(".helm-buttons").first(Grid)
-                grid.styles.grid_size_columns = cols
                 # Heights set outright: "auto" kept the height of the columns
                 # before, and left blank lines under a group that now has fewer
-                # rows.
-                rows = ceil(len(grid.children) / cols)
+                # rows. Bars side by side, as tall as their line.
+                if gid in H.BARS:
+                    grid.styles.grid_size_columns = len(grid.children)
+                    grid.styles.grid_rows = str(tall)
+                    rows = tall
+                    for b in grid.children:
+                        b.styles.height = tall
+                        b.styles.padding = ((tall - 1) // 2, 1, 0, 1)
+                else:
+                    grid.styles.grid_size_columns = cols
+                    rows = ceil(len(grid.children) / cols)
                 grid.styles.height = rows
                 box.styles.height = rows + 1
                 box.refresh(layout=True)
@@ -191,10 +257,9 @@ class HelmBlock(TuiBlock):
     # ── Pressing ──────────────────────────────────────────────────────────────
 
     def on_button_pressed(self, event: Button.Pressed) -> None:
-        bid = str(event.button.id or "")
-        if not bid.startswith("helm-"):
+        if not isinstance(event.button, HelmButton):
             return
         event.stop()
         auto = self._plugin()
         if auto is not None and hasattr(auto, "press_here"):
-            auto.press_here(bid[len("helm-"):])
+            auto.press_here(event.button.target())

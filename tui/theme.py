@@ -123,6 +123,7 @@ TuiBlock > TabbedContent  { height: 1fr; }
 .helm-buttons Button:hover { background: $border; color: $accent; }
 .helm-buttons Button:focus { text-style: bold; color: $accent; }
 .helm-buttons Button.-disabled { color: $dim; background: $block-bg; }
+.helm-buttons Button.helm-bar { content-align: center middle; text-align: center; }
 
 /* ── Navigation block: compact single-row inputs and buttons ───────────────── */
 /* Textual's default Input/Button are height 3 with a border ("chunky").  In the

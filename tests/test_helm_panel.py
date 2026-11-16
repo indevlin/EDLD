@@ -23,7 +23,8 @@ from core.state import MonitorState  # noqa: E402
 
 # ── The model ─────────────────────────────────────────────────────────────────
 
-SHIP_GROUPS = ["ship", "throttle", "targeting", "orders", "panels", "combat", "power"]
+SHIP_GROUPS = ["ship", "throttle", "targeting", "wing", "orders", "systems", "views",
+               "combat", "power"]
 
 
 def test_every_control_is_in_a_known_group_once():
@@ -38,8 +39,9 @@ def test_every_control_is_in_a_known_group_once():
         return [g for g in groups if any(c.group == g and ctx in c.contexts
                                          for c in H.CONTROLS)]
     assert set(groups_of(H.SHIP)) == set(SHIP_GROUPS)
-    assert set(groups_of(H.SRV)) == {"vehicle", "targeting", "combat", "power", "panels"}
-    assert set(groups_of(H.FOOT)) == {"suit", "tools", "weapons", "grenades", "panels"}
+    assert set(groups_of(H.SRV)) == {"vehicle", "targeting", "combat", "power", "systems",
+                                     "views"}
+    assert set(groups_of(H.FOOT)) == {"suit", "tools", "weapons", "grenades", "views"}
     # Every context's groups are in its lines, and the lines name no other.
     for ctx, _l in H.CONTEXTS:
         lined = [g for row in H.ROWS[ctx] for g in row]
@@ -47,6 +49,34 @@ def test_every_control_is_in_a_known_group_once():
         assert H.group_order(ctx)[:len(lined)] == lined
     # The automata are sequences; everything else is one binding.
     assert [c.id for c in H.CONTROLS if c.sequence] == [H.HONK, H.NEXT_STOP]
+    # A pair's two are in one group and context, the previous first.
+    order = [c.id for c in H.CONTROLS]
+    for prev, nxt, _label in H.PAIRS:
+        a, b = H.BY_ID[prev], H.BY_ID[nxt]
+        assert a.group == b.group and a.contexts == b.contexts
+        assert order.index(prev) < order.index(nxt)
+
+
+def test_pairs_make_one_cell_and_a_lone_half_its_own():
+    assert H.cells(["tgt-ahead", "tgt-prev", "tgt-next", "tgt-sub"]) == [
+        ("tgt-ahead",), ("tgt-prev", "tgt-next"), ("tgt-sub",)]
+    assert H.pair_label(("tgt-prevsub", "tgt-sub")) == "Subsystem"
+    v = H.build_view(True, lambda c: True, lambda c: "")
+    tgt = next(g for g in v.groups if g.id == "targeting")
+    assert [len(c) for c in tgt.cells()] == [1, 1, 1, 2, 2, 2]
+    assert [b.label for b in next(g for g in v.groups if g.id == "throttle").buttons] == [
+        "Reverse", "0%", "25%", "50%", "75%", "100%"]
+    systems = next(g for g in v.groups if g.id == "systems")
+    assert systems.bars and [b.label for b in systems.buttons] == [
+        "Nav", "Comms", "Deploy", "Ship"]
+
+
+def test_the_automatic_sequences_carry_their_lamp():
+    v = H.build_view(True, lambda c: True, lambda c: "",
+                     auto=lambda c: c.id == H.HONK)
+    by = {b.id: b for g in v.groups for b in g.buttons}
+    assert by[H.HONK].auto is True and by[H.NEXT_STOP].auto is False
+    assert by["gear"].auto is None
 
 
 def test_what_a_device_could_press_before_it_still_can():
@@ -65,7 +95,7 @@ def test_the_view_keeps_the_order_and_says_why():
     v = H.build_view(True, lambda c: c.id != "nightvision",
                      lambda c: "Night Vision is not bound", status="Pressed Jump.")
     assert [g.id for g in v.groups] == SHIP_GROUPS
-    assert v.where == "Ship" and H.status_line(v) == "Ship · Pressed Jump."
+    assert v.where == "Ship" and H.status_line(v) == "Pressed Jump."
     ship = next(g for g in v.groups if g.id == "ship")
     nv = next(b for b in ship.buttons if b.id == "nightvision")
     assert not nv.ready and nv.tip == "Night Vision is not bound"
@@ -74,31 +104,48 @@ def test_the_view_keeps_the_order_and_says_why():
     assert not any(b.ready for g in off.groups for b in g.buttons)
 
 
-def test_the_ship_and_its_throttle_share_a_line_then_targeting_and_the_orders():
-    groups = [("ship", 7), ("throttle", 5), ("targeting", 9), ("orders", 7), ("panels", 8)]
-    wide = H.plan(groups, H.SHIP, 1200, 104, 4, 16)
+def test_the_lines_on_a_wide_screen():
+    groups = [("ship", 16), ("throttle", 6), ("targeting", 6), ("wing", 4), ("orders", 8),
+              ("systems", 4), ("views", 7), ("combat", 4), ("power", 4)]
+    wide = H.plan(groups, H.SHIP, 1600, 140, 4, 16, 60)
     assert [[g for g, _c in line] for line in wide] == [
-        ["ship", "throttle"], ["targeting", "orders"], ["panels"]]
-    # The orders read in pairs, whatever the width.
-    assert all(c == 2 for line in wide for g, c in line if g == "orders")
-    # A phone, upright: still two to a line, the columns shared.
-    narrow = H.plan(groups, H.SHIP, 360, 84, 4, 10)
-    assert [[g for g, _c in line] for line in narrow][:2] == [
-        ["ship", "throttle"], ["targeting", "orders"]]
+        ["ship", "throttle"], ["targeting", "wing", "orders"], ["systems", "views"],
+        ["combat", "power"]]
+    # The orders read in pairs: an even number of columns.
+    assert all(c % 2 == 0 for line in wide for g, c in line if g == "orders")
+    # Beside bars, a group needs no fewer rows than the bars are tall.
+    count = dict(groups)
+    assert all(H.line_rows(line, count) == H.BAR_ROWS
+               for line in wide if any(g in H.BARS for g, _c in line)
+               and all(g in H.BARS or count[g] <= 2 * c for g, c in line))
+
+
+def test_a_line_is_cut_where_that_is_shorter():
+    groups = [("targeting", 6), ("wing", 4), ("orders", 8)]
+    narrow = H.plan(groups, H.SHIP, 380, 84, 4, 12)
+    # Targeting and the wing side by side, the orders under them in pairs.
+    assert [[g for g, _c in line] for line in narrow] == [["targeting", "wing"], ["orders"]]
+    assert narrow[1] == [("orders", 4)]
 
 
 def test_a_line_too_narrow_for_two_groups_stacks_them():
     lines = H.plan([("ship", 16), ("throttle", 6)], H.SHIP, 200, 90, 4, 10)
-    assert lines == [[("ship", 2)], [("throttle", 2)]]
+    assert [[g for g, _c in line] for line in lines] == [["ship"], ["throttle"]]
 
 
 def test_columns_go_where_they_save_rows_and_no_row_is_left_with_one():
-    lines = H.plan([("ship", 7), ("throttle", 6)], H.SHIP, 600, 84, 4, 10)
-    (ship, s_cols), (thr, t_cols) = lines[0]
-    assert -(-7 // s_cols) <= 2 and -(-6 // t_cols) <= 3
-    assert H.plan([("panels", 8)], H.SHIP, 2000, 84, 4, 10) == [[("panels", 8)]]
+    assert H.plan([("views", 8)], H.SHIP, 2000, 84, 4, 10) == [[("views", 8)]]
     # Seven buttons over six columns would leave one alone: four and three.
-    assert H.plan([("panels", 7)], H.SHIP, 540, 84, 4, 10) == [[("panels", 4)]]
+    assert H.plan([("views", 7)], H.SHIP, 540, 84, 4, 10) == [[("views", 4)]]
+
+
+def test_the_rows_fill_the_height_within_bounds():
+    count = {"ship": 8, "throttle": 5}
+    lines = [[("ship", 4), ("throttle", 3)]]
+    assert H.line_rows(lines[0], count) == 2
+    assert H.row_height(1000, lines, count, 20, 10, 4, 32, 64) == 64
+    assert H.row_height(100, lines, count, 20, 10, 4, 32, 64) == 38
+    assert H.row_height(10, lines, count, 20, 10, 4, 32, 64) == 32
 
 
 def test_the_panel_setting():
@@ -156,7 +203,19 @@ def test_the_view_greys_what_cannot_be_pressed():
     assert not ready["nextstop"].ready           # the galaxy-map script's keys
     # Bound to nothing in the game: not used, so not drawn.
     assert "lights" not in ready and "chaff" not in ready
-    assert v.status == "On its own: auto honk."
+    # What runs on its own is the lamp on its button, not a line of text.
+    assert v.status == "" and ready["honk"].auto is True and ready["nextstop"].auto is False
+
+
+def test_a_press_outcome_is_said_for_a_while(monkeypatch):
+    p, _ = _auto({"Enabled": True})
+    import components.automation as AM
+    clock = [100.0]
+    monkeypatch.setattr(AM.time, "monotonic", lambda: clock[0])
+    p.last_result, p._result_at = "Pressed Jump.", 100.0
+    assert p.helm_view().status == "Pressed Jump."
+    clock[0] += p.RESULT_SECONDS + 1
+    assert p.helm_view().status == ""
 
 
 def test_a_device_is_sent_only_what_it_may_press():
@@ -165,6 +224,7 @@ def test_a_device_is_sent_only_what_it_may_press():
     assert "Allow paired devices" in p.controls_note()
     p, _ = _auto({"Enabled": True, "AllowControl": True})
     assert [c["id"] for c in p.controls()] == ["honk", "supercruise", "gear"]
+    assert p.controls()[0]["auto"] is False and "auto" not in p.controls()[1]
     assert p.controls_note() == ""
     assert _auto({})[0].controls_note().startswith("Automation is off")
 
@@ -278,10 +338,10 @@ def test_the_dashboard_strip_shows_only_while_automation_is_on():
     p.settings = lambda: {"Enabled": True}
     block.refresh_data()
     app.processEvents()
-    ship = [c for c in H.CONTROLS if H.SHIP in c.contexts]
-    assert block.isVisible() and len(block._buttons) == len(ship)
-    assert block._buttons["gear"].isEnabled() and not block._buttons["scoop"].isEnabled()
-    assert block._status.text().startswith("Ship")
+    ship = [c.id for c in H.CONTROLS if H.SHIP in c.contexts]
+    assert block.isVisible() and len(block._buttons) == len(H.cells(ship))
+    assert block._buttons[("gear",)].isEnabled() and not block._buttons[("scoop",)].isEnabled()
+    assert block._status.isHidden() and block._buttons[("honk",)].auto is False
     block.core.cfg.ui_cfg["HelmPanel"] = False
     block.refresh_data()
     assert not block.isVisible()
@@ -297,16 +357,19 @@ def test_a_narrow_strip_stacks_and_edcars_packs_at_the_top():
     strip.show()
     strip.refresh_data()
     app.processEvents()
-    assert any(len(line) == 1 and line[0][0] == "targeting" for line in strip._layout)
+    assert any(len(line) == 1 and line[0][0] == "views" for line in strip._layout[0])
     big = HelmBlock(_host(p), compact=False)
     big.resize(1400, 800)
     big.show()
     big.refresh_data()
     app.processEvents()
-    assert [[g for g, _c in line] for line in big._layout][:2] == [
-        ["ship", "throttle"], ["targeting", "orders"]]
-    # Buttons keep their height, whatever room the section has.
-    assert big._buttons["gear"].height() == HelmBlock.LARGE[1]
+    assert [[g for g, _c in line] for line in big._layout[0]][0] == ["ship", "throttle"]
+    # EDCARS's buttons grow into the room the section has, bars as tall as
+    # their line; the strip's keep their height.
+    gear, bar = big._buttons[("gear",)], big._buttons[("thr-0",)]
+    assert HelmBlock.LARGE[1] < gear.height() <= HelmBlock.LARGE[1] * HelmBlock.GROW
+    assert bar.height() >= 2 * gear.height()
+    assert strip._buttons[("gear",)].height() == HelmBlock.COMPACT[1]
     strip.close()
     big.close()
 
@@ -319,9 +382,32 @@ def test_a_click_presses_from_edlds_window():
     p.press_here = clicked.append
     block = HelmBlock(_host(p), compact=False)
     block.refresh_data()
-    block._buttons["gear"].click()
+    block._buttons[("gear",)].click()
     app.processEvents()
     assert clicked == ["gear"]
+
+
+def test_a_pair_presses_the_half_clicked():
+    app = _qt()
+    from PySide6.QtCore import QPoint
+    from PySide6.QtTest import QTest
+    from PySide6.QtCore import Qt
+    from gui.blocks.helm import HelmBlock
+    p, _ = _auto({"Enabled": True}, pad_all=True)
+    clicked = []
+    p.press_here = clicked.append
+    block = HelmBlock(_host(p), compact=False)
+    block.resize(1400, 800)
+    block.show()
+    block.refresh_data()
+    app.processEvents()
+    pair = block._buttons[("tgt-prev", "tgt-next")]
+    pair.setEnabled(True)
+    QTest.mouseClick(pair, Qt.LeftButton, pos=QPoint(4, pair.height() // 2))
+    QTest.mouseClick(pair, Qt.LeftButton, pos=QPoint(pair.width() - 4, pair.height() // 2))
+    app.processEvents()
+    assert clicked == ["tgt-prev", "tgt-next"]
+    block.close()
 
 
 # ── The terminal ──────────────────────────────────────────────────────────────
@@ -361,14 +447,20 @@ def test_the_terminal_strip_draws_and_presses():
                      for s in app.screen._compositor.render_strips()]
             text = "\n".join(lines)
             for label in ("Honk", "Next stop", "Next system", "Landing gear",
-                          "Silent running", "Reset pips", "HUD mode"):
+                          "Silent running", "Reset", "HUD mode", "Target", "Comms"):
                 assert label in text, label
             await pilot.click("#helm-gear")
+            await pilot.pause()
+            pair = app.query_one("#helm-tgt-prev--tgt-next")
+            pair.disabled = False
+            await pilot.click("#helm-tgt-prev--tgt-next", offset=(1, 0))
+            await pilot.pause(0.4)
+            await pilot.click("#helm-tgt-prev--tgt-next", offset=(pair.size.width - 2, 0))
             await pilot.pause()
             assert block.display
         return pressed
 
-    assert asyncio.run(run()) == ["gear"]
+    assert asyncio.run(run()) == ["gear", "tgt-prev", "tgt-next"]
 
 
 def test_both_dashboards_place_it_and_refresh_it():

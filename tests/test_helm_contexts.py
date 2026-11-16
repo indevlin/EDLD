@@ -64,7 +64,7 @@ def test_on_foot_the_panel_is_the_suit_its_tools_and_weapons():
     p.core.state = _state("on_foot")
     v = p.helm_view()
     assert v.where == "On foot" and v.context == H.FOOT
-    assert [g.id for g in v.groups] == ["suit", "tools", "weapons", "grenades", "panels"]
+    assert [g.id for g in v.groups] == ["suit", "tools", "weapons", "grenades", "views"]
     ids = _ids(v)
     assert {"foot-light", "foot-nightvision", "foot-energylink", "foot-analyser",
             "foot-toolmode", "foot-recall"} <= ids
@@ -75,7 +75,7 @@ def test_in_an_srv_it_names_the_vehicle_and_gives_its_own_bindings():
     p = _all_bound()
     p.core.state = _state("srv", srv="SRV Nomad")
     v = p.helm_view()
-    assert v.where == "SRV Nomad" and H.status_line(v) == "SRV Nomad"
+    assert v.where == "SRV Nomad" and H.status_line(v) == ""
     ids = _ids(v)
     assert {"srv-lights", "srv-nightvision", "srv-assist", "srv-turret", "srv-recall",
             "srv-pips-sys", "srv-galmap"} <= ids
@@ -152,8 +152,13 @@ def test_the_device_is_told_where_the_panel_is_for():
     b._fault = lambda *a: None
     helm = b.helm()
     assert helm["context"] == H.FOOT and helm["where"] == "On foot"
-    assert helm["rows"] == [["suit", "tools"], ["weapons", "grenades"], ["panels"]]
-    assert helm["columns"] == {"orders": 2}
+    assert helm["rows"] == [["suit", "tools"], ["weapons", "grenades"], ["views"]]
+    assert helm["columns"] == {"orders": 2} and helm["steps"] == {"orders": 2}
+    assert helm["bars"] == ["power", "systems", "throttle"] and helm["pairs"] == []
+    p.core.state = _state()
+    core.state = p.core.state
+    assert {"prev": "tgt-prev", "next": "tgt-next", "label": "Target"} in b.helm()["pairs"]
+    assert all(x["prev"] != "srv-fg-prev" for x in b.helm()["pairs"])
     p.core.state = _state(slf=True)
     core.state = p.core.state
     labels = {g["id"]: g["label"] for g in b.helm()["groups"]}

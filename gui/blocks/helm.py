@@ -4,10 +4,8 @@
 """
 from __future__ import annotations
 
-from math import ceil
-
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QFontMetrics
+from PySide6.QtCore import QRect, Qt, QTimer
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPalette
 from PySide6.QtWidgets import (
     QGridLayout, QHBoxLayout, QLabel, QPushButton, QSizePolicy, QVBoxLayout, QWidget,
 )
@@ -15,13 +13,66 @@ from PySide6.QtWidgets import (
 from core import helm as H
 from gui.block_base import GuiBlock
 
+#: Bars and pairs read centered, whatever corner the console puts a label in.
+_CENTRED = """
+QPushButton[shape="bar"], QPushButton[shape="pair"] {
+    text-align: center; padding-left: 2px; padding-right: 2px;
+    padding-top: 0px; padding-bottom: 0px;
+}
+"""
+
+#: The AUTO lamp: on, off.
+LAMP = (QColor("#3fb950"), QColor("#d9534f"))
+
+PREV, NEXT = "◀", "▶"
+
+
+class _Button(QPushButton):
+    """A Helm button: one control, or a pair (``ids`` two long) pressed by
+    the half clicked; ``auto`` lights the AUTO lamp in its top corner."""
+
+    def __init__(self, text: str, ids: tuple[str, ...]) -> None:
+        super().__init__(text)
+        self.ids = ids
+        self.auto: bool | None = None
+        self.side = 1 if len(ids) > 1 else 0
+
+    def mousePressEvent(self, event) -> None:      # noqa: N802 (Qt naming)
+        if len(self.ids) > 1:
+            self.side = 0 if event.position().x() < self.width() / 2 else 1
+        super().mousePressEvent(event)
+
+    def target(self) -> str:
+        return self.ids[self.side] if len(self.ids) > 1 else self.ids[0]
+
+    def paintEvent(self, event) -> None:           # noqa: N802 (Qt naming)
+        super().paintEvent(event)
+        if self.auto is None:
+            return
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        f = QFont(self.font())
+        f.setPointSizeF(max(6.0, f.pointSizeF() * 0.72))
+        p.setFont(f)
+        fm = QFontMetrics(f)
+        side = max(6, fm.capHeight())
+        x = self.width() - 5 - side
+        y = 5
+        p.fillRect(QRect(x, y, side, side), LAMP[0] if self.auto else LAMP[1])
+        p.setPen(self.palette().color(QPalette.ButtonText))
+        text = "AUTO"
+        p.drawText(x - 4 - fm.horizontalAdvance(text), y + side, text)
+        p.end()
+
 
 class _GroupBox(QWidget):
-    """One group: its name, and its buttons in a grid."""
+    """One group: its name, and its cells in a grid, or bars side by side."""
 
-    def __init__(self, label: str, compact: bool) -> None:
+    def __init__(self, gid: str, label: str, compact: bool) -> None:
         super().__init__()
         self.setObjectName("helmGroup")
+        self.gid = gid
+        self.bars = gid in H.BARS
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         lay.setSpacing(2 if compact else 3)
@@ -34,10 +85,11 @@ class _GroupBox(QWidget):
         self.grid.setVerticalSpacing(HelmBlock.GAP[compact])
         lay.addLayout(self.grid)
         lay.addStretch(1)
-        self.buttons: list[QPushButton] = []
+        self.buttons: list[_Button] = []
         self._cols = 0
 
     def place(self, cols: int) -> None:
+        cols = len(self.buttons) if self.bars else cols
         if cols == self._cols:
             return
         self._cols = cols
@@ -67,6 +119,8 @@ class HelmBlock(GuiBlock):
     #: longest name on the panel needs.
     COMPACT = (84, 24)
     LARGE = (104, 32)
+    #: How far EDCARS's section grows its buttons to fill its height.
+    GROW = 2.0
     #: Between buttons, between groups on a line, and between lines:
     #: [large, compact].
     GAP = (4, 3)
@@ -93,6 +147,7 @@ class HelmBlock(GuiBlock):
         # own resize comes before the host has its new width. Lines of groups
         # (core.helm.plan), packed at the top.
         self._host = _Host(self._arrange)
+        self._host.setStyleSheet(_CENTRED)
         self._lines = QVBoxLayout(self._host)
         m = 4 if self._compact else 6
         self._lines.setContentsMargins(m, m, m, 2)
@@ -105,12 +160,15 @@ class HelmBlock(GuiBlock):
         self._status.setObjectName("helmStatus")
         self._status.setTextFormat(Qt.PlainText)
         self._status.setContentsMargins(m, 2, m, 2)
+        self._status.setVisible(False)
         layout.addWidget(self._status)
 
         self._groups: dict[str, _GroupBox] = {}
-        self._buttons: dict[str, QPushButton] = {}
+        self._buttons: dict[tuple[str, ...], _Button] = {}
         self._layout: tuple = ()
         self._button_w = self._sizes[0]
+        self._bar_w = self._sizes[0] / 2
+        self._row_h = self._sizes[1]
         self._helm_context = H.SHIP
         self._sig: tuple = ()
         self._button_font = None
@@ -128,6 +186,9 @@ class HelmBlock(GuiBlock):
         self._layout = ()
         self._arrange()
 
+    def _text(self, label: str) -> str:
+        return label.upper() if self._button_font else label
+
     def _make_groups(self, view: H.View) -> None:
         sig = (view.context,) + tuple((g.id, tuple(b.id for b in g.buttons))
                                       for g in view.groups)
@@ -140,22 +201,30 @@ class HelmBlock(GuiBlock):
             box.deleteLater()
         self._groups.clear()
         self._buttons.clear()
-        _bw, bh = self._sizes
         for g in view.groups:
-            box = _GroupBox(g.label, self._compact)
+            box = _GroupBox(g.id, g.label, self._compact)
             if self._title_font is not None:
                 box.title.setFont(self._title_font)
-            for b in g.buttons:
-                btn = QPushButton(b.label.upper() if self._button_font else b.label)
+            for cell in g.cells():
+                ids = tuple(b.id for b in cell)
+                if len(cell) > 1:
+                    text = f"{PREV}  {self._text(H.pair_label(ids))}  {NEXT}"
+                else:
+                    text = self._text(cell[0].label)
+                btn = _Button(text, ids)
                 if self._button_font is not None:
                     btn.setFont(self._button_font)
                 btn.setProperty("role", "helm")
-                btn.setFixedHeight(bh)
+                if g.bars:
+                    btn.setProperty("shape", "bar")
+                elif len(cell) > 1:
+                    btn.setProperty("shape", "pair")
+                btn.setFixedHeight(self._row_h)
                 btn.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
                 btn.setCursor(Qt.PointingHandCursor)
-                btn.clicked.connect(lambda _c=False, cid=b.id: self._press(cid))
+                btn.clicked.connect(lambda _c=False, b=btn: self._press(b))
                 box.buttons.append(btn)
-                self._buttons[b.id] = btn
+                self._buttons[ids] = btn
             self._groups[g.id] = box
         self._measure()
         self._layout = ()
@@ -163,31 +232,57 @@ class HelmBlock(GuiBlock):
 
     def _measure(self) -> None:
         """The narrowest a button may be: the longest name on the panel,
-        whole, with room either side."""
-        least = self._sizes[0]
+        whole, with room either side, and the AUTO lamp's; a bar, the
+        longest bar's name."""
+        least, bar = self._sizes[0], 36
         for btn in self._buttons.values():
-            text = QFontMetrics(btn.font()).horizontalAdvance(btn.text())
+            fm = QFontMetrics(btn.font())
+            text = fm.horizontalAdvance(btn.text())
+            if btn.property("shape") == "bar":
+                bar = max(bar, text + 8)
+                continue
+            if btn.auto is not None or btn.ids[0] in H.AUTOMATIC:
+                text += 2 * fm.horizontalAdvance("AUTO")
             least = max(least, text + 18)
-        self._button_w = least
+        self._button_w, self._bar_w = least, bar
 
     # ── Layout ────────────────────────────────────────────────────────────────
 
+    def _counts(self) -> dict[str, int]:
+        return {gid: len(box.buttons) for gid, box in self._groups.items()}
+
     def _arrange(self) -> None:
         """Lay the groups out in core.helm.plan's lines for this width: a
-        line's groups side by side, each as wide as its columns, the buttons
-        at their own height and what is left below them."""
+        line's groups side by side, each as wide as its columns. EDCARS's
+        buttons grow to fill the height, every row alike."""
         if not getattr(self, "_groups", None):
             return
         c = self._compact
         m = self._lines.contentsMargins()
         width = max(1, self._host.width() - m.left() - m.right())
-        counts = [(gid, len(box.buttons)) for gid, box in self._groups.items()]
-        lines = H.plan(counts, self._helm_context, width, self._button_w,
-                       self.GAP[c], self.GROUP_GAP[c])
-        layout = tuple(tuple(line) for line in lines)
+        count = self._counts()
+        lines = H.plan(list(count.items()), self._helm_context, width, self._button_w,
+                       self.GAP[c], self.GROUP_GAP[c], self._bar_w)
+        least = self._sizes[1]
+        row_h = least
+        if not c and lines:
+            title = next(iter(self._groups.values())).title.sizeHint().height() + 3
+            avail = self._host.height() - m.top() - m.bottom()
+            row_h = int(H.row_height(avail, lines, count, title, self.LINE_GAP[c],
+                                     self.GAP[c], least, least * self.GROW))
+        layout = (tuple(tuple(line) for line in lines), row_h)
         if layout == self._layout:
             return
         self._layout = layout
+        self._row_h = row_h
+        gap = self.GAP[c]
+        for line in lines:
+            rows = H.line_rows(line, count)
+            for gid, _cols in line:
+                box = self._groups[gid]
+                h = rows * row_h + (rows - 1) * gap if box.bars else row_h
+                for b in box.buttons:
+                    b.setFixedHeight(h)
         for box in self._groups.values():
             box.setParent(None)
         for w in self._line_widgets:
@@ -246,24 +341,41 @@ class HelmBlock(GuiBlock):
         self._make_groups(v)
         self._note.setText(v.note)
         self._note.setVisible(bool(v.note))
-        self._status.setText(H.status_line(v))
+        status = H.status_line(v)
+        if status != self._status.text():
+            self._status.setText(status)
+            self._status.setVisible(bool(status))
+            if status:
+                # Gone again once the outcome has been up long enough.
+                wait = getattr(self._plugin(), "RESULT_SECONDS", 8.0)
+                QTimer.singleShot(int(wait * 1000) + 100, self.refresh_data)
         for g in v.groups:
-            for b in g.buttons:
-                btn = self._buttons.get(b.id)
+            for cell in g.cells():
+                btn = self._buttons.get(tuple(b.id for b in cell))
                 if btn is None:
                     continue
-                if btn.isEnabled() != b.ready:
-                    btn.setEnabled(b.ready)
-                if btn.toolTip() != b.tip:
-                    btn.setToolTip(b.tip)
+                ready = any(b.ready for b in cell)
+                if len(cell) > 1:
+                    tip = f"{PREV} {cell[0].label}  ·  {cell[1].label} {NEXT}"
+                elif cell[0].tip:
+                    tip = cell[0].tip
+                else:
+                    tip = ""
+                if btn.isEnabled() != ready:
+                    btn.setEnabled(ready)
+                if btn.toolTip() != tip:
+                    btn.setToolTip(tip)
+                auto = cell[0].auto
+                if btn.auto != auto:
+                    btn.auto = auto
+                    btn.update()
 
     # ── Pressing ──────────────────────────────────────────────────────────────
 
-    def _press(self, cid: str) -> None:
-        btn = self._buttons.get(cid)
-        if btn is not None:
-            self._light(btn, True)
-            QTimer.singleShot(250, lambda b=btn: self._light(b, False))
+    def _press(self, btn: _Button) -> None:
+        cid = btn.target()
+        self._light(btn, True)
+        QTimer.singleShot(250, lambda b=btn: self._light(b, False))
         auto = self._plugin()
         if auto is not None and hasattr(auto, "press_here"):
             auto.press_here(cid)

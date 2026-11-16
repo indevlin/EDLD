@@ -4,6 +4,45 @@ Last updated: 20261116
 
 ---
 
+## 20261117-dev — added, unreleased
+
+### Changed: the Helm panel reads like a helm
+
+The packed panel of 20261116 fitted more on screen but still read as a list:
+a throttle of five identical buttons, Targeting a run of next and previous
+buttons in no order with the wing in among them, the cockpit's panels mixed
+in with the maps, and in EDCARS half the section left empty below small
+buttons while a phone scrolled. Labels on EDAM broke inside a word
+("HARDPOINT S") because a button could be narrower than its longest word.
+
+The throttle, the cockpit's four panels and the pips are now upright bars,
+as tall as their line: the throttle Reverse then 0% to 100% left to right,
+the panels Nav, Comms, Deploy and Ship as they sit in the cockpit, the pips
+SYS, ENG, WEP and Reset. A control and its opposite are one cell, ◀ and ▶
+either side of its name, the left half going back and the right forward —
+Target, Hostile, Subsystem and Fire group — so Targeting is the three direct
+locks over the three cycles, and the wingmen have a Wing group of their own.
+Panels is now Systems (the four cockpit panels: the left panel is Nav, the
+right Ship, the role panel Deploy) and Views (the maps, FSS, orbit lines, HUD
+mode, Codex and the camera). The fighter orders go two or four to a row,
+always in their pairs.
+
+A line of groups is now cut wherever that makes the panel shorter, rather
+than all side by side or all stacked, and in EDCARS the buttons grow taller,
+up to twice their height, to fill the section, so it neither scrolls nor
+leaves the bottom half empty. On EDAM no button is narrower than its longest
+word.
+
+### Changed: the AUTO lamp replaces the automation line
+
+The line under the panel always said "On its own: auto honk", and before
+that where the panel was for, which the group names already say. Honk and
+Next stop now carry a small AUTO lamp, green while Options has EDLD do them
+on its own and red while not. The line under the panel shows only what a
+press came to, for a few seconds after it, and is otherwise gone.
+
+---
+
 ## Released in 20261116
 
 ### Changed: the Helm panel packs into fewer rows

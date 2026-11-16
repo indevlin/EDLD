@@ -137,8 +137,8 @@ closes.
 </div>
 
 The Helm section is the Helm panel at its largest: the groups in their
-lines, side by side where the width holds them, and the buttons widening to
-fill each line at the large size. A button that cannot be pressed — automation off, or the control
+lines, side by side where the width holds them, the buttons widening to fill
+each line and growing taller, up to twice their height, to fill the section. A button that cannot be pressed — automation off, or the control
 bound to nothing EDLD can press — is grayed, and its tooltip says why. See
 [AUTOMATION.md](AUTOMATION.md#the-helm-panel).
 

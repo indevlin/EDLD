@@ -373,16 +373,19 @@ The client sends `{"t":"ping","id":n}` every 30 s (answered with
  "game":{"running":true,"lastEvent":"2026-09-24T18:52:15+00:00"},
  "monitorError":null,
  "endSession":{"available":false,"reason":"only available in Solo"},
- "controls":[{"id":"honk","label":"Honk","group":"automation"},
+ "controls":[{"id":"honk","label":"Honk","group":"ship","auto":true},
              {"id":"gear","label":"Landing gear","group":"ship"},
              {"id":"pips-sys","label":"SYS","group":"power"}],
  "helm":{"name":"Helm","section":"helm",
          "groups":[{"id":"ship","label":"Ship"},{"id":"throttle","label":"Throttle"},
-                   {"id":"targeting","label":"Targeting"},{"id":"orders","label":"Fighter orders"},
+                   {"id":"targeting","label":"Targeting"},{"id":"wing","label":"Wing"},
                    …,
                    {"id":"power","label":"Power"}],
-         "rows":[["ship","throttle"],["targeting","orders"],["panels"],["combat","power"]],
+         "rows":[["ship","throttle"],["targeting","wing","orders"],["systems","views"],
+                 ["combat","power"]],
          "columns":{"orders":2},
+         "bars":["power","systems","throttle"], "steps":{"orders":2},
+         "pairs":[{"prev":"tgt-prev","next":"tgt-next","label":"Target"}, …],
          "note":null,"context":"ship","where":"Ship"}}
 ```
 
@@ -408,12 +411,21 @@ disembark. `where` names it for the device to show above the buttons: "Ship",
 for the context too: in a fighter `ship` is "Fighter" and `orders` "Orders".
 A press of a control for another context is refused, with why.
 
-`rows` are the lines the groups are drawn in, in order; a line's groups go
-side by side when the width holds them, one under another when not, and a
-group with no controls leaves its line to the rest. `columns` fixes a group's
-button columns (`orders` is drawn two to a row, in its pairs). A client
-should draw a group missing from `rows` on a line of its own after them. Both
-are absent from an EDLD before 20261116.
+`rows` are the lines the groups are drawn in, in order; a line is cut into
+runs wherever that makes the panel shorter, a run's groups side by side, and
+a group with no controls leaves its line to the rest. A client should draw a
+group missing from `rows` on a line of its own after them. `bars` are the
+groups drawn as upright bars, as tall as their line and at least two rows;
+`steps` the groups whose columns come in steps (`orders`, two or four to a
+row, in its pairs); `pairs` the controls drawn as one cell, ◀ `prev` and
+`next` ▶ either side of `label`, where both are among `controls`.
+core/helm.py's `plan()` is the rule; EDAM's `helmPlan()` is the same.
+`columns` is what an EDLD of 20261116 sent in place of `steps`; `rows` and
+`columns` are absent from an EDLD before 20261116, `bars`, `steps` and
+`pairs` from one before 20261117.
+
+A control that EDLD also runs on its own when Options says so — `honk`,
+`nextstop` — carries `auto`: whether it is on, for the button's AUTO lamp.
 
 `theme` is the theme EDLD is drawing with:
 

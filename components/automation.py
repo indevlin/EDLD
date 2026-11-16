@@ -73,6 +73,7 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
         self._binds_loaded_at = 0.0
         #: What the last press from the Helm panel came to, for its status line.
         self.last_result = ""
+        self._result_at = 0.0
         self._pressing = False
 
     # ── the engine ───────────────────────────────────────────────────────────
@@ -278,14 +279,20 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
                                                      "the game's bindings were not found")
         else:
             note = "Automation is off. Options → Automation turns it on."
-        auto = [label for key, label in (("AutoHonk", "auto honk"),
-                                         ("AutoTarget", "next stop after a supercharge"))
-                if cfg.get(key)]
-        status = ("Pressing…" if self._pressing else self.last_result or
-                  (("On its own: " + " and ".join(auto) + ".") if enabled and auto else ""))
+        status = "Pressing…" if self._pressing else self.result_now()
         ctx, where = self.helm_context()
         return H.build_view(enabled, self._bound, self._why_unbound, note, status,
-                            context=ctx, shown=self._listed, where=where)
+                            context=ctx, shown=self._listed, where=where,
+                            auto=lambda c: cfg.get(H.AUTOMATIC[c.id]))
+
+    #: How long the panel's foot says what the last press came to.
+    RESULT_SECONDS = 8.0
+
+    def result_now(self) -> str:
+        """The last press's outcome, for RESULT_SECONDS after it."""
+        if self.last_result and time.monotonic() - self._result_at < self.RESULT_SECONDS:
+            return self.last_result
+        return ""
 
     def controls(self) -> list[dict]:
         """The controls a paired device may press right now: those allowed
@@ -296,8 +303,15 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
         from core import helm as H
         self._engine()
         ctx, _where = self.helm_context()
-        return [{"id": c.id, "label": c.label, "group": c.group}
-                for c in H.CONTROLS if H.in_context(c, ctx) and self._bound(c)]
+        out = []
+        for c in H.CONTROLS:
+            if not (H.in_context(c, ctx) and self._bound(c)):
+                continue
+            d = {"id": c.id, "label": c.label, "group": c.group}
+            if c.id in H.AUTOMATIC:
+                d["auto"] = bool(cfg.get(H.AUTOMATIC[c.id]))
+            out.append(d)
+        return out
 
     def controls_note(self) -> str:
         """Why a device has nothing to press, for its Helm section; "" when
@@ -367,6 +381,7 @@ class AutomationPlugin(SettingsSpecMixin, BasePlugin):
                                     else f"Pressed {label}.")
             else:
                 self.last_result = f"{label} not pressed: {why}"
+            self._result_at = time.monotonic()
             self._refresh_helm()
 
         self._pressing = True
