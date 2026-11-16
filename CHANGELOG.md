@@ -1,10 +1,10 @@
 # EDLD CHANGELOG
 
-Last updated: 20261116
+Last updated: 20261115
 
 ---
 
-## 20261116-dev — added, unreleased
+## 20261115-dev — added, unreleased
 
 ### Changed: the Helm panel follows you
 
@@ -39,9 +39,9 @@ before. Check bindings goes through every context. EDAM is sent only the
 current context's controls, named for it, and a press from it meant for
 somewhere else — a ship's button tapped as you disembark — is refused and
 says why. In the terminal, a change of context waits for the old buttons to
-go before mounting the new, whose names they share.
-
-## 20261115-dev — added, unreleased
+go before mounting the new, whose names they share. Check bindings and the
+tooltips named a controller's face buttons by the game's internal names and
+its triggers not at all; they read Y, B, X, A, RT and LT now.
 
 ### Changed: the massacre stack by target faction
 
