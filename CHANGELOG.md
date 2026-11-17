@@ -6,6 +6,25 @@ Last updated: 20261117
 
 ## Unreleased
 
+### Fixed: a Windows path typed into config.toml stopped EDLD
+
+`JournalFolder = "C:\Users\me\Downloads\EDLOGS"` is how most people write a
+Windows path, and TOML reads a backslash inside double quotes as the start of
+an escape, so `\U` stopped EDLD with "Invalid hex value" before it opened a
+window. A path that happened to contain only valid escapes, such as `\t` or
+`\n`, was worse: it parsed, into a folder name holding a tab or a line break,
+and EDLD reported a missing journal folder that was spelled correctly in the
+file. A double-quoted Windows path is now rewritten into single quotes, where
+TOML takes it as typed, before the config is read, and the decode error
+explains the quoting when anything else goes wrong.
+
+The same hand-written file had a second fault behind the first. A setting
+typed above every table belongs to no section, so `JournalFolder` on a line of
+its own was ignored, the journal folder was searched for in the default place,
+and a page of "not found" warnings scrolled past. A setting written there is
+now moved under the section it belongs to, when only one section has it.
+Neither change is written unless the result parses, and each is reported at
+startup.
 
 ---
 

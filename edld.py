@@ -27,7 +27,7 @@ from core.state  import PROGRAM, VERSION, AUTHOR, GITHUB_REPO, DEBUG_MODE
 from core.emit   import Terminal
 from core        import modes as _modes
 from core.config import (
-    resolve_config_path, load_config_file, ConfigManager,
+    resolve_config_path, load_config_file, ConfigManager, repair_config,
     migrate_config_if_needed, backfill_config_defaults, migrate_ui_interface,
     remember_interface,
 )
@@ -345,6 +345,8 @@ if config_path is None:
         print(f"{Terminal.WARN}WARNING:{Terminal.END} Could not write default config: {_e}")
         # Fall through — ConfigManager will use built-in defaults
 
+for _note in repair_config(config_path):
+    print(f"[EDLD] {config_path.name}: {_note}")
 migrate_config_if_needed(config_path)  # silently rewrite old [GUI]/sub-table format before loading
 # [UI] Mode and Style became [UI] Interface when EDCARS became the default.
 _ui_moved = migrate_ui_interface(config_path)

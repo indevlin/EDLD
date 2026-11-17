@@ -5,7 +5,6 @@ Depends only on core.state (for EDLD_DATA_DIR).
 """
 
 import sys
-import re
 import tomllib
 from pathlib import Path
 
@@ -648,6 +647,94 @@ def resolve_config_path(script_path: Path) -> Path | None:
     return None
 
 
+_PATH_VALUE = re.compile(
+    r'^(?P<lead>\s*[A-Za-z0-9_.-]+\s*=\s*)"(?P<value>(?:[A-Za-z]:\\|\\\\)[^"\n]*)"'
+    r'(?P<tail>\s*(?:#.*)?)$')
+_KEY_LINE = re.compile(r"^\s*(?P<key>[A-Za-z0-9_-]+)\s*=")
+_TABLE_LINE = re.compile(r"^\s*\[")
+
+
+def _section_for_key() -> dict[str, str]:
+    """Each setting name that belongs to exactly one top-level section."""
+    sections = {
+        "Settings": {**CFG_DEFAULTS_SETTINGS, **CFG_DEFAULTS_EXTRA},
+        "UI": CFG_DEFAULTS_UI, "Discord": CFG_DEFAULTS_DISCORD,
+        "EDDN": CFG_DEFAULTS_EDDN, "EDSM": CFG_DEFAULTS_EDSM,
+        "EDAstro": CFG_DEFAULTS_EDASTRO, "Inara": CFG_DEFAULTS_INARA,
+        "CAPI": CFG_DEFAULTS_CAPI, "Radio": CFG_DEFAULTS_RADIO,
+        "Server": CFG_DEFAULTS_SERVER, "Colonisation": CFG_DEFAULTS_COLONISATION,
+        "LogLevels": CFG_DEFAULTS_NOTIFY,
+    }
+    owners: dict[str, set[str]] = {}
+    for name, keys in sections.items():
+        for key in keys:
+            owners.setdefault(key, set()).add(name)
+    return {k: next(iter(v)) for k, v in owners.items() if len(v) == 1}
+
+
+def _literal_path(match: re.Match) -> str | None:
+    """A double-quoted Windows path rewritten so TOML reads it as typed."""
+    value = match.group("value")
+    if "\\" not in value.replace("\\\\", ""):
+        return None
+    quoted = f"'{value}'" if "'" not in value else '"' + value.replace("\\", "\\\\") + '"'
+    return f"{match.group('lead')}{quoted}{match.group('tail')}"
+
+
+def repair_config(config_path: Path) -> list[str]:
+    """Rewrite two hand-edit mistakes in config.toml, in place.
+
+    A Windows path in double quotes is put in single quotes, where a
+    backslash is a backslash. A setting written above every table is moved
+    into the section it belongs to. Nothing is written unless the result
+    parses. Returns a line per change.
+    """
+    try:
+        lines = config_path.read_text(encoding="utf-8-sig").splitlines()
+    except OSError:
+        return []
+    notes: list[str] = []
+    owners = _section_for_key()
+    root: dict[str, list[str]] = {}
+    kept: list[str] = []
+    in_root = True
+    for line in lines:
+        match = _PATH_VALUE.match(line)
+        fixed = _literal_path(match) if match else None
+        if fixed is not None:
+            notes.append(f"{_KEY_LINE.match(line).group('key')}: Windows path "
+                         "put in single quotes")
+            line = fixed
+        if _TABLE_LINE.match(line):
+            in_root = False
+        key = _KEY_LINE.match(line) if in_root else None
+        if key and key.group("key") in owners:
+            section = owners[key.group("key")]
+            root.setdefault(section, []).append(line.strip())
+            notes.append(f"{key.group('key')}: moved under [{section}]")
+            continue
+        kept.append(line)
+    for section, moved in root.items():
+        header = re.compile(rf"^\s*\[{re.escape(section)}\]\s*(?:#.*)?$")
+        at = next((i for i, l in enumerate(kept) if header.match(l)), None)
+        if at is None:
+            kept += ["", f"[{section}]", *moved]
+        else:
+            kept[at + 1:at + 1] = moved
+    if not notes:
+        return []
+    text = "\n".join(kept).lstrip("\n") + "\n"
+    try:
+        tomllib.loads(text)
+    except tomllib.TOMLDecodeError:
+        return []
+    try:
+        config_path.write_text(text, encoding="utf-8")
+    except OSError:
+        return []
+    return notes
+
+
 def load_config_file(config_path: Path) -> dict:
     """Read and parse a TOML config file.  Calls sys.exit on decode error."""
     with open(config_path, mode="rb") as f:
@@ -655,6 +742,10 @@ def load_config_file(config_path: Path) -> dict:
             return tomllib.load(f)
         except tomllib.TOMLDecodeError as e:
             message = f"Config decode error in {config_path}: {e}"
+            if "escape" in str(e) or "hex value" in str(e):
+                message += ("\n\nA backslash in double quotes starts an escape."
+                            " Put a Windows path in single quotes:"
+                            "\n  JournalFolder = 'C:\\Users\\me\\Saved Games'")
             print(message)
             try:
                 from core.win_console import startup_error
