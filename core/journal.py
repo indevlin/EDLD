@@ -325,6 +325,39 @@ def _poll_status_json(
 
 # ── Journal utilities ─────────────────────────────────────────────────────────
 
+def windows_saved_games() -> Path | None:
+    """The Saved Games known folder on Windows, wherever it has been moved."""
+    if sys.platform != "win32":
+        return None
+    try:
+        import ctypes
+        import uuid
+        from ctypes import wintypes
+
+        class GUID(ctypes.Structure):
+            _fields_ = [("Data1", wintypes.DWORD), ("Data2", wintypes.WORD),
+                        ("Data3", wintypes.WORD), ("Data4", ctypes.c_ubyte * 8)]
+
+        raw = uuid.UUID("4C5C32FF-BB9D-43B0-B5B4-2D72E54EAAA4").bytes_le
+        folder_id = GUID.from_buffer_copy(raw)
+        out = ctypes.c_wchar_p()
+        shell32 = ctypes.WinDLL("shell32")
+        ole32 = ctypes.WinDLL("ole32")
+        shell32.SHGetKnownFolderPath.argtypes = [
+            ctypes.POINTER(GUID), wintypes.DWORD, wintypes.HANDLE,
+            ctypes.POINTER(ctypes.c_wchar_p)]
+        shell32.SHGetKnownFolderPath.restype = ctypes.c_long
+        if shell32.SHGetKnownFolderPath(ctypes.byref(folder_id), 0, None,
+                                        ctypes.byref(out)) != 0:
+            return None
+        try:
+            return Path(out.value) if out.value else None
+        finally:
+            ole32.CoTaskMemFree(out)
+    except Exception:
+        return None
+
+
 def find_latest_journal(journal_dir: Path) -> Path | None:
     journals = sorted(journal_dir.glob("Journal*.log"), reverse=True)
     return journals[0] if journals else None
@@ -1930,12 +1963,22 @@ def run_monitor(
     except FileNotFoundError:
         _monitor_died("Journal file not found", state, core)
         if threading.current_thread() is threading.main_thread():
+            _hold_console()
             sys.exit(1)
 
     except Exception as e:
         _monitor_died(f"Fatal error: {e}", state, core)
         if threading.current_thread() is threading.main_thread():
+            _hold_console()
             sys.exit(1)
+
+
+def _hold_console() -> None:
+    try:
+        from core.win_console import hold_own_console
+        hold_own_console()
+    except Exception:
+        pass
 
 
 def _monitor_died(summary: str, state: MonitorState, core=None) -> None:

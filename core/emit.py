@@ -107,7 +107,7 @@ class Emitter:
     def _init_webhook(self) -> None:
         global notify_enabled
         dc = self._cfg.discord_cfg
-        webhook_url = dc.get("WebhookURL", "")
+        webhook_url = str(dc.get("WebhookURL", "") or "").strip()
 
         if not notify_enabled:
             return
@@ -115,10 +115,17 @@ class Emitter:
         if not re.search(PATTERN_WEBHOOK, webhook_url):
             notify_enabled = False
             self.notify_test = False
-            print(
-                f"{Terminal.WHITE}Info:{Terminal.END} "
-                "Discord webhook missing or invalid — operating with terminal output only\n"
-            )
+            if webhook_url:
+                print(
+                    f"{Terminal.WARN}Warning:{Terminal.END} "
+                    "Discord WebhookURL is not a Discord webhook URL — "
+                    "Discord posts are off\n"
+                )
+            else:
+                print(
+                    f"{Terminal.WHITE}Info:{Terminal.END} "
+                    "Discord is not set up (optional) — Discord posts are off\n"
+                )
             return
 
         self._discord_hook = Webhook(webhook_url)
@@ -255,6 +262,13 @@ class Emitter:
     def post_embed(self, embed) -> None:
         """Send a core.discord.Embed (used for the startup embed)."""
         if not self._discord_up or not self._discord_hook:
+            return
+        if self.notify_test:
+            data = getattr(embed, "data", {}) or {}
+            fields = ", ".join(f"{f.get('name')}: {f.get('value')}"
+                               for f in data.get("fields", []))
+            print(f"{Terminal.WHITE}DISCORD:{Terminal.END} [embed] "
+                  f"{data.get('title', '')}" + (f" — {fields}" if fields else ""))
             return
         try:
             self._send(embeds=[embed])

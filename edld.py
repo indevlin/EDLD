@@ -102,21 +102,42 @@ parser.add_argument("--overlay-doctor", action="store_true",
 parser.add_argument("--overlay-selftest", action="store_true",
                     help="Draw a fixed test frame for 20 seconds, then exit")
 
+# ── Windows: reconnect stdout before anything prints ──────────────────────────
+# The Windows binary is built windowed so the GUI has no console behind it,
+# which leaves stdout unusable until this runs.  Before parse_args, so a usage
+# error is seen too.  An uncaught startup exception gets a dialog when no
+# console shows it.  A no-op everywhere else.
+try:
+    from core.win_console import enable_console_output, install_startup_hook
+    enable_console_output()
+    install_startup_hook()
+except Exception:
+    pass
+
 args = parser.parse_args()
+if args.mode == _modes.HEADLESS or args.mode_flag == _modes.HEADLESS:
+    try:
+        from core.win_console import no_dialogs
+        no_dialogs()
+    except Exception:
+        pass
+
+
+def _fail_start(message: str) -> None:
+    """Print a fatal startup error, make it seen on Windows, and exit 1."""
+    print(f"{Terminal.WARN}ERROR:{Terminal.END} {message}")
+    try:
+        from core.win_console import startup_error
+        startup_error(message)
+    except Exception:
+        pass
+    sys.exit(1)
+
 
 # EDLD-server is this program built without either dashboard (see
 # core/build_info.py).  It always serves, and its default is the terminal log.
 from core.build_info import is_server_build as _is_server_build
 SERVER_BUILD = _is_server_build()
-
-# ── Windows: reconnect stdout before anything prints ──────────────────────────
-# The Windows binary is built windowed so the GUI has no console behind it,
-# which leaves stdout unusable until this runs.  A no-op everywhere else.
-try:
-    from core.win_console import enable_console_output
-    enable_console_output()
-except Exception:
-    pass
 
 # ── HTTPS trust store ─────────────────────────────────────────────────────────
 # Must run before anything opens a connection.  A frozen build ships its own
@@ -252,8 +273,7 @@ if args.shortcuts or args.remove_shortcuts:
         _lines = (_shortcuts.remove(server_build=SERVER_BUILD) if args.remove_shortcuts
                   else _shortcuts.install(server_build=SERVER_BUILD))
     except _shortcuts.ShortcutError as _e:
-        print(f"{Terminal.WARN}ERROR:{Terminal.END} {_e}")
-        sys.exit(1)
+        _fail_start(str(_e))
     print("\n".join(_lines) if _lines else "Nothing to do.")
     sys.exit(0)
 
@@ -377,7 +397,10 @@ if not journal_dir or not journal_dir.is_dir():
     # Steam/Proton prefix on Linux.  This lets users launch without needing to
     # set JournalFolder up front.  Windows was missing until 20261102, so a
     # blank JournalFolder — what a new config has — stopped EDLD there.
+    from core.journal import windows_saved_games
+    _saved = windows_saved_games()
     _candidates = [
+        *([_saved / "Frontier Developments" / "Elite Dangerous"] if _saved else []),
         Path.home() / "Saved Games" / "Frontier Developments" / "Elite Dangerous",
         Path.home() / ".steam" / "steam" / "steamapps" / "compatdata"
         / "359320" / "pfx" / "drive_c" / "users" / "steamuser"
@@ -398,15 +421,14 @@ if not journal_dir or not journal_dir.is_dir():
     _msg = (
         f"JournalFolder is not set or the directory does not exist.\n\n"
         f"Configured path: {journal_dir_str!r}\n\n"
-        f"Set JournalFolder in your config.toml to the Elite Dangerous journal directory.\n"
+        f"Set JournalFolder in {config_path} to the Elite Dangerous journal directory.\n"
         f"On Windows the game's folder is:\n"
         f"  %USERPROFILE%\\Saved Games\\Frontier Developments\\Elite Dangerous\n"
         f"For Steam/Proton on Linux the default location is:\n"
         f"  ~/.steam/steam/steamapps/compatdata/359320/pfx/drive_c/users/"
         f"steamuser/Saved Games/Frontier Developments/Elite Dangerous"
     )
-    print(f"{Terminal.WARN}ERROR:{Terminal.END} {_msg}")
-    sys.exit(1)
+    _fail_start(_msg)
 
 journal_file = find_latest_journal(journal_dir)
 if not journal_file:
@@ -415,8 +437,7 @@ if not journal_file:
         f"Launch Elite Dangerous at least once to generate journal files, "
         f"or check that JournalFolder points to the correct directory."
     )
-    print(f"{Terminal.WARN}ERROR:{Terminal.END} {_msg}")
-    sys.exit(1)
+    _fail_start(_msg)
 
 
 # ── Commander name — for profile auto-detection ───────────────────────────────
@@ -756,6 +777,8 @@ def _prepare_history() -> None:
     # ── Bootstrap from journal history ────────────────────────────────────────────
 
     _debug.info("Starting EDLD monitor (Press Ctrl+C to stop)")
+    if ui_mode == _modes.TERMINAL:
+        print("Reading journal history...", flush=True)
 
     from core.journal import bootstrap_fighter_bay, bootstrap_slf, bootstrap_crew, bootstrap_missions, bootstrap_burn_rate
 
@@ -888,6 +911,19 @@ def _log_fatal(what: str) -> None:
         sys.__stderr__.flush()
     except Exception:
         pass
+    try:
+        from core.win_console import startup_error
+        startup_error(message)
+    except Exception:
+        pass
+
+
+def _startup_complete() -> None:
+    try:
+        from core.win_console import startup_complete
+        startup_complete()
+    except Exception:
+        pass
 
 
 def _start_status_poller() -> threading.Thread:
@@ -935,6 +971,11 @@ if __name__ == "__main__":
                     sys.__stderr__.write(f"ERROR: {_msg}\n")
                 except Exception:
                     pass
+                try:
+                    from core.win_console import startup_error
+                    startup_error(_msg)
+                except Exception:
+                    pass
                 sys.exit(1)
             # Only the default (or [UI] Interface) chose the desktop window.
             try:
@@ -952,6 +993,7 @@ if __name__ == "__main__":
     if _modes.is_window(ui_mode):
         _gui_theme = mgr.ui_cfg.get("Theme", "default")
         _start_background_threads()
+        _startup_complete()
         try:
             sys.exit(run_gui(core, PROGRAM, VERSION, AUTHOR, GITHUB_REPO,
                              theme=_gui_theme))
@@ -981,6 +1023,7 @@ if __name__ == "__main__":
         # in textual mode.  Just start the monitor + the TUI.
 
         _start_background_threads()
+        _startup_complete()
 
         try:
             run_tui(core, PROGRAM, VERSION, theme=_tui_theme)
@@ -999,4 +1042,5 @@ if __name__ == "__main__":
         threading.Thread(target=_discard_gui_queue, args=(gui_queue,),
                          daemon=True).start()
         _start_status_poller()
+        _startup_complete()
         run_monitor()

@@ -78,6 +78,12 @@ on:
 permissions:
   contents: write
 
+# A tag push and the release:published event it raises build the same
+# version; one waits for the other instead of both editing the release.
+concurrency:
+  group: release-${{ github.event.release.tag_name || github.ref_name }}
+  cancel-in-progress: false
+
 env:
   VERSION:    ${{ github.event.release.tag_name || github.ref_name }}
   SIGNING_NS: edld.release
@@ -740,13 +746,24 @@ jobs:
           fi
           echo "Publishing ${#FILES[@]} file(s) for ${VERSION}."
 
-          # A suffix such as 20260810-rc1 marks a prerelease; a bare datestamp
-          # is a full release.
+          # A suffix such as 20260810-rc1 marks a prerelease. A bare datestamp
+          # is a full release, and Latest when no published full release has a
+          # later datestamp, so rebuilding an old tag leaves Latest alone.
+          NEWEST="$(gh release list --limit 200 --exclude-drafts \
+                      --exclude-pre-releases --json tagName -q '.[].tagName' |
+                    grep -E '^[0-9]{8}$' | sort -r | head -n 1 || true)"
           FLAGS=()
+          LATEST=false
           case "$VERSION" in
-            *-*) FLAGS+=(--prerelease) ;;
-            *)   FLAGS+=(--latest) ;;
+            *-*) FLAGS+=(--prerelease --latest=false) ;;
+            *)
+              if [ -z "$NEWEST" ] || ! [ "$NEWEST" \> "$VERSION" ]; then
+                LATEST=true
+              fi
+              FLAGS+=("--latest=${LATEST}")
+              ;;
           esac
+          echo "Newest published full release: ${NEWEST:-none}; ${VERSION} latest: ${LATEST}"
 
           if gh release view "$VERSION" >/dev/null 2>&1; then
             echo "Release $VERSION exists — updating it."
@@ -761,6 +778,21 @@ jobs:
               --title "EDLD $VERSION" \
               --notes-file release-notes.md \
               "${FLAGS[@]}"
+          fi
+
+          # Latest is set again on the published release, then read back:
+          # the flag given to create or edit has not always taken.
+          if [ "$LATEST" = true ]; then
+            REPO="${{ github.repository }}"
+            ID="$(gh api "repos/${REPO}/releases/tags/${VERSION}" -q .id)"
+            gh api -X PATCH "repos/${REPO}/releases/${ID}" -f make_latest=true >/dev/null
+            SHOWN="$(gh api "repos/${REPO}/releases/latest" -q .tag_name)"
+            if [ "$SHOWN" != "$VERSION" ]; then
+              echo "::error::Release ${VERSION} is published but GitHub reports" \
+                   "${SHOWN} as Latest."
+              exit 1
+            fi
+            echo "Latest: ${SHOWN}"
           fi
 
           echo "Published: $(gh release view "$VERSION" --json url -q .url)"

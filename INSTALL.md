@@ -90,12 +90,16 @@ open their own console window. Server mode needs no shortcut of its own: turn
 it on in **Options → Server** and it runs beside whichever interface you open.
 
 From a shell, `--dasht` and `--term` open the terminal interfaces on any
-platform, and `--version` confirms which build you have.
+platform, and `--version` confirms which build you have. The Windows binary is
+a windowed program, so Command Prompt shows its prompt again before EDLD's
+output arrives; `start /wait EDLD.exe --version` keeps them in order.
 
 The game's journal folder, `Saved Games\Frontier Developments\Elite
-Dangerous`, is found by itself. To read journals from anywhere else, set
-`JournalFolder` in the config file — its path is printed at startup — or in
-Options → General.
+Dangerous`, is found by itself, wherever Saved Games has been moved. To read
+journals from anywhere else, set `JournalFolder` in the config file — its path
+is printed at startup — or in Options → General. When EDLD cannot start, for
+want of journals or because the config does not parse, it says why: in the
+console it was started from, or in a dialog when there is none.
 
 ### From source
 

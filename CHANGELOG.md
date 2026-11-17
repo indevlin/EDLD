@@ -1,6 +1,76 @@
 # EDLD CHANGELOG
 
-Last updated: 20261116
+Last updated: 20261117
+
+---
+
+## Unreleased
+
+
+---
+
+## Released in 20261117
+
+### Fixed: the Windows binary said nothing when run from a command prompt
+
+`EDLD.exe --version`, `--trace` or anything else typed at a command prompt
+printed nothing at all. The Windows binary is windowed and borrows the console
+of the process that started it, but a one-file build runs as a child of its own
+bootloader, and the bootloader is windowed too: the console it asked for did
+not exist, so every line went nowhere. The release workflow never saw it, since
+it captures output through a pipe or a file, which hands the program a handle
+outright and never asks for a console. When the parent is the bootloader, the
+console now comes from the bootloader's parent, the prompt the command was
+typed at.
+
+### Fixed: a Windows binary that could not start left no trace
+
+Started from its shortcut or by double-click, the binary has no console, so a
+reason for stopping printed before the diagnostic log opened went nowhere: no
+journal folder, no journal files in it, a config that did not parse, an
+exception during startup, or a desktop window that failed to open. The process
+exited and nothing else happened — no window, no log, no commander folder —
+which on a machine without the game is every launch. Each of these now shows
+its message in a dialog when there is no console to print it to, and the
+journal folder message names the config file to set `JournalFolder` in. The
+terminal shortcuts open a console of their own, which closed the moment EDLD
+exited and took the message with it; it now waits for Enter first.
+
+### Fixed: a moved Saved Games folder was not found on Windows
+
+A blank `JournalFolder` is filled in from `Saved Games` under the user's
+profile, but Windows lets that folder be moved to another drive, and a moved
+one was not looked for, so EDLD stopped with the journal folder error. The
+folder is now asked of Windows itself, wherever it lives, before the usual
+place is tried.
+
+### Fixed: "Discord webhook missing or invalid" read as the reason EDLD stopped
+
+With no Discord webhook set, which is how EDLD ships, the terminal log printed
+"Discord webhook missing or invalid — operating with terminal output only" and
+then said nothing while it read the journal history, so the notice looked like
+the error that had halted it. Discord is optional: an unset webhook now says
+Discord is not set up and its posts are off, a webhook that is set but is not a
+Discord webhook URL says so as a warning, and the terminal log says it is
+reading the journal history before it does. A pasted URL with spaces or a
+line break around it was also refused as invalid; it is trimmed first.
+
+### Fixed: --test sent the startup embed to Discord
+
+`--test` routes Discord posts to the terminal, but the startup embed was posted
+to the webhook regardless, the one message a test run is meant to keep out of
+the channel. It now prints in the terminal with the rest.
+
+### Fixed: a new release was not marked Latest
+
+The release workflow published 20261116 with the Latest flag, yet GitHub kept
+20261115 as the Latest release, and the workflow reported success all the
+same, so it took a look at the Releases page to find it. The flag is now set
+again once the release is published, and the workflow reads back which
+release GitHub calls Latest and fails if it is not the one just published.
+Rebuilding an older tag no longer claims Latest either: a release is marked
+Latest only when no published release has a later date. A tag push and the
+release event it raises no longer run their publish steps at the same time.
 
 ---
 

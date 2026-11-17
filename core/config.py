@@ -654,7 +654,13 @@ def load_config_file(config_path: Path) -> dict:
         try:
             return tomllib.load(f)
         except tomllib.TOMLDecodeError as e:
-            print(f"Config decode error: {e}")
+            message = f"Config decode error in {config_path}: {e}"
+            print(message)
+            try:
+                from core.win_console import startup_error
+                startup_error(message)
+            except Exception:
+                pass
             sys.exit(1)
 
 
