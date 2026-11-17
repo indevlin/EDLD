@@ -6,6 +6,22 @@ Last updated: 20261117
 
 ## Unreleased
 
+### Fixed: the Windows binary crashed on every launch from its shortcut
+
+Started from a shortcut or by double-click, the Windows binary has no console,
+so Python gives it no standard output at all. Just before the desktop window
+opens, EDLD flushed standard output and error to make sure the launch line was
+written, and flushing a stream that does not exist raised: every windowed
+launch with no console behind it crashed there, before any window appeared.
+It was invisible until 20261117, which turned startup crashes into a dialog;
+before that the process simply exited, which is the "does nothing" the binary
+was reported for. Those flushes now pass over a missing stream, as do the ones
+before a restart, the pairing prompt's check for a terminal, and the overlay
+renderer's read of its commands, and a test fails the build if any code
+outside the console module calls a standard stream bare. A startup crash also
+showed two dialogs, EDLD's own with the traceback and then the bootloader's
+with only the last line; it now shows the first alone.
+
 ### Fixed: a Windows path typed into config.toml stopped EDLD
 
 `JournalFolder = "C:\Users\me\Downloads\EDLOGS"` is how most people write a

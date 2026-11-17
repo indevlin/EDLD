@@ -555,7 +555,10 @@ def _reader(widget, app, bridge) -> None:
     # internal read-ahead buffer: on a pipe it will not yield a line until
     # several kilobytes have accumulated or the writer closes.
     while True:
-        line = sys.stdin.readline()
+        try:
+            line = sys.stdin.readline()
+        except (AttributeError, OSError, ValueError):   # no stdin to read
+            break
         if not line:
             break
         line = line.strip()

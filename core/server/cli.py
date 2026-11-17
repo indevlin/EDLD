@@ -108,7 +108,10 @@ def pair(directory: Path, settings: dict, name: str, *,
     port = int(settings.get("Port", 0) or 0)
     external = external_host(settings)
     if interactive is None:
-        interactive = sys.stdin.isatty()
+        try:
+            interactive = sys.stdin.isatty()
+        except (AttributeError, OSError, ValueError):   # None in a windowed launch
+            interactive = False
     if not external and interactive:
         print("Address for use away from home, e.g. yourname.duckdns.org or\n"
               "yourname.duckdns.org:PORT. Leave blank for this network only.\n"

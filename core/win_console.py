@@ -279,31 +279,33 @@ def hold_own_console() -> bool:
         return False
 
 
-def startup_error(message: str, title: str = "EDLD could not start") -> None:
+def startup_error(message: str, title: str = "EDLD could not start") -> bool:
     """Make a fatal startup message seen on Windows.
 
     Printed output already reaches a console or a redirect; this covers the
     two cases where it does not: a windowed launch with no console, which
     gets a dialog, and a console of EDLD's own, which closes on exit unless
-    held open. Never raises; a no-op elsewhere.
+    held open. Returns whether a dialog was shown. Never raises; a no-op
+    elsewhere.
     """
     if sys.platform != "win32":
-        return
+        return False
     if hold_own_console():
-        return
+        return False
     try:
         visible = _output_visible
         if visible is None:
             visible = _is_usable(sys.__stdout__) or _is_usable(sys.stdout)
         if visible or not _dialogs:
-            return
+            return False
         import ctypes
         user32 = ctypes.WinDLL("user32", use_last_error=True)
         user32.MessageBoxW.argtypes = [ctypes.c_void_p, ctypes.c_wchar_p,
                                        ctypes.c_wchar_p, ctypes.c_uint]
         user32.MessageBoxW(None, _plain(message)[-3000:], title, MB_ICONERROR_TOPMOST)
+        return True
     except Exception:
-        pass
+        return False
 
 
 def _plain(text: str) -> str:
@@ -326,7 +328,9 @@ def install_startup_hook() -> None:
         if not _starting or issubclass(exc_type, KeyboardInterrupt):
             return
         import traceback
-        startup_error("".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+        shown = startup_error("".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
+        if shown and getattr(sys, "frozen", False):
+            os._exit(1)     # the bootloader would show a second, emptier dialog
 
     sys.excepthook = _hook
 

@@ -106,3 +106,30 @@ def test_no_dialogs_suppresses_the_dialog(monkeypatch):
     win_console.no_dialogs()
     win_console.startup_error("again")
     assert not calls
+
+
+def test_no_unguarded_std_stream_calls():
+    """A windowed launch has sys.stdout, stderr and stdin set to None."""
+    import ast
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1]
+    files = [root / "edld.py"] + [
+        p for d in ("core", "components", "gui", "tui")
+        for p in (root / d).rglob("*.py") if p.name != "win_console.py"]
+    found = []
+    for path in files:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        guarded: set[int] = set()
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Try):
+                for inner in node.body:
+                    guarded.update(id(n) for n in ast.walk(inner))
+        for node in ast.walk(tree):
+            if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and isinstance(node.func.value, ast.Attribute)
+                    and isinstance(node.func.value.value, ast.Name)
+                    and node.func.value.value.id == "sys"
+                    and node.func.value.attr in ("stdout", "stderr", "stdin")
+                    and id(node) not in guarded):
+                found.append(f"{path.relative_to(root)}:{node.lineno}")
+    assert not found, "unguarded std stream calls: " + ", ".join(found)

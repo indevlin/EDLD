@@ -617,8 +617,11 @@ if ui_mode != _modes.TERMINAL:   # every interface but the scrolling log
         f"{Terminal.GOOD}Launching {_modes.BY_ID[ui_mode].name}{Terminal.END}"
         + (f" — diagnostic logs: {log_p}" if log_p else "")
     )
-    sys.stdout.flush()
-    sys.stderr.flush()
+    for _stream in (sys.stdout, sys.stderr):
+        try:
+            _stream.flush()
+        except (AttributeError, OSError, ValueError):   # None in a windowed launch
+            pass
     # Python-level only — Textual writes to fd 1 directly and needs fd 0
     # for TTY input, so we don't touch the underlying file descriptors.
     #

@@ -112,8 +112,11 @@ class CoreAPI:
 
         Does not return.
         """
-        sys.stdout.flush()
-        sys.stderr.flush()
+        for stream in (sys.stdout, sys.stderr):
+            try:
+                stream.flush()
+            except (AttributeError, OSError, ValueError):
+                pass
         os.execv(sys.executable, self.restart_argv())
 
     # ── Component-to-component calls ─────────────────────────────────────────
