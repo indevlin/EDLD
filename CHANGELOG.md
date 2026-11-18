@@ -4,6 +4,25 @@ Last updated: 20261118
 
 ---
 
+## Unreleased
+
+### Fixed: new releases were never announced on Discord
+
+The Discord announcement ran in a workflow of its own, started by GitHub's
+release-published event, but GitHub raises no such event for a release
+published with the workflow's own token, and the token that would have raised
+it was never set. With nothing to start it, the announcement workflow never
+ran, and nothing anywhere said so. Had it run, the post would have failed for
+most releases all the same: it sent the whole release notes as the embed's
+text, past Discord's limit of 4096 characters, and the step reported success
+whatever Discord replied. The release job now posts the announcement itself
+when it first creates a full release, with the changelog section, or its
+headings when the section is too long for Discord, and a link to the release.
+A re-run of a tag posts nothing, no `DISCORD_WEBHOOK_URL` secret skips it, and
+a post Discord refuses fails the run with Discord's reply.
+
+---
+
 ## Released in 20261118
 
 ### Added: the mining dashboard shows ring hotspots

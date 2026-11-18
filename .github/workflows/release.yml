@@ -59,6 +59,10 @@ name: Release
 #
 # Code-signing secrets are optional. Every signing step is skipped when its
 # secret is absent, so a fork builds successfully with no credentials at all.
+#
+# Optional:
+#   DISCORD_WEBHOOK_URL  posts the changelog section of each new full release
+#                        to that webhook, through scripts/discord_release.py
 
 on:
   push:
@@ -714,23 +718,12 @@ jobs:
       # Re-running a tag is normal here (a force-pushed tag rebuilds), so an
       # existing release is updated in place rather than treated as an error.
       - name: Publish the release
+        id: publish
         env:
-          # A release created with GITHUB_TOKEN does not raise a `release:
-          # published` event — GitHub suppresses it to stop workflows
-          # triggering each other in a loop. That is fine for this workflow,
-          # but it means discord-release-notify.yml never fires for an
-          # automatically published release.
-          #
-          # Setting a RELEASE_PAT secret (a fine-grained PAT with Contents:
-          # write on this repository) makes the event fire and the Discord
-          # notification work. Without it everything else behaves normally and
-          # only the notification is skipped, so the secret stays optional.
-          #
-          # A fine-grained PAT belongs to one resource owner: this one must be
-          # issued with "Resource owner: indevlin" (and approved, if the
-          # organization requires it). A token for any other owner does not
-          # reach this repository, and the publish step fails with a 403 or
-          # 404 rather than falling back to GITHUB_TOKEN.
+          # An optional RELEASE_PAT (fine-grained, Contents: write, resource
+          # owner indevlin) publishes as that user instead of GITHUB_TOKEN. A
+          # token for any other owner fails here with a 403 or 404 rather than
+          # falling back.
           GH_TOKEN: ${{ secrets.RELEASE_PAT || secrets.GITHUB_TOKEN }}
         shell: bash
         run: |
@@ -764,6 +757,7 @@ jobs:
               ;;
           esac
           echo "Newest published full release: ${NEWEST:-none}; ${VERSION} latest: ${LATEST}"
+          CREATED=false
 
           if gh release view "$VERSION" >/dev/null 2>&1; then
             echo "Release $VERSION exists — updating it."
@@ -778,6 +772,7 @@ jobs:
               --title "EDLD $VERSION" \
               --notes-file release-notes.md \
               "${FLAGS[@]}"
+            CREATED=true
           fi
 
           # Latest is set again on the published release, then read back:
@@ -795,4 +790,24 @@ jobs:
             echo "Latest: ${SHOWN}"
           fi
 
-          echo "Published: $(gh release view "$VERSION" --json url -q .url)"
+          URL="$(gh release view "$VERSION" --json url -q .url)"
+          echo "Published: ${URL}"
+          {
+            echo "created=${CREATED}"
+            echo "url=${URL}"
+          } >> "$GITHUB_OUTPUT"
+
+      # Posted once, when a full release is first created; a re-run of a tag
+      # edits the release and posts nothing. Skipped with no
+      # DISCORD_WEBHOOK_URL secret; a webhook Discord refuses fails the run.
+      - name: Announce on Discord
+        if: steps.publish.outputs.created == 'true' && !contains(needs.verify.outputs.version, '-')
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        run: |
+          python3 scripts/discord_release.py \
+            --product EDLD \
+            --version "${{ needs.verify.outputs.version }}" \
+            --changelog CHANGELOG.md \
+            --link "${{ steps.publish.outputs.url }}" \
+            --link-label "Release notes and downloads"
