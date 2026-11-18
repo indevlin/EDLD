@@ -1,10 +1,10 @@
 # EDLD CHANGELOG
 
-Last updated: 20261117
+Last updated: 20261118
 
 ---
 
-## Unreleased
+## Released in 20261118
 
 ### Added: the mining dashboard shows ring hotspots
 
