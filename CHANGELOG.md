@@ -6,6 +6,11 @@ Last updated: 20261117
 
 ## Unreleased
 
+
+---
+
+## Released in 20261117
+
 ### Fixed: the Windows binary crashed on every launch from its shortcut
 
 Started from a shortcut or by double-click, the Windows binary has no console,
@@ -13,9 +18,8 @@ so Python gives it no standard output at all. Just before the desktop window
 opens, EDLD flushed standard output and error to make sure the launch line was
 written, and flushing a stream that does not exist raised: every windowed
 launch with no console behind it crashed there, before any window appeared.
-It was invisible until 20261117, which turned startup crashes into a dialog;
-before that the process simply exited, which is the "does nothing" the binary
-was reported for. Those flushes now pass over a missing stream, as do the ones
+Until the startup dialog below, the process simply exited without a word,
+which is the "does nothing" the binary was reported for. Those flushes now pass over a missing stream, as do the ones
 before a restart, the pairing prompt's check for a terminal, and the overlay
 renderer's read of its commands, and a test fails the build if any code
 outside the console module calls a standard stream bare. A startup crash also
@@ -41,10 +45,6 @@ and a page of "not found" warnings scrolled past. A setting written there is
 now moved under the section it belongs to, when only one section has it.
 Neither change is written unless the result parses, and each is reported at
 startup.
-
----
-
-## Released in 20261117
 
 ### Fixed: the Windows binary said nothing when run from a command prompt
 
