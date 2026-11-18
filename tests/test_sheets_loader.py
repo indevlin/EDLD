@@ -206,7 +206,8 @@ def test_deposits_are_backed_up_first_as_they_were():
 
 def test_an_old_dashboard_gains_the_notes_column():
     res = _legacy()
-    assert res["sheets"]["Queries"]["rows"][0][3:3 + len(HEADERS)] == HEADERS
+    names = res["sheets"]["Queries"]["rows"][0][3:3 + len(HEADERS)]
+    assert [re.search(r',"([^"]*)"\)$', f).group(1) for f in names] == HEADERS
     assert res["sheets"]["Dashboard"]["rows"][6][0].startswith("=IF(")
     assert res["docProps"]["EDLD_SHEET_VERSION"] == str(LAYOUT)
 
@@ -467,6 +468,6 @@ def test_a_v3_sheet_backs_up_deposits_then_renames_it():
     names = res["order"]
     assert "Deposits" not in names and "Surface Sites" in names and "Ring Hotspots" in names
     assert any(n.startswith("Deposits backup") for n in names)
-    assert res["docProps"]["EDLD_SHEET_VERSION"] == "4"
+    assert res["docProps"]["EDLD_SHEET_VERSION"] == str(LAYOUT)
     rows = res["sheets"]["Surface Sites"]["rows"]
     assert [r[0] for r in rows[1:]] == ["abc123def456", "fed000000001"]

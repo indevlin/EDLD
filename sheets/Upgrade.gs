@@ -68,6 +68,13 @@ var SHEET_MIGRATIONS = [
       applyTheme();
       return made ? 'added Ring Hotspots' : 'Ring Hotspots present';
     }
+  },
+  {
+    to: 5,
+    name: 'Dashboard Site Type: surface sites or ring hotspots',
+    run: function (ss) {
+      if (rebuildDashboard_(ss)) applyTheme();
+    }
   }
 ];
 

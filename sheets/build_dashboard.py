@@ -56,6 +56,9 @@ HOTSPOT_COLUMNS = [
 # Must match ED.HEADERS in Dashboard.gs.
 HEADERS = ['System', 'Body', 'Gravity', 'Mining Site', 'Commodity',
            'Amount', 'Density', 'Rigs', 'Depleted', 'Notes']
+# Site Type = Ring: the table's columns, in the order the ring FILTER emits
+# them. Must match ED.RING_HEADERS in Dashboard.gs.
+RING_HEADERS = ['System', 'Body', 'Ring', 'Type', 'Commodity', 'Reserve', 'Overlap']
 NCOL = len(HEADERS)                       # table columns, A:J
 MARGIN = NCOL + 1                         # K, a narrow margin
 LAST = get_column_letter(NCOL)            # J
@@ -120,7 +123,9 @@ DASH_TITLE_FORMULA = ('=IF(Settings!B1<>"",Settings!B1 & ": Mining Data",'
                       'IF(Settings!B2<>"","CMDR " & Settings!B2 & "\'s Mining Data",""))')
 DASH_SUBTITLE_FORMULA = ('=IF(A1=Settings!B1 & ": Mining Data",'
                          '"Maintained by CMDR: " & Settings!B2,"")')
-DASH_LABELS = {'A4': 'System', 'B4': 'Commodity', 'E4': 'Sort By', 'F4': 'Order'}
+DASH_LABELS = {'A4': 'System', 'B4': 'Commodity', 'D4': 'Site Type',
+               'E4': 'Sort By', 'F4': 'Order'}
+SITE_TYPES = ['Surface', 'Ring']
 SORT_ORDERS = ['Ascending', 'Descending']
 
 #: Settings!D1. Upgrade rewrites it for each release, but only while it still
@@ -146,7 +151,8 @@ TEMPLATE_KEYS = ['HEADERS', 'PLACEHOLDER_SQUADRON', 'PLACEHOLDER_MAINTAINER',
                  'ROLES', 'THEMES', 'DEFAULT_THEME', 'FONTS', 'TITLE_FONT',
                  'BODY_FONT', 'MONO_FONT', 'SETTINGS_NOTES', 'ROLE_ROW0',
                  'NOTES_ROW', 'DASH_TITLE_FORMULA', 'DASH_SUBTITLE_FORMULA',
-                 'DASH_LABELS', 'SORT_ORDERS', 'VERSION_LINE', 'SETTINGS_LABELS',
+                 'DASH_LABELS', 'SITE_TYPES', 'SORT_ORDERS', 'VERSION_LINE',
+                 'SETTINGS_LABELS',
                  'SETTINGS_HINTS', 'COLOR_TABLE_HEADERS', 'HEX_ERROR',
                  'THEMES_NOTE', 'SETTINGS_WIDTHS', 'THEMES_WIDTHS']
 
@@ -240,13 +246,13 @@ def build_dashboard(wb, formulas):
     for c in range(1, NCOL + 1):
         ds.cell(3, c).fill = fill(C['Accent'])
 
-    # Filters (A:B) and sort (E:F)
+    # Filters (A:B), site type (D) and sort (E:F)
     for a, label in DASH_LABELS.items():
         ds[a] = label
-    ds['E5'], ds['F5'] = HEADERS[0], SORT_ORDERS[0]
-    for a in ('A4', 'B4', 'E4', 'F4'):
+    ds['D5'], ds['E5'], ds['F5'] = SITE_TYPES[0], HEADERS[0], SORT_ORDERS[0]
+    for a in ('A4', 'B4', 'D4', 'E4', 'F4'):
         ds[a].font = font(C['Text Dim'], bold=True, size=9)
-    for a in ('A5', 'B5', 'E5', 'F5'):
+    for a in ('A5', 'B5', 'D5', 'E5', 'F5'):
         ds[a].fill = fill(C['Panel'])
         ds[a].font = font(C['Input Text'], bold=True)
         ds[a].border = box(C['Accent'], 'medium')
@@ -255,6 +261,7 @@ def build_dashboard(wb, formulas):
     ds.row_dimensions[7].height = 24
 
     for sqref, f1 in (('A5', 'Queries!$A$1:$A$1000'), ('B5', 'Queries!$B$1:$B$1000'),
+                      ('D5', '"' + ','.join(SITE_TYPES) + '"'),
                       ('E5', f'Queries!$D$1:${Q_LAST}$1'),
                       ('F5', '"' + ','.join(SORT_ORDERS) + '"')):
         dv = DataValidation(type='list', formula1=f1, allow_blank=True)
@@ -289,15 +296,25 @@ def build_dashboard(wb, formulas):
                            fill=PatternFill('solid', start_color=h(bg),
                                             end_color=h(bg), bgColor=h(bg)))
 
+    # Surface and Ring rules exclude each other on Site Type (D5).
     cf = ds.conditional_formatting
-    cf.add(f'A7:{LAST}7', rule('$A$7<>""', C['Accent'], C['Accent Text'], bold=True))
+    cf.add(f'A7:{LAST}7', rule('A$7<>""', C['Accent'], C['Accent Text'], bold=True))
     bands = ((0, C['Panel']), (1, C['Panel Alt']))   # row 8, the first data row, is even
     hilo, allr = f'F8:G{LAST_ROW}', f'A8:{LAST}{LAST_ROW}'
+    reserve = f'F8:F{LAST_ROW}'
+    surface, ring = '$D$5<>"Ring"', '$D$5="Ring"'
     for p, bg in bands:
-        cf.add(hilo, rule(f'AND($A8<>"",$I8="",F8="High",MOD(ROW(),2)={p})', bg, C['Highlight'], bold=True))
-        cf.add(hilo, rule(f'AND($A8<>"",$I8="",F8="Low",MOD(ROW(),2)={p})', bg, C['Text Dim']))
+        cf.add(hilo, rule(f'AND({surface},$A8<>"",$I8="",F8="High",MOD(ROW(),2)={p})',
+                          bg, C['Highlight'], bold=True))
+        cf.add(hilo, rule(f'AND({surface},$A8<>"",$I8="",F8="Low",MOD(ROW(),2)={p})',
+                          bg, C['Text Dim']))
     for p, bg in bands:
-        cf.add(allr, rule(f'AND($A8<>"",$I8<>"",MOD(ROW(),2)={p})', bg, C['Warning'],
+        cf.add(reserve, rule(f'AND({ring},$A8<>"",OR(F8="Pristine",F8="Major"),MOD(ROW(),2)={p})',
+                             bg, C['Highlight'], bold=True))
+        cf.add(reserve, rule(f'AND({ring},$A8<>"",OR(F8="Low",F8="Depleted"),MOD(ROW(),2)={p})',
+                             bg, C['Text Dim']))
+    for p, bg in bands:
+        cf.add(allr, rule(f'AND({surface},$A8<>"",$I8<>"",MOD(ROW(),2)={p})', bg, C['Warning'],
                           italic=True, strike=True))
     for p, bg in bands:
         cf.add(allr, rule(f'AND($A8<>"",$I8="",MOD(ROW(),2)={p})', bg, C['Text']))
@@ -411,10 +428,12 @@ def build_queries(wb, formulas):
     q = wb.create_sheet('Queries')
     q['A1'] = sheets_only(formulas['Queries!A1'])
     q['B1'] = sheets_only(formulas['Queries!B1'])
-    # D1:M1 header names (the Sort By list); D2:M2 the same with a sort arrow.
+    # D1:M1 header names for the Site Type (the Sort By list); D2:M2 the same
+    # with a sort arrow.
     for j, name in enumerate(HEADERS):
         col = get_column_letter(4 + j)
-        q[f'{col}1'] = name
+        ring = RING_HEADERS[j] if j < len(RING_HEADERS) else ''
+        q[f'{col}1'] = f'=IF(Dashboard!$D$5="Ring","{ring}","{name}")'
         q[f'{col}2'] = (f'={col}1&IF({col}1=Dashboard!$E$5,'
                         f'IF(Dashboard!$F$5="Descending"," ▼"," ▲"),"")')
     q['N1'] = f'=IFERROR(MATCH(Dashboard!$E$5,$D$1:${Q_LAST}$1,0),1)'

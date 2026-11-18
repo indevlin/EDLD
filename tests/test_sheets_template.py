@@ -159,3 +159,45 @@ def test_repair_rebuilds_a_tab_somebody_deleted(blank):
     assert "Themes" in res["order"]
     assert any("rebuilt Themes" in t for t in res["toasts"])
     assert _cells_sheet(res, "Themes") == _cells_xlsx("Themes")
+
+
+# ── Site Type ─────────────────────────────────────────────────────────────────
+
+def _edit(base: dict, steps: list) -> dict:
+    sheets = {n: v["rows"] for n, v in base["sheets"].items()}
+    return _run(steps, sheets=sheets, script_props=base["scriptProps"],
+                doc_props=base["docProps"])
+
+
+def _cell(res: dict, tab: str, a1: str):
+    return _cells_sheet(res, tab).get(a1, "")
+
+
+def test_a_new_dashboard_shows_surface_sites(blank):
+    assert _cell(blank, "Dashboard", "D4") == "Site Type"
+    assert _cell(blank, "Dashboard", "D5") == "Surface"
+
+
+def test_switching_to_ring_drops_a_sort_ring_has_no_column_for(blank):
+    res = _edit(blank, [{"edit": {"sheet": "Dashboard", "a1": "E5", "value": "Gravity"}},
+                        {"edit": {"sheet": "Dashboard", "a1": "D5", "value": "Ring"}}])
+    assert _cell(res, "Dashboard", "E5") == "System"
+
+
+def test_switching_keeps_a_sort_both_tables_have(blank):
+    res = _edit(blank, [{"edit": {"sheet": "Dashboard", "a1": "E5", "value": "Commodity"}},
+                        {"edit": {"sheet": "Dashboard", "a1": "D5", "value": "Ring"}},
+                        {"edit": {"sheet": "Dashboard", "a1": "D5", "value": "Surface"}}])
+    assert _cell(res, "Dashboard", "E5") == "Commodity"
+
+
+def test_repair_leaves_the_chosen_site_type(blank):
+    res = _edit(blank, [{"edit": {"sheet": "Dashboard", "a1": "D5", "value": "Ring"}},
+                        {"call": "edldMenu2"}])
+    assert _cell(res, "Dashboard", "D5") == "Ring"
+
+
+def test_repair_sets_a_blank_site_type_to_surface(blank):
+    res = _edit(blank, [{"edit": {"sheet": "Dashboard", "a1": "D5", "value": ""}},
+                        {"call": "edldMenu2"}])
+    assert _cell(res, "Dashboard", "D5") == "Surface"

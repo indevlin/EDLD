@@ -157,9 +157,10 @@ function buildDashboardTab_(ss) {
   dash.getRange('E2').setFormula('=Settings!D1');
   Object.keys(T.DASH_LABELS).forEach(a =>
     dash.getRange(a).setValue(text_(T.DASH_LABELS[a])));
-  dash.getRange('E5:F5').setValues(texts_([[ED.HEADERS[0], T.SORT_ORDERS[0]]]));
+  dash.getRange('D5:F5').setValues(texts_([[T.SITE_TYPES[0], ED.HEADERS[0], T.SORT_ORDERS[0]]]));
 
-  // Filter lists come from Queries A and B; Sort By is set by Repair.
+  // Filter lists come from Queries A and B; Site Type and Sort By are set by
+  // Repair.
   [['A5', 'A1:A1000'], ['B5', 'B1:B1000']].forEach(([cell, src]) =>
     dash.getRange(cell).setDataValidation(SpreadsheetApp.newDataValidation()
       .requireValueInRange(q.getRange(src), true).setAllowInvalid(true).build()));

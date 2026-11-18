@@ -6,6 +6,17 @@ Last updated: 20261117
 
 ## Unreleased
 
+### Added: the mining dashboard shows ring hotspots
+
+The sheet's Dashboard showed surface sites only. A Site Type dropdown beside
+the filters now switches the table between Surface and Ring. Ring lists System,
+Body, Ring, Type, Commodity, Reserve and Overlap, sorts Reserve by rank, and
+highlights Pristine and Major reserves the way High amounts are. A ring holding
+two hotspots of one commodity shows "Platinum ×2", and an overlap with another
+hotspot names it, "Hotspot: Painite". The System and Commodity lists are drawn
+from both tabs, so a filter holds across the switch, and a sort the other table
+has no column for falls back to System. Sheet layout v5: ED Dashboard > Upgrade
+adds the dropdown to an existing sheet.
 
 ---
 

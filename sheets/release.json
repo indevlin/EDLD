@@ -1,6 +1,6 @@
 {
   "version": "20261117",
-  "sheet_version": 4,
+  "sheet_version": 5,
   "sheet_steps": [
     {
       "to": 1,
@@ -17,13 +17,17 @@
     {
       "to": 4,
       "name": "Deposits renamed Surface Sites; Ring Hotspots tab"
+    },
+    {
+      "to": 5,
+      "name": "Dashboard Site Type: surface sites or ring hotspots"
     }
   ],
   "min_loader": 2,
   "bundle": {
     "file": "edld_sheet.js",
-    "sha256": "c563669dea8ca3975b8abc998be398b08fbee88be0938cdf789204eba0351957",
-    "bytes": 63626
+    "sha256": "bee038948ac8f2057c87094880addc6782f9e95abd1aefb98eecc605e62da5c6",
+    "bytes": 69325
   },
   "loader": {
     "version": 2,

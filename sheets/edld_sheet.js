@@ -166,9 +166,14 @@ var TEMPLATE = {
  "DASH_LABELS": {
   "A4": "System",
   "B4": "Commodity",
+  "D4": "Site Type",
   "E4": "Sort By",
   "F4": "Order"
  },
+ "SITE_TYPES": [
+  "Surface",
+  "Ring"
+ ],
  "SORT_ORDERS": [
   "Ascending",
   "Descending"
@@ -893,6 +898,7 @@ const ED = {
   DATA_COLS: 10,          // A:J
   DASH_COLS: 11,          // A:K (K is a margin)
   NOTES_COL: 10,          // J, the one column of prose
+  SITE_CELL: 'D5',        // Site Type: Surface or Ring
   SORT_BY_CELL: 'E5',
   SORT_ORDER_CELL: 'F5',
   SORT_NAMES: 'D1:M1',    // Queries: plain header names, the Sort By list
@@ -903,6 +909,13 @@ const ED = {
             'Amount', 'Density', 'Rigs', 'Depleted', 'Notes'],
   // Column widths in pixels, A:K, for Repair to lay an older sheet out with.
   WIDTHS: [130, 160, 80, 100, 170, 95, 80, 60, 100, 280, 20],
+  LEFT_COLS: [1, 2, 5, 10],
+  // Site Type = Ring: the table's columns, in the order the ring FILTER emits
+  // them. Must match RING_HEADERS in build_dashboard.py. Columns past the last
+  // are hidden while Ring is shown, and the last one wraps.
+  RING_HEADERS: ['System', 'Body', 'Ring', 'Type', 'Commodity', 'Reserve', 'Overlap'],
+  RING_WIDTHS: [130, 160, 80, 100, 190, 95, 280],
+  RING_LEFT_COLS: [1, 2, 5, 7],
   FALLBACK: {             // Classic HUD, used when a cell is blank or not #RRGGBB
     'Background': '#0A0A0A', 'Panel': '#16100A', 'Panel Alt': '#2B1E0E',
     'Accent': '#FF7100', 'Accent Text': '#0A0A0A', 'Title': '#FF8C1A',
@@ -916,10 +929,19 @@ const HEX = /^#[0-9a-f]{6}$/i;
  * Sheets-only formulas. Keep each one a plain template literal with no ${}:
  * build_dashboard.py parses them out of this file by regex.
  *
- * The FILTER picks Surface Sites columns by letter, so it depends on COLUMNS in
- * Code.gs; tests/test_sheets_dashboard.py checks each letter against it. The
- * rank list in the SORT is AMOUNT_LEVELS from core/mining_db.py, lowest first,
- * and is checked too.
+ * The table is one of two FILTERs, chosen by Site Type (Dashboard!D5): blank or
+ * Surface reads Surface Sites, Ring reads Ring Hotspots. Each picks columns by
+ * letter, so they depend on COLUMNS and HOTSPOT_COLUMNS in Code.gs;
+ * tests/test_sheets_dashboard.py checks each letter against them. The rank
+ * lists in the SORTs are AMOUNT_LEVELS from core/mining_db.py and
+ * RESERVE_LEVELS from core/ring_hotspots.py, lowest first, and are checked too.
+ *
+ * Ring rows show the commodity with its hotspot count when there is more than
+ * one ("Platinum ×2"), and Overlap names the other hotspot from note when the
+ * overlap is "Hotspot [NOTE]" ("Hotspot: Painite").
+ *
+ * The System and Commodity lists are drawn from both tabs, so a filter stays
+ * valid when Site Type changes.
  *
  * A filter that matches one deposit is returned as it is, unsorted. SORT's
  * second argument is either a range of sort values or a column number, and a
@@ -932,36 +954,76 @@ const FORMULAS = {
   'Dashboard!A7': `=IF(
   AND(Dashboard!$A$5="", Dashboard!$B$5=""),
   "",
-  {
-    Queries!$D$2:$M$2;
-    IFERROR(
-      LET(
-        dep, FILTER(
-          {'Surface Sites'!B2:B, 'Surface Sites'!D2:D, 'Surface Sites'!G2:G,
-           'Surface Sites'!K2:K, 'Surface Sites'!L2:L, 'Surface Sites'!Q2:Q,
-           'Surface Sites'!P2:P, 'Surface Sites'!R2:R, 'Surface Sites'!X2:X,
-           'Surface Sites'!Y2:Y},
-          (Dashboard!$A$5="") + ('Surface Sites'!B2:B=Dashboard!$A$5) > 0,
-          (Dashboard!$B$5="") + ('Surface Sites'!L2:L=Dashboard!$B$5) > 0,
-          'Surface Sites'!W2:W <> 1
-        ),
-        sortkey, INDEX(dep, 0, Queries!$N$1),
-        IF(
-          ROWS(dep) = 1,
-          dep,
-          SORT(
+  IF(
+    Dashboard!$D$5<>"Ring",
+    {
+      Queries!$D$2:$M$2;
+      IFERROR(
+        LET(
+          dep, FILTER(
+            {'Surface Sites'!B2:B, 'Surface Sites'!D2:D, 'Surface Sites'!G2:G,
+             'Surface Sites'!K2:K, 'Surface Sites'!L2:L, 'Surface Sites'!Q2:Q,
+             'Surface Sites'!P2:P, 'Surface Sites'!R2:R, 'Surface Sites'!X2:X,
+             'Surface Sites'!Y2:Y},
+            (Dashboard!$A$5="") + ('Surface Sites'!B2:B=Dashboard!$A$5) > 0,
+            (Dashboard!$B$5="") + ('Surface Sites'!L2:L=Dashboard!$B$5) > 0,
+            'Surface Sites'!W2:W <> 1
+          ),
+          sortkey, INDEX(dep, 0, Queries!$N$1),
+          IF(
+            ROWS(dep) = 1,
             dep,
-            ARRAYFORMULA(IFERROR(MATCH(sortkey, {"Low";"Medium";"High"}, 0), sortkey)),
-            Queries!$N$2
+            SORT(
+              dep,
+              ARRAYFORMULA(IFERROR(MATCH(sortkey, {"Low";"Medium";"High"}, 0), sortkey)),
+              Queries!$N$2
+            )
           )
-        )
-      ),
-      {"No deposits match this filter","","","","","","","","",""}
-    )
-  }
+        ),
+        {"No deposits match this filter","","","","","","","","",""}
+      )
+    },
+    {
+      Queries!$D$2:$J$2;
+      IFERROR(
+        LET(
+          dep, FILTER(
+            {'Ring Hotspots'!B2:B, 'Ring Hotspots'!D2:D, 'Ring Hotspots'!E2:E,
+             'Ring Hotspots'!F2:F,
+             ARRAYFORMULA('Ring Hotspots'!H2:H &
+               IF(IFERROR(VALUE('Ring Hotspots'!K2:K), 0) > 1, " ×" & 'Ring Hotspots'!K2:K, "")),
+             'Ring Hotspots'!G2:G,
+             ARRAYFORMULA(IF('Ring Hotspots'!I2:I = "Hotspot [NOTE]",
+               "Hotspot" & IF('Ring Hotspots'!J2:J = "", "", ": " & 'Ring Hotspots'!J2:J),
+               'Ring Hotspots'!I2:I))},
+            (Dashboard!$A$5="") + ('Ring Hotspots'!B2:B=Dashboard!$A$5) > 0,
+            (Dashboard!$B$5="") + ('Ring Hotspots'!H2:H=Dashboard!$B$5) > 0,
+            'Ring Hotspots'!M2:M <> 1
+          ),
+          sortkey, INDEX(dep, 0, Queries!$N$1),
+          IF(
+            ROWS(dep) = 1,
+            dep,
+            SORT(
+              dep,
+              ARRAYFORMULA(IFERROR(MATCH(sortkey, {"Depleted";"Low";"Common";"Major";"Pristine"}, 0), sortkey)),
+              Queries!$N$2
+            )
+          )
+        ),
+        {"No hotspots match this filter","","","","","",""}
+      )
+    }
+  )
 )`,
-  'Queries!A1': `=IFERROR(SORT(UNIQUE(FILTER('Surface Sites'!B2:B, 'Surface Sites'!B2:B<>"", 'Surface Sites'!W2:W<>1))), "")`,
-  'Queries!B1': `=IFERROR(SORT(UNIQUE(FILTER('Surface Sites'!L2:L, 'Surface Sites'!L2:L<>"", 'Surface Sites'!W2:W<>1))), "")`
+  'Queries!A1': `=IFERROR(SORT(UNIQUE(FILTER(
+  {'Surface Sites'!B2:B; 'Ring Hotspots'!B2:B},
+  {'Surface Sites'!B2:B; 'Ring Hotspots'!B2:B}<>"",
+  {'Surface Sites'!W2:W; 'Ring Hotspots'!M2:M}<>1))), "")`,
+  'Queries!B1': `=IFERROR(SORT(UNIQUE(FILTER(
+  {'Surface Sites'!L2:L; 'Ring Hotspots'!H2:H},
+  {'Surface Sites'!L2:L; 'Ring Hotspots'!H2:H}<>"",
+  {'Surface Sites'!W2:W; 'Ring Hotspots'!M2:M}<>1))), "")`
 };
 
 // ------------------------------------------------------------------ triggers & menu
@@ -981,6 +1043,14 @@ function onEdit(e) {
   if (!e || !e.range) return;
   const name = e.range.getSheet().getName();
   if (name === ED.THEMES) { applyTheme(); return; }
+  if (name === ED.DASH) {
+    const site = e.range.getSheet().getRange(ED.SITE_CELL);
+    if (e.range.getRow() <= site.getRow() && e.range.getLastRow() >= site.getRow() &&
+        e.range.getColumn() <= site.getColumn() && e.range.getLastColumn() >= site.getColumn()) {
+      siteChanged_(e.range.getSheet());
+    }
+    return;
+  }
   if (name !== ED.SETTINGS) return;
   const lastRoleRow = ED.ROLE_FIRST_ROW + ED.ROLE_COUNT - 1;
   const touchesCol = e.range.getColumn() <= 2 && e.range.getLastColumn() >= 2;
@@ -1067,7 +1137,7 @@ function rebuildDashboard_(ss) {
   const dash = ss.getSheetByName(ED.DASH);
   const q = ss.getSheetByName(ED.QUERIES);
   if (!dash || !q) return false;
-  const H = ED.HEADERS, n = H.length;
+  const H = ED.HEADERS, R = ED.RING_HEADERS, n = H.length;
 
   // Room for the layout below, on a sheet somebody has trimmed.
   if (dash.getMaxColumns() < ED.DASH_COLS)
@@ -1079,9 +1149,12 @@ function rebuildDashboard_(ss) {
   dash.getRange(ED.HEADER_ROW, 1, dash.getMaxRows() - ED.HEADER_ROW + 1, ED.DASH_COLS).clearContent();
   q.getRange(1, 1, q.getMaxRows(), q.getMaxColumns()).clearContent();
 
-  // Queries helpers: names (the Sort By list), names with the sort arrow (the
-  // table header), the sort column index and direction.
-  q.getRange(1, 4, 1, n).setValues([H]);
+  siteControl_(dash);
+
+  // Queries helpers: names for the current Site Type (the Sort By list),
+  // names with the sort arrow (the table header), the sort column index and
+  // direction.
+  q.getRange(1, 4, 1, n).setFormulas([headerNameFormulas_()]);
   const arrows = H.map((_, i) => {
     const c = String.fromCharCode(68 + i);     // D, E, ...
     return `=${c}1&IF(${c}1=Dashboard!$E$5,IF(Dashboard!$F$5="Descending"," ▼"," ▲"),"")`;
@@ -1101,17 +1174,69 @@ function rebuildDashboard_(ss) {
     SpreadsheetApp.newDataValidation()
       .requireValueInRange(q.getRange(ED.SORT_NAMES), true).build());
 
-  // Layout: widths across A:K, the margin column shown, everything past it
-  // hidden, and the Notes column wrapped so a long note reads as a paragraph.
-  ED.WIDTHS.forEach((w, i) => dash.setColumnWidth(i + 1, w));
+  layoutDashboard_(dash);
+  return true;
+}
+
+/**
+ * Queries!D1:M1: each header name for the Site Type in Dashboard!D5. Ring has
+ * fewer columns, so its trailing names are blank.
+ */
+function headerNameFormulas_() {
+  return ED.HEADERS.map((name, i) =>
+    `=IF(Dashboard!$D$5="Ring","${ED.RING_HEADERS[i] || ''}","${name}")`);
+}
+
+/** The Site Type dropdown: its label, its list, Surface when it holds neither. */
+function siteControl_(dash) {
+  const cell = dash.getRange(ED.SITE_CELL);
+  dash.getRange(cell.getRow() - 1, cell.getColumn())
+    .setValue(text_(TEMPLATE.DASH_LABELS['D4']));
+  cell.setDataValidation(SpreadsheetApp.newDataValidation()
+    .requireValueInList(TEMPLATE.SITE_TYPES, true).setAllowInvalid(false).build());
+  if (TEMPLATE.SITE_TYPES.indexOf(cell.getDisplayValue()) < 0)
+    cell.setValue(TEMPLATE.SITE_TYPES[0]);
+}
+
+function isRing_(dash) {
+  return dash.getRange(ED.SITE_CELL).getDisplayValue() === 'Ring';
+}
+
+/**
+ * Site Type changed: Sort By falls back to the first column when the new
+ * table has no column of that name, and the columns are laid out again.
+ */
+function siteChanged_(dash) {
+  const names = isRing_(dash) ? ED.RING_HEADERS : ED.HEADERS;
+  const by = dash.getRange(ED.SORT_BY_CELL);
+  if (names.indexOf(by.getDisplayValue()) < 0) by.setValue(names[0]);
+  layoutDashboard_(dash);
+}
+
+/**
+ * Widths, alignment and wrapping for the table shown. Surface uses A:J; Ring
+ * uses A:G and hides H:J. The margin column stays shown and everything past
+ * it hidden. The last column wraps so a long note reads as a paragraph.
+ */
+function layoutDashboard_(dash) {
+  const ring = isRing_(dash);
+  const widths = ring ? ED.RING_WIDTHS : ED.WIDTHS.slice(0, ED.DATA_COLS);
+  const lefts = ring ? ED.RING_LEFT_COLS : ED.LEFT_COLS;
+  const wrap = widths.length;
+
+  widths.forEach((w, i) => dash.setColumnWidth(i + 1, w));
+  dash.setColumnWidth(ED.DASH_COLS, ED.WIDTHS[ED.DASH_COLS - 1]);
   dash.showColumns(1, ED.DASH_COLS);
+  if (wrap < ED.DATA_COLS) dash.hideColumns(wrap + 1, ED.DATA_COLS - wrap);
   const maxC = dash.getMaxColumns();
   if (maxC > ED.DASH_COLS) dash.hideColumns(ED.DASH_COLS + 1, maxC - ED.DASH_COLS);
-  const dataRows = dash.getMaxRows() - ED.DATA_FIRST_ROW + 1;
-  dash.getRange(ED.DATA_FIRST_ROW, 1, dataRows, ED.DATA_COLS).setVerticalAlignment('top');
-  dash.getRange(ED.HEADER_ROW, ED.NOTES_COL, dataRows + 1, 1)
-    .setWrap(true).setHorizontalAlignment('left');
-  return true;
+
+  const rows = dash.getMaxRows() - ED.HEADER_ROW + 1;
+  dash.getRange(ED.HEADER_ROW, 1, rows, ED.DATA_COLS)
+    .setWrap(false).setHorizontalAlignment('center');
+  lefts.forEach(c => dash.getRange(ED.HEADER_ROW, c, rows, 1).setHorizontalAlignment('left'));
+  dash.getRange(ED.DATA_FIRST_ROW, 1, rows - 1, ED.DATA_COLS).setVerticalAlignment('top');
+  dash.getRange(ED.DATA_FIRST_ROW, wrap, rows - 1, 1).setWrap(true);
 }
 
 // ------------------------------------------------------------------ theme resolution
@@ -1187,20 +1312,23 @@ function styleDashboard_(sh, t) {
   sh.getRange(3, 1, 1, D).setBackground(c['Accent']);           // HUD stripe
 
   // Filter and sort controls
-  sh.getRangeList(['A4:B4', 'E4:F4']).setFontColor(c['Text Dim'])
+  sh.getRangeList(['A4:B4', 'D4:F4']).setFontColor(c['Text Dim'])
     .setFontWeight('bold').setFontSize(9);
-  sh.getRangeList(['A5:B5', 'E5:F5']).setBackground(c['Panel'])
+  sh.getRangeList(['A5:B5', 'D5:F5']).setBackground(c['Panel'])
     .setFontColor(c['Input Text']).setFontWeight('bold')
     .setBorder(true, true, true, true, true, false, c['Accent'], SOLID);
 
   // Conditional formatting, rebuilt every time. Sheets applies the first rule
   // that matches, so the specific rules go before the general ones — and every
   // pair that could overlap is also written to be mutually exclusive, so order
-  // only matters between High/Low and the plain banding.
+  // only matters between High/Low or Reserve and the plain banding. Surface
+  // and Ring rules exclude each other on Site Type (D5). The header rule is
+  // per cell, so a Ring header leaves the columns it does not use alone.
   const r0 = ED.DATA_FIRST_ROW, n = maxR - r0 + 1;
   const header = sh.getRange(ED.HEADER_ROW, 1, 1, D);
   const all = sh.getRange(r0, 1, n, D);
   const hilo = sh.getRange(r0, 6, n, 2);                          // Amount, Density
+  const reserve = sh.getRange(r0, 6, n, 1);                       // Ring: Reserve
   const bands = [[0, c['Panel']], [1, c['Panel Alt']]];           // row 8 is even
   const mk = (range, formula, bg, fg, o) => {
     let b = SpreadsheetApp.newConditionalFormatRule()
@@ -1213,15 +1341,22 @@ function styleDashboard_(sh, t) {
   };
   const rules = [];
   const h = ED.HEADER_ROW;
-  rules.push(mk(header, `=$A$${h}<>""`, c['Accent'], c['Accent Text'], { bold: true }));
+  const surface = '$D$5<>"Ring"', ring = '$D$5="Ring"';
+  rules.push(mk(header, `=A$${h}<>""`, c['Accent'], c['Accent Text'], { bold: true }));
   bands.forEach(([p, bg]) => {
-    rules.push(mk(hilo, `=AND($A${r0}<>"",$I${r0}="",F${r0}="High",MOD(ROW(),2)=${p})`,
+    rules.push(mk(hilo, `=AND(${surface},$A${r0}<>"",$I${r0}="",F${r0}="High",MOD(ROW(),2)=${p})`,
       bg, c['Highlight'], { bold: true }));
-    rules.push(mk(hilo, `=AND($A${r0}<>"",$I${r0}="",F${r0}="Low",MOD(ROW(),2)=${p})`,
+    rules.push(mk(hilo, `=AND(${surface},$A${r0}<>"",$I${r0}="",F${r0}="Low",MOD(ROW(),2)=${p})`,
+      bg, c['Text Dim']));
+  });
+  bands.forEach(([p, bg]) => {
+    rules.push(mk(reserve, `=AND(${ring},$A${r0}<>"",OR(F${r0}="Pristine",F${r0}="Major"),MOD(ROW(),2)=${p})`,
+      bg, c['Highlight'], { bold: true }));
+    rules.push(mk(reserve, `=AND(${ring},$A${r0}<>"",OR(F${r0}="Low",F${r0}="Depleted"),MOD(ROW(),2)=${p})`,
       bg, c['Text Dim']));
   });
   bands.forEach(([p, bg]) => rules.push(mk(all,
-    `=AND($A${r0}<>"",$I${r0}<>"",MOD(ROW(),2)=${p})`, bg, c['Warning'], { italic: true, strike: true })));
+    `=AND(${surface},$A${r0}<>"",$I${r0}<>"",MOD(ROW(),2)=${p})`, bg, c['Warning'], { italic: true, strike: true })));
   bands.forEach(([p, bg]) => rules.push(mk(all,
     `=AND($A${r0}<>"",$I${r0}="",MOD(ROW(),2)=${p})`, bg, c['Text'])));
   sh.setConditionalFormatRules(rules);   // replaces all CF rules on Dashboard
@@ -1472,9 +1607,10 @@ function buildDashboardTab_(ss) {
   dash.getRange('E2').setFormula('=Settings!D1');
   Object.keys(T.DASH_LABELS).forEach(a =>
     dash.getRange(a).setValue(text_(T.DASH_LABELS[a])));
-  dash.getRange('E5:F5').setValues(texts_([[ED.HEADERS[0], T.SORT_ORDERS[0]]]));
+  dash.getRange('D5:F5').setValues(texts_([[T.SITE_TYPES[0], ED.HEADERS[0], T.SORT_ORDERS[0]]]));
 
-  // Filter lists come from Queries A and B; Sort By is set by Repair.
+  // Filter lists come from Queries A and B; Site Type and Sort By are set by
+  // Repair.
   [['A5', 'A1:A1000'], ['B5', 'B1:B1000']].forEach(([cell, src]) =>
     dash.getRange(cell).setDataValidation(SpreadsheetApp.newDataValidation()
       .requireValueInRange(q.getRange(src), true).setAllowInvalid(true).build()));
@@ -1567,6 +1703,13 @@ var SHEET_MIGRATIONS = [
       rebuildDashboard_(ss);
       applyTheme();
       return made ? 'added Ring Hotspots' : 'Ring Hotspots present';
+    }
+  },
+  {
+    to: 5,
+    name: 'Dashboard Site Type: surface sites or ring hotspots',
+    run: function (ss) {
+      if (rebuildDashboard_(ss)) applyTheme();
     }
   }
 ];

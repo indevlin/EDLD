@@ -21,6 +21,12 @@ TEMPLATE = SHEETS / "Mining_Dashboard.xlsx"
 DASHBOARD_FIELDS = ("system", "body", "gravity", "signal_no", "commodity",
                     "amount", "density_observed", "rigs", "depleted_on", "notes")
 
+#: Every Ring Hotspots field the ring table reads, in the order its columns
+#: name them: System, Body, Ring, Type, Commodity (with count), Reserve,
+#: Overlap (with note).
+RING_FIELDS = ("system", "body", "ring", "ring_type", "commodity", "count",
+               "count", "reserve_level", "overlap", "note", "note", "overlap")
+
 
 # ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -47,15 +53,33 @@ def _formulas() -> dict[str, str]:
     return dict(re.findall(r"'([A-Za-z]+![A-Z]+\d+)':\s*`([^`]*)`", block.group(1)))
 
 
-def _field(letter: str) -> str:
+def _hotspot_columns() -> tuple[str, ...]:
+    gs = (SHEETS / "Code.gs").read_text(encoding="utf-8")
+    block = re.search(r"var HOTSPOT_COLUMNS = \[(.*?)\];", gs, re.S)
+    assert block, "HOTSPOT_COLUMNS not found in Code.gs"
+    return tuple(re.findall(r"'([a-z_]+)'", block.group(1)))
+
+
+def _field(letter: str, columns=None) -> str:
     n = 0
     for ch in letter:
         n = n * 26 + ord(ch) - 64
-    return _code_gs_columns()[n - 1]
+    return (columns or _code_gs_columns())[n - 1]
 
 
-#: The surface sites tab as the formulas reference it.
+def _ring(letter: str) -> str:
+    return _field(letter, _hotspot_columns())
+
+
+def _ring_branch() -> str:
+    """Dashboard!A7 from the ring table's header on: the second of its two tables."""
+    f = _formulas()["Dashboard!A7"]
+    return f[f.index("Queries!$D$2:", f.index("Queries!$D$2:") + 1):]
+
+
+#: The surface sites and ring hotspots tabs as the formulas reference them.
 SITES = r"'Surface Sites'!"
+RINGS = r"'Ring Hotspots'!"
 
 
 def _condition_field(formula: str, pattern: str) -> str:
@@ -94,12 +118,81 @@ def test_dashboard_filter_conditions_test_the_intended_fields():
     assert _condition_field(formula, SITES + r"([A-Z]+)2:\1 <> 1") == "is_test"
 
 
-def test_dropdown_lists_read_system_and_commodity_without_test_rows():
+def test_dropdown_lists_read_both_tabs_without_test_rows():
     f = _formulas()
     for key, field in (("Queries!A1", "system"), ("Queries!B1", "commodity")):
-        m = re.search(r"FILTER\(" + SITES + r"([A-Z]+)2:\1,", f[key])
-        assert m and _field(m.group(1)) == field, key
-        assert _condition_field(f[key], SITES + r"([A-Z]+)2:\1<>1") == "is_test", key
+        stacks = re.findall(r"\{" + SITES + r"([A-Z]+)2:\1; " + RINGS + r"([A-Z]+)2:\2\}",
+                            f[key])
+        assert len(stacks) == 3, key
+        (vals, nonblank, test) = stacks
+        assert vals == nonblank, key
+        assert (_field(vals[0]), _ring(vals[1])) == (field, field), key
+        assert (_field(test[0]), _ring(test[1])) == ("is_test", "is_test"), key
+        assert re.search(r"\}<>\"\",", f[key]) and re.search(r"\}<>1\)", f[key]), key
+
+
+# ── ring hotspots ─────────────────────────────────────────────────────────────
+
+def test_ring_table_shows_the_intended_fields():
+    shown = re.search(r"FILTER\(\s*\{(.*?)\},\s*\(", _ring_branch(), re.S)
+    assert shown, "ring FILTER column list not found"
+    letters = re.findall(RINGS + r"([A-Z]+)2:\1\b", shown.group(1))
+    assert tuple(_ring(x) for x in letters) == RING_FIELDS
+
+
+def test_ring_table_conditions_test_the_intended_fields():
+    f = _ring_branch()
+    assert _ring(re.search(r"\(" + RINGS + r"([A-Z]+)2:\1=Dashboard!\$A\$5\)", f).group(1)) == "system"
+    assert _ring(re.search(r"\(" + RINGS + r"([A-Z]+)2:\1=Dashboard!\$B\$5\)", f).group(1)) == "commodity"
+    assert _ring(re.search(RINGS + r"([A-Z]+)2:\1 <> 1", f).group(1)) == "is_test"
+
+
+def test_overlap_with_a_hotspot_names_it_from_the_choice_edld_offers():
+    from core.ring_hotspots import OVERLAPS
+    m = re.search(r'IF\(' + RINGS + r'[A-Z]+2:[A-Z]+ = "([^"]+)"', _ring_branch())
+    assert m and m.group(1) in OVERLAPS and m.group(1).startswith("Hotspot")
+
+
+def test_ring_sort_rank_is_the_reserve_levels_edld_records():
+    from core.ring_hotspots import RESERVE_LEVELS
+    rank = re.search(r"MATCH\(sortkey, \{([^}]*)\}", _ring_branch())
+    assert rank, "rank list not found in the ring SORT"
+    assert tuple(re.findall(r'"([^"]+)"', rank.group(1))) == tuple(reversed(RESERVE_LEVELS))
+
+
+def test_ring_rows_are_as_wide_as_the_ring_header():
+    rings = _literal(BUILD, "RING_HEADERS")
+    f = _ring_branch()
+    heads = re.findall(r"Queries!\$D\$2:\$([A-Z])\$2;", _formulas()["Dashboard!A7"])
+    assert heads[1] == chr(ord("D") + len(rings) - 1), "ring header range"
+    empty = re.search(r'\{"No hotspots match this filter"((?:,"")*)\}', f)
+    assert empty and empty.group(1).count(",") + 1 == len(rings)
+    shown = re.search(r"FILTER\(\s*\{(.*?)\},\s*\(", f, re.S).group(1)
+    depth, cols = 0, 1
+    for ch in shown:
+        depth += ch == "("
+        depth -= ch == ")"
+        cols += ch == "," and depth == 0
+    assert cols == len(rings)
+
+
+def test_both_files_list_the_same_ring_columns():
+    gs = (SHEETS / "Dashboard.gs").read_text(encoding="utf-8")
+    block = re.search(r"RING_HEADERS: \[(.*?)\]", gs, re.S)
+    assert block, "ED.RING_HEADERS not found in Dashboard.gs"
+    rings = _literal(BUILD, "RING_HEADERS")
+    assert re.findall(r"'([^']+)'", block.group(1)) == rings
+    widths = re.search(r"RING_WIDTHS: \[(.*?)\]", gs).group(1).split(",")
+    assert len(widths) == len(rings)
+    assert len(rings) <= len(_literal(BUILD, "HEADERS"))
+
+
+def test_site_type_picks_the_table_and_surface_is_the_default():
+    f = _formulas()["Dashboard!A7"]
+    assert re.search(r'IF\(\s*Dashboard!\$D\$5<>"Ring",', f)
+    assert f.index(SITES.replace("\\", "")) < f.index("'Ring Hotspots'!")
+    assert _literal(BUILD, "SITE_TYPES") == ["Surface", "Ring"]
+    assert _literal(BUILD, "DASH_LABELS")["D4"] == "Site Type"
 
 
 def test_both_files_list_the_same_table_columns():
@@ -142,6 +235,12 @@ def test_a_single_matching_deposit_is_not_handed_to_sort():
     guard = re.search(r"IF\(\s*ROWS\(dep\)\s*=\s*1,\s*dep,\s*SORT\(", f)
     assert guard, "the SORT must be skipped when FILTER returns one row"
     assert f.index("ROWS(dep)") < f.index("SORT("), "the guard must wrap the SORT"
+
+
+def test_the_site_type_reaches_existing_sheets():
+    up = (SHEETS / "Upgrade.gs").read_text(encoding="utf-8")
+    steps = re.findall(r"to:\s*(\d+),\s*name:\s*'([^']*)'", up)
+    assert any("Site Type" in name for _n, name in steps)
 
 
 def test_the_one_row_fix_reaches_existing_sheets():

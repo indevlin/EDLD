@@ -10,7 +10,8 @@
 // stored as the text after it, which is what Sheets does.
 //
 // Used by tests/test_sheets_loader.py. Reads a JSON scenario on stdin and
-// prints what happened as JSON.
+// prints what happened as JSON. A step is a call, a post, or an edit: a value
+// typed into one cell, followed by onEdit.
 'use strict';
 const fs = require('fs');
 const crypto = require('crypto');
@@ -188,6 +189,12 @@ for (const step of spec.steps) {
   try {
     if (step.call) out = globalThis[step.call]();
     else if (step.post) out = doPost({ postData: { contents: JSON.stringify(step.post) } });
+    else if (step.edit) {
+      // A user typing into a cell: the value lands, then onEdit fires on it.
+      const range = ss.getSheetByName(step.edit.sheet).getRange(step.edit.a1);
+      range.setValue(step.edit.value);
+      out = onEdit({ range: range, value: step.edit.value });
+    }
   } catch (err) { out = { thrown: String(err && err.message || err) }; }
   log.results.push(out === undefined ? null : out);
 }

@@ -318,15 +318,28 @@ placeholders.
 B2; the dashboard title and subtitle come from those. Leave B1 blank and the
 title falls back to "CMDR *name*'s Mining Data". D1 carries the template version.
 
+**Site Type.** D5 picks the table: Surface shows `Surface Sites`, Ring shows
+`Ring Hotspots`. The two have different columns, so the table changes with it.
+Ring shows System, Body, Ring, Type, Commodity, Reserve and Overlap. A ring with
+more than one hotspot of a commodity shows the count beside it ("Platinum ×2"),
+and an overlap with another hotspot names it ("Hotspot: Painite"). With EDLD
+installed in the sheet, changing Site Type also resizes the columns and hides
+the ones Ring does not use; without it the table still switches, at Surface's
+widths.
+
 **Filtering.** Pick a System, a Commodity, or both in A5:B5. The table appears
 at row 7 once either is set, and is empty until then. Both lists are built from
-whatever is in `Surface Sites`, so they fill themselves as commanders publish.
-Deposits flagged `is_test` are left out, as they are from EDLD's own reads.
+whatever is in `Surface Sites` and `Ring Hotspots` together, so they fill
+themselves as commanders publish and a filter holds when Site Type changes.
+Rows flagged `is_test` are left out, as they are from EDLD's own reads.
 
 **Sorting.** Sort By and Order (E5:F5) sort the table; the header of the sorted
 column carries ▲ or ▼. With EDLD installed in the sheet, clicking a header does the
 same: once to sort by it, again to reverse. Amount and Density sort by rank —
-Low, Medium, High, the levels EDLD records — rather than alphabetically. The sort is shared, since it
+Low, Medium, High, the levels EDLD records — rather than alphabetically, and
+Reserve likewise, Depleted up to Pristine. Changing Site Type keeps the sort
+when the other table has a column of that name, and sorts by System when it
+does not. The sort is shared, since it
 lives in two cells: whoever clicks last decides it for everyone viewing.
 
 Sorting is done inside the table's formula, not with Data → Sort range. The
@@ -336,8 +349,10 @@ recalculation.
 
 **Readability.** Rows alternate between the theme's Panel and Panel Alt colors.
 High amounts and densities are highlighted, Low ones dimmed, and a deposit with
-a depletion date is struck through. Notes sit in the last column, wrapped, and
-the rest of the row aligns with their first line.
+a depletion date is struck through. Ring reserves read the same way: Pristine
+and Major highlighted, Low and Depleted dimmed. Notes, or Overlap for rings, sit
+in the last column, wrapped, and the rest of the row aligns with their first
+line.
 
 **Theme.** Settings B5 picks one of five presets — Classic HUD, Federation,
 Empire, Alliance, Thargoid — or Custom, which uses the hex codes in B10:B21.
@@ -374,9 +389,10 @@ and rebuild, and the template and the repair command stay in agreement. The
 Classic HUD palette appears in both files (`THEMES` and `ED.FALLBACK`).
 
 `tests/test_sheets_dashboard.py` holds the pieces together: the committed
-template must match a fresh build, the FILTER's column letters must name the
-right fields in `Code.gs` `COLUMNS`, the sort rank must match the levels in
-`core/mining_db.py`, and the two copies of Classic HUD must agree. Changing
+template must match a fresh build, each FILTER's column letters must name the
+right fields in `Code.gs` `COLUMNS` and `HOTSPOT_COLUMNS`, the sort ranks must
+match the levels in `core/mining_db.py` and `core/ring_hotspots.py`, and the
+two copies of Classic HUD must agree. Changing
 `COLUMNS` — appending, as it always should be — leaves the letters valid; the
 test is there for the day something is inserted instead.
 
