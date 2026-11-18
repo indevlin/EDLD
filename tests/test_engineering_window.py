@@ -206,6 +206,25 @@ def test_short_links_are_followed_and_wanted():
         builds.parse("https://edsy.org/s/abc")
 
 
+def test_a_host_that_only_ends_like_a_planner_is_not_one():
+    data = base64.b64encode(gzip.compress(json.dumps(LOADOUT).encode())).decode()
+    seen = []
+
+    def fetch(url):
+        seen.append(url)
+        return f"https://coriolis.io/import?data={data}"
+    for url in (f"https://notcoriolis.io/import?data={data}",
+                "https://evil-orbis.zone/abc",
+                "https://edsy.org.example.com/s/abc",
+                "https://edsy.org@example.com/s/abc",
+                "https://example.com/edomh.nl"):
+        with pytest.raises(builds.BuildError, match="Not a link EDLD reads"):
+            builds.parse(url, fetch=fetch)
+    assert seen == []
+    b, _ = builds.parse("https://SH.Orbis.Zone:443/abc", fetch=fetch)
+    assert b["ship"] == "testhull"
+
+
 def test_what_is_not_a_build_says_so():
     for text in ("", "hello", "https://example.com/x", "{\"a\": 1}", "[]"):
         with pytest.raises(builds.BuildError):

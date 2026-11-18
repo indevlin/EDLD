@@ -60,8 +60,11 @@ def _from_url(url: str, fetch, db, warnings, hops: int) -> dict:
     if low.startswith("edomh://"):
         return from_edomh(decode_edomh_uri(url), db, warnings, url)
     parsed = urllib.parse.urlparse(url if "://" in url else "https://" + url)
-    host = (parsed.netloc or "").lower()
-    if host.endswith("edsy.org"):
+    try:
+        host = (parsed.hostname or "").lower()
+    except ValueError:
+        host = ""
+    if _on(host, "edsy.org"):
         frag = parsed.fragment or ""
         m = re.search(r"(?:^|/)L=([^/&]+)", frag)
         if m:
@@ -71,7 +74,7 @@ def _from_url(url: str, fetch, db, warnings, hops: int) -> dict:
         if parsed.path.startswith("/s/"):
             return _from_url(_follow(url, fetch), fetch, db, warnings, hops + 1)
         raise BuildError("That EDSY link has no build in it (no #/L=…).")
-    if host.endswith("coriolis.io") or host.endswith("coriolis.edcd.io"):
+    if _on(host, "coriolis.io") or _on(host, "coriolis.edcd.io"):
         data = urllib.parse.parse_qs(parsed.query).get("data")
         if data:
             build = _from_json(decode_coriolis(data[0]), db, warnings)
@@ -80,14 +83,19 @@ def _from_url(url: str, fetch, db, warnings, hops: int) -> dict:
             return build
         raise BuildError("That Coriolis link has no build in it (no import?data=…). "
                          "Use Coriolis's Export → SLEF, or its share link.")
-    if host.endswith("orbis.zone"):
+    if _on(host, "orbis.zone"):
         return _from_url(_follow(url, fetch), fetch, db, warnings, hops + 1)
-    if host.endswith("edomh.nl"):
+    if _on(host, "edomh.nl"):
         target = _follow(url, fetch)
         if not target.lower().startswith("edomh://"):
             raise BuildError("That EDOMH link did not lead to a ship.")
         return _from_url(target, fetch, db, warnings, hops + 1)
     raise BuildError("Not a link EDLD reads: EDSY, Coriolis, EDOMH, or SLEF/Loadout JSON.")
+
+
+def _on(host: str, domain: str) -> bool:
+    """``host`` is ``domain`` or one of its subdomains."""
+    return host == domain or host.endswith("." + domain)
 
 
 def _follow(url: str, fetch: Optional[Fetch]) -> str:
