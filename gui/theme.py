@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from core.palette import rgb
 
-#: Point sizes.
+#: Point sizes at the default text size; every size moves with the text's.
 FONT_SIZES = {
     "title":   11,
     "section":  9,
@@ -19,6 +19,89 @@ FONT_SIZES = {
 
 #: The monospace stack used for value columns.
 MONO_FAMILIES = '"DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", monospace'
+
+#: Text sizes offered in Options, in points.
+FONT_SIZE_CHOICES = tuple(range(8, 21))
+
+#: Where a row's value sits: [UI] ValuePlacement.
+VALUES_EDGE = "edge"
+VALUES_LABELS = "labels"
+VALUE_PLACEMENTS = (
+    (VALUES_EDGE,   "At the right edge"),
+    (VALUES_LABELS, "Beside their labels"),
+)
+
+#: The [UI] settings the desktop windows' text and rows are drawn by
+#: (configure()). Chrome drawn in a console's own face is not affected.
+_TYPE: dict = {"family": "", "figures": "", "size": FONT_SIZES["body"],
+               "stripes": True, "values": VALUES_EDGE}
+_APP_FONT = None
+
+
+#: The [UI] keys configure() reads.
+TYPE_KEYS = ("FontFamily", "FigureFamily", "FontSize", "RowStripes", "ValuePlacement")
+
+
+def signature(ui: "dict | None") -> tuple:
+    """What configure() would be given, to tell when it has changed."""
+    ui = ui or {}
+    return tuple(str(ui.get(k, "")) for k in TYPE_KEYS)
+
+
+def configure(ui: "dict | None") -> None:
+    """Take the text and row settings from the [UI] table."""
+    ui = ui or {}
+    try:
+        size = int(float(ui.get("FontSize", FONT_SIZES["body"])))
+    except (TypeError, ValueError):
+        size = FONT_SIZES["body"]
+    stripes = ui.get("RowStripes", True)
+    if not isinstance(stripes, bool):
+        stripes = str(stripes).strip().lower() in ("1", "true", "on", "yes")
+    values = str(ui.get("ValuePlacement", VALUES_EDGE) or VALUES_EDGE).strip().lower()
+    _TYPE.update(
+        family=str(ui.get("FontFamily", "") or "").strip(),
+        figures=str(ui.get("FigureFamily", "") or "").strip(),
+        size=min(max(size, FONT_SIZE_CHOICES[0]), FONT_SIZE_CHOICES[-1]),
+        stripes=stripes,
+        values=values if values in dict(VALUE_PLACEMENTS) else VALUES_EDGE,
+    )
+
+
+def sizes() -> dict:
+    """FONT_SIZES moved by the chosen text size."""
+    delta = _TYPE["size"] - FONT_SIZES["body"]
+    return {k: max(6, v + delta) for k, v in FONT_SIZES.items()}
+
+
+def mono_families() -> str:
+    fig = _TYPE["figures"].replace('"', "")
+    return f'"{fig}", {MONO_FAMILIES}' if fig else MONO_FAMILIES
+
+
+def row_stripes() -> bool:
+    return bool(_TYPE["stripes"])
+
+
+def values_beside_labels() -> bool:
+    return _TYPE["values"] == VALUES_LABELS
+
+
+def apply_app_font(app=None) -> None:
+    """The chosen face as the application's font; blank restores the
+    system's. Widgets given a face of their own keep it."""
+    global _APP_FONT
+    from PySide6.QtWidgets import QApplication
+    app = app or QApplication.instance()
+    if app is None:
+        return
+    from PySide6.QtGui import QFont
+    if _APP_FONT is None:
+        _APP_FONT = QFont(app.font())
+    font = QFont(_APP_FONT)
+    if _TYPE["family"]:
+        font.setFamilies([_TYPE["family"]] + list(_APP_FONT.families()))
+    app.setFont(font)
 
 
 def _arrow_png(colour: str) -> str:
@@ -68,7 +151,8 @@ def _arrow_png(colour: str) -> str:
 def stylesheet(theme_name: str = "default") -> str:
     """Return the complete Qt Style Sheet for ``theme_name``."""
     c = rgb(theme_name)
-    f = FONT_SIZES
+    f = sizes()
+    mono = mono_families()
     arrow = _arrow_png(c["dim"])
     arrow_rule = (f'QComboBox::down-arrow {{ image: url("{arrow}"); '
                   f'width: 10px; height: 6px; }}') if arrow else ""
@@ -103,7 +187,7 @@ QLabel[role="key"]  {{ color: {c['dim']}; background: transparent; }}
 QLabel[role="val"]  {{
     color: {c['fg']};
     background: transparent;
-    font-family: {MONO_FAMILIES};
+    font-family: {mono};
 }}
 QLabel[role="section"] {{
     color: {c['accent']};
@@ -125,7 +209,7 @@ QLabel[role="dim"]    {{ color: {c['dim']}; background: transparent; }}
 
    Keyed on a property KVRow sets once and never rewrites, rather than on the
    role, because the role is exactly what changes when the color does. */
-QLabel[col="value"] {{ font-family: {MONO_FAMILIES}; }}
+QLabel[col="value"] {{ font-family: {mono}; }}
 QLabel[role="hdrkey"] {{
     color: {c['accent']};
     background: transparent;
@@ -135,6 +219,11 @@ QLabel[health="good"] {{ color: {c['green']}; }}
 QLabel[health="warn"] {{ color: {c['amber']}; }}
 QLabel[health="crit"] {{ color: {c['red']}; }}
 QLabel[role="highlight"] {{ color: {c['accent']}; background: transparent; }}
+
+/* Rows (gui/block_base.py): every other row of a group in the stripe the
+   tables use, while [UI] RowStripes is on. */
+QWidget[kvrow="true"] {{ background: transparent; }}
+QWidget[kvrow="true"][stripe="true"] {{ background-color: {c['row-alt']}; }}
 
 QFrame[role="rule"] {{
     background-color: {c['border']};

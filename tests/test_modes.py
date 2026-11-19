@@ -135,8 +135,11 @@ def test_the_file_is_migrated_once_keeping_comments(tmp_path):
     assert d["EDP2"]["UI"] == {"Interface": "terminal"}
     assert migrate_ui_interface(p) == []
     added = backfill_config_defaults(p)
-    # Mode and Style are not added back; Console and HelmPanel are new.
-    assert sorted(k for k in added if k.startswith("UI.")) == ["UI.Console", "UI.HelmPanel"]
+    # Mode and Style are not added back; the rest are new. Blank faces are
+    # not written.
+    assert sorted(k for k in added if k.startswith("UI.")) == [
+        "UI.Console", "UI.FontSize", "UI.HelmPanel", "UI.RowStripes",
+        "UI.ValuePlacement"]
 
 
 def test_a_config_that_never_set_an_interface_opens_edcars(tmp_path):

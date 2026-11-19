@@ -4,7 +4,7 @@
   Center : Commander  |  Crew/SLF  |  Alerts  |  Exploration
   Right  : Navigation  |  Colonization  |  Exobiology
 
-(the defaults — any of it reassignable from Preferences → Display.)
+(the defaults — any of it reassignable from Options → Interface.)
 
 Hotkeys match the TUI where the platform allows it:
 
@@ -41,6 +41,7 @@ from core.palette import rgb
 from gui.about import AboutDialog
 from gui.preferences import PreferencesDialog
 from gui.sell_dialog import SellDialog
+from gui import theme as _typography
 from gui.theme import stylesheet
 
 from gui.blocks.career       import CareerBlock
@@ -166,6 +167,10 @@ class EdldWindow(QMainWindow):
 
         self._base_title = f"{program}  v{version}"
         self.setWindowTitle(self._base_title)
+        # The text and row settings, before anything is built with them.
+        _typography.configure(self._ui_cfg())
+        _typography.apply_app_font()
+        self._type_sig = _typography.signature(self._ui_cfg())
         self.setStyleSheet(stylesheet(theme))
         self.resize(1600, 950)
 
@@ -381,6 +386,9 @@ class EdldWindow(QMainWindow):
     # ── Queue polling ─────────────────────────────────────────────────────────
 
     def _poll_queue(self) -> None:
+        # config.toml edited by hand: its text and row settings, now.
+        if _typography.signature(self._ui_cfg()) != self._type_sig:
+            self.apply_text_and_rows()
         dirty: set[str] = set()
         try:
             while True:
@@ -535,6 +543,25 @@ class EdldWindow(QMainWindow):
         dlg.exec()
         # Automation turned on or off, or the Helm panel: shown or hidden now.
         self._refresh_block("block-helm")
+        self.apply_text_and_rows()
+
+    def _ui_cfg(self) -> dict:
+        return getattr(getattr(self._core, "cfg", None), "ui_cfg", None) or {}
+
+    def apply_text_and_rows(self) -> None:
+        """The [UI] face, size and row settings, as now saved, on every window
+        open."""
+        from gui.block_base import rearrange
+        self._type_sig = _typography.signature(self._ui_cfg())
+        _typography.configure(self._ui_cfg())
+        _typography.apply_app_font()
+        self.setStyleSheet(self._sheet(self._theme))
+        sell = getattr(self, "_sell_dialog", None)
+        if sell is not None:
+            from gui.edcars import dialog_qss
+            sell.setStyleSheet(stylesheet(self._theme) + dialog_qss(self._theme))
+        for top in QApplication.topLevelWidgets():
+            rearrange(top)
 
     def action_sell_table(self) -> None:
         """Open the sell table, or close it if it is already open."""

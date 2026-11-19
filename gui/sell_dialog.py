@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 )
 
 from core.sell_table import render_columns
-from gui.theme import stylesheet
+from gui.theme import row_stripes, stylesheet
 
 
 def _grid() -> QTableWidget:
@@ -30,7 +30,7 @@ def _grid() -> QTableWidget:
     grid.setSelectionMode(QAbstractItemView.NoSelection)
     grid.setEditTriggers(QAbstractItemView.NoEditTriggers)
     grid.setShowGrid(False)
-    grid.setAlternatingRowColors(True)
+    grid.setAlternatingRowColors(row_stripes())
     header = grid.horizontalHeader()
     header.setSectionResizeMode(0, QHeaderView.Stretch)
     header.setSectionResizeMode(1, QHeaderView.ResizeToContents)

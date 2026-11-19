@@ -1,14 +1,19 @@
 """gui/preferences.py — Preferences dialog (Qt).
 
-The Qt counterpart of ``tui/preferences.py``, carrying the same six pages:
+The Qt counterpart of ``tui/preferences.py``, carrying the same pages, in the
+order core/options_pages.py sets:
 
-  General       — journal folder, UTC, display toggles, inactivity alerts
+  General       — journal folder, UTC (and the Backups component's settings)
+  Interface     — the interface a plain launch opens, EDCARS, the Dashboard's
+                  Helm panel and window layout
+  Appearance    — theme; the desktop windows' text face and size, and rows
   Notifications — per-event log levels (0–3)
   Discord       — webhook, user ID, display options
-  Appearance    — theme, the interface a plain launch opens, EDCARS alerts,
-                  the Helm panel
-  Data          — CAPI, EDDN, EDSM, EDAstro, Inara, Raven Colonial
-  Display       — window layout (position → window assignment)
+  Combat        — kill messages, inactivity alerts
+  Services      — CAPI, EDDN, EDSM, EDAstro, Inara, Raven Colonial (and the
+                  EDSM Log component's settings)
+
+with the components' own pages among them.
 """
 
 from __future__ import annotations
@@ -37,7 +42,7 @@ from PySide6.QtWidgets import (
 from core.config import config_to_toml
 from core.palette import THEME_CHOICES, list_custom_themes, rgb
 from gui.edcars import RailPill
-from gui.theme import FONT_SIZES, stylesheet
+from gui.theme import sizes, stylesheet
 
 if TYPE_CHECKING:
     from core.core_api import CoreAPI
@@ -122,7 +127,7 @@ QPushButton#prefPill {{
     border-radius: 0px;
     text-align: left;
     padding: 5px 10px 5px 9px;
-    font-size: {FONT_SIZES['body']}pt;
+    font-size: {sizes()['body']}pt;
 }}
 QPushButton#prefPill:hover {{ color: {c['fg']}; }}
 QPushButton#prefPill:checked {{
@@ -253,15 +258,9 @@ class PreferencesDialog(QDialog):
         self._nav.idClicked.connect(self._pages.setCurrentIndex)
         self._labels: list[str] = []
 
-        for label, build in (("General", self._tab_general),
-                             ("Notifications", self._tab_notif),
-                             ("Discord", self._tab_discord),
-                             ("Appearance", self._tab_appearance),
-                             ("Data", self._tab_data),
-                             ("Display", self._tab_display)):
-            self._add_page(label, build())
         extra = []
-        for tab_id, tab_label, builder in self._extra_tabs():
+        for entry in self._extra_tabs():
+            tab_id, tab_label, builder = entry
             try:
                 # Builders are handed this dialog so their controls can record
                 # changes through the same _record() path as every other page.
@@ -270,16 +269,29 @@ class PreferencesDialog(QDialog):
                 except TypeError:
                     widget = builder()
                 if widget is not None:
-                    extra.append((str(tab_label), widget))
+                    extra.append((str(tab_id), str(tab_label), widget))
             except Exception as exc:
                 try:
                     from core import debug as _debug
                     _debug.exception(f"preferences tab {tab_id!r} failed", exc)
                 except Exception:
                     pass
-        # The components' pages in the order a commander reads the column,
-        # not the order their modules happen to load in.
-        for label, widget in sorted(extra, key=lambda e: e[0].casefold()):
+        from core import options_pages as OP
+        pages, merged = OP.arrange(extra)
+        builders = {
+            "pref-tab-general":    self._tab_general,
+            "pref-tab-interface":  self._tab_interface,
+            "pref-tab-appearance": self._tab_appearance,
+            "pref-tab-notif":      self._tab_notif,
+            "pref-tab-discord":    self._tab_discord,
+            "pref-tab-combat":     self._tab_combat,
+            "pref-tab-data":       self._tab_data,
+        }
+        own = {tid: w for tid, _l, w in extra}
+        for pid, label in pages:
+            widget = builders[pid]() if pid in builders else own[pid]
+            for _tid, _lab, part in merged.get(pid, ()):
+                self._merge_into(widget, part)
             self._add_page(label, widget)
 
         if self._edcars:
@@ -337,6 +349,26 @@ class PreferencesDialog(QDialog):
         self._nav.addButton(btn, idx)
         self._nav_lay.addWidget(btn)
         self._labels.append(label)
+
+    def _merge_into(self, page: QWidget, part: QWidget) -> None:
+        """A component's page drawn at the foot of one of EDLD's own."""
+        host = page.widget() if isinstance(page, QScrollArea) else page
+        lay = host.layout() if host is not None else None
+        if lay is None:
+            return
+        if isinstance(part, QScrollArea):
+            part = part.takeWidget() or part
+            # Set by the scroll area it came from; the page's own shows here.
+            part.setAutoFillBackground(False)
+        part.setObjectName("prefMerged")
+        part.setStyleSheet("QWidget#prefMerged { background: transparent; }")
+        inner = part.layout()
+        if inner is not None:
+            inner.setContentsMargins(0, 0, 0, 0)
+            last = inner.itemAt(inner.count() - 1) if inner.count() else None
+            if last is not None and last.spacerItem() is not None:
+                inner.takeAt(inner.count() - 1)
+        lay.insertWidget(max(lay.count() - 1, 0), part)
 
     def page_labels(self) -> list[str]:
         """The pages' names, top to bottom."""
@@ -452,7 +484,7 @@ class PreferencesDialog(QDialog):
         s = self._cfg.app_settings
         page, lay = _scroll_page()
 
-        lay.addWidget(_section("SESSION"))
+        lay.addWidget(_section("JOURNALS"))
         form = QFormLayout()
         form.addRow("Journal Folder  ⚠",
                     self._text_edit(s.get("JournalFolder", ""), "Settings",
@@ -460,8 +492,14 @@ class PreferencesDialog(QDialog):
         form.addRow("Use UTC Timestamps",
                     self._bool_combo(s.get("UseUTC", False), "Settings", "UseUTC"))
         lay.addLayout(form)
+        lay.addStretch(1)
+        return page
 
-        lay.addWidget(_section("DISPLAY"))
+    def _tab_combat(self) -> QWidget:
+        s = self._cfg.app_settings
+        page, lay = _scroll_page()
+
+        lay.addWidget(_section("KILL MESSAGES"))
         form2 = QFormLayout()
         form2.addRow("Truncate Names (chars)",
                      self._text_edit(s.get("TruncateNames", 30), "Settings",
@@ -584,9 +622,72 @@ class PreferencesDialog(QDialog):
         box.currentIndexChanged.connect(lambda _i: _theme_changed())
         lay.addWidget(box)
 
+        from gui import theme as T
+        lay.addWidget(_section("TEXT"))
+        lay.addWidget(_note(
+            "The text in the desktop windows and their dialogs. A console's "
+            "own lettering — the band, the rail and the headings — keeps its "
+            "face and size. Used on Apply."))
+        form = QFormLayout()
+        lay.addLayout(form)
+        form.addRow("Face", self._family_combo(
+            str(ui.get("FontFamily", "") or ""), "FontFamily", fixed=False))
+        form.addRow("Figures face (fixed width)", self._family_combo(
+            str(ui.get("FigureFamily", "") or ""), "FigureFamily", fixed=True))
+        size = QComboBox()
+        for n in T.FONT_SIZE_CHOICES:
+            size.addItem(str(n), n)
+        try:
+            at = size.findData(int(float(ui.get("FontSize", T.FONT_SIZES["body"]))))
+        except (TypeError, ValueError):
+            at = size.findData(T.FONT_SIZES["body"])
+        size.setCurrentIndex(at if at >= 0 else 0)
+        size.currentIndexChanged.connect(
+            lambda _i, b=size: self._record("UI", "FontSize", int(b.currentData())))
+        form.addRow("Size (pt)", size)
+
+        lay.addWidget(_section("ROWS"))
+        form2 = QFormLayout()
+        lay.addLayout(form2)
+        form2.addRow("Values", self._choice_pairs(
+            str(ui.get("ValuePlacement", T.VALUES_EDGE)), "UI", "ValuePlacement",
+            T.VALUE_PLACEMENTS))
+        form2.addRow("Alternate row shading", self._bool_combo(
+            bool(ui.get("RowStripes", True)), "UI", "RowStripes"))
+        lay.addWidget(_note(
+            "Beside their labels, each group's values sit in one column just "
+            "right of its longest label rather than at the window's edge. "
+            "Shading stripes every other row, in the windows and in the "
+            "tables."))
+        lay.addStretch(1)
+        return page
+
+    def _family_combo(self, current: str, key: str, fixed: bool) -> QComboBox:
+        """The installed faces, after the default; with ``fixed``, only those
+        of a fixed width."""
+        from PySide6.QtGui import QFontDatabase
+        families = [f for f in QFontDatabase.families()
+                    if not QFontDatabase.isPrivateFamily(f)
+                    and (not fixed or QFontDatabase.isFixedPitch(f))]
+        box = QComboBox()
+        box.addItem("Default", "")
+        for f in families:
+            box.addItem(f, f)
+        if current and box.findData(current) < 0:
+            box.addItem(f"{current} (not installed)", current)
+        idx = box.findData(current)
+        box.setCurrentIndex(idx if idx >= 0 else 0)
+        box.setMaxVisibleItems(20)
+        box.currentIndexChanged.connect(
+            lambda _i, b=box: self._record("UI", key, b.currentData()))
+        return box
+
+    def _tab_interface(self) -> QWidget:
         from core import edcars as _edcars
         from core import helm as _helm
         from core import modes as _modes
+        ui = self._cfg.ui_cfg
+        page, lay = _scroll_page()
         lay.addWidget(_section("INTERFACE"))
         lay.addWidget(_note(
             f"What EDLD opens when it is started without an interface flag: the "
@@ -600,18 +701,27 @@ class PreferencesDialog(QDialog):
         form.addRow("Interface", self._choice_pairs(
             _modes.normalise(ui.get("Interface")), "UI", "Interface",
             _modes.options_choices()))
-        form.addRow(f"{_edcars.EDCARS_NAME}: new urgent alert", self._choice_pairs(
+
+        lay.addWidget(_section(_edcars.EDCARS_NAME))
+        form = QFormLayout()
+        lay.addLayout(form)
+        form.addRow("New urgent alert", self._choice_pairs(
             _edcars.alert_mode_of(ui), "UI", _edcars.ALERTS_KEY, _edcars.ALERT_MODES))
-        form.addRow(f"{_edcars.EDCARS_NAME}: console", self._choice_pairs(
+        form.addRow("Console", self._choice_pairs(
             _edcars.console_of(ui), "UI", _edcars.CONSOLE_KEY, _edcars.console_choices()))
-        form.addRow(f"Dashboard: {_helm.HELM_NAME} panel", self._bool_combo(
-            _helm.panel_wanted(ui), "UI", "HelmPanel"))
         lay.addWidget(_note(_edcars.console_note()))
+
+        lay.addWidget(_section("DASHBOARD"))
+        form = QFormLayout()
+        lay.addLayout(form)
+        form.addRow(f"{_helm.HELM_NAME} panel", self._bool_combo(
+            _helm.panel_wanted(ui), "UI", "HelmPanel"))
         lay.addWidget(_note(
             f"The {_helm.HELM_NAME} panel — the game's controls and EDLD's "
             "automation — runs along the foot of the Dashboard while automation "
             f"is on (Options → Automation). {_edcars.EDCARS_NAME} gives it a "
             "section of its own."))
+        self._window_layout(lay)
         lay.addStretch(1)
         return page
 
@@ -690,9 +800,10 @@ class PreferencesDialog(QDialog):
         lay.addStretch(1)
         return page
 
-    def _tab_display(self) -> QWidget:
+    def _window_layout(self, lay: QVBoxLayout) -> None:
+        """The Dashboard's positions, each with the window it shows."""
         from core import layout_model as LM
-        page, lay = _scroll_page()
+        lay.addWidget(_section("DASHBOARD WINDOWS"))
         lay.addWidget(_note(
             "Choose which window appears in each position. Only windows of a "
             "matching size fit a position; choosing one already shown "
@@ -704,7 +815,7 @@ class PreferencesDialog(QDialog):
         form: QFormLayout | None = None
         for info in LM.summary(asn, avail):
             if info["column"] != last_col:
-                lay.addWidget(_section(f"{info['column'].upper()} COLUMN"))
+                lay.addWidget(_note(f"{info['column'].title()} column"))
                 form = QFormLayout()
                 lay.addLayout(form)
                 last_col = info["column"]
@@ -720,8 +831,6 @@ class PreferencesDialog(QDialog):
             self._display_selects[info["slot"]] = box
             if form is not None:
                 form.addRow(f"{info['slot']}  ·  {info['class_label']}", box)
-        lay.addStretch(1)
-        return page
 
     # ── Component-injected preference tabs ────────────────────────────────────
 
@@ -799,7 +908,7 @@ class PreferencesDialog(QDialog):
     # ── Apply ─────────────────────────────────────────────────────────────────
 
     def _collect_window_assignment(self):
-        """Read the Display tab's combos into a validated assignment."""
+        """Read the Interface page's window combos into a validated assignment."""
         from core import layout_model as LM
         if not self._display_selects:
             return None

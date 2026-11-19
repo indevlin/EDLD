@@ -24,6 +24,11 @@
 | `WarnCooldown` | `15` | ✅ | Minutes between repeated inactivity / kill-rate alerts |
 | `TruncateNames` | `30` | ✅ | Maximum character length for pilot/faction names in output |
 
+In Options, the journal folder and UTC are on the General page; the
+kill-message keys (`TruncateNames`, `PirateNames`, `BountyValue`,
+`BountyFaction`, `ExtendedStats`) and the inactivity alerts (`WarnNoKills`,
+`WarnKillRate`, `WarnCooldown`) on the Combat page.
+
 <div align="center">
 <img src="../images/options/gui-general.png" alt="Options → General, desktop window" width="640"/>
 <br><em>Options → General, desktop window</em>
@@ -64,11 +69,16 @@
 
 | Key | Default | Hot | Description |
 |-----|---------|:---:|-------------|
-| `Interface` | `"edcars"` | ❌ | What EDLD opens when started without an interface flag: `edcars` (the desktop window as a console, default — see [EDCARS.md](EDCARS.md)), `gui` (the desktop window, every window at once), `textual` (terminal dashboard), `terminal` (plain scrolling output) or `headless`. Set by Options → Appearance → Interface, and by starting an interface by name — its flag, `--mode`, or its launcher shortcut — so a plain launch opens whichever was chosen last. `--headless` is never recorded: a service would otherwise leave the next desktop launch with no window. `-s` names no interface, so on its own it opens this one and records nothing. Edited where it is read from: the active profile's `UI.Interface` if the profile sets one, otherwise `[UI]`. Headless can only be set by hand. Replaces the older `Mode` and `Style` keys, which are converted on first start: `Mode = "textual"`, the old default, becomes EDCARS; `gui` keeps the layout `Style` gave it; `terminal` and `headless` are kept |
+| `Interface` | `"edcars"` | ❌ | What EDLD opens when started without an interface flag: `edcars` (the desktop window as a console, default — see [EDCARS.md](EDCARS.md)), `gui` (the desktop window, every window at once), `textual` (terminal dashboard), `terminal` (plain scrolling output) or `headless`. Set by Options → Interface, and by starting an interface by name — its flag, `--mode`, or its launcher shortcut — so a plain launch opens whichever was chosen last. `--headless` is never recorded: a service would otherwise leave the next desktop launch with no window. `-s` names no interface, so on its own it opens this one and records nothing. Edited where it is read from: the active profile's `UI.Interface` if the profile sets one, otherwise `[UI]`. Headless can only be set by hand. Replaces the older `Mode` and `Style` keys, which are converted on first start: `Mode = "textual"`, the old default, becomes EDCARS; `gui` keeps the layout `Style` gave it; `terminal` and `headless` are kept |
 | `Theme` | `"default"` | ❌ | Theme name (`elite-orange`, `default`, `default-dark`, `default-green`, `default-blue`, `default-purple`, `default-red`, `default-yellow`, `default-light`, `order`, `rebel`, `rogue`, or a custom theme) — changing this in Options triggers an automatic restart |
 | `EdcarsAlerts` | `"pulse"` | ✅ | EDCARS only, on a new urgent alert: `pulse` the Alerts pill, or `switch` to the Alerts section as well. Sent to EDAM, which does the same |
-| `Console` | `"edcars"` | ❌ | EDCARS only: the console it is drawn as — `edcars`, `order` (an Imperial fleet console), `rebel` (a Rebel ops board) or `rogue` (an independent freighter's cockpit). The layout is the same in all four; the band, the pills, the frames and the faces differ. Each of the last three has a theme of its own name. Set by Options → Appearance; used from the next start. Sent to EDAM in the header's `console` |
+| `Console` | `"edcars"` | ❌ | EDCARS only: the console it is drawn as — `edcars`, `order` (an Imperial fleet console), `rebel` (a Rebel ops board) or `rogue` (an independent freighter's cockpit). The layout is the same in all four; the band, the pills, the frames and the faces differ. Each of the last three has a theme of its own name. Set by Options → Interface; used from the next start. Sent to EDAM in the header's `console` |
 | `HelmPanel` | `true` | ✅ | The Dashboard layouts, desktop and terminal: show the Helm panel along the foot while `[Automation] Enabled` is on ([AUTOMATION.md](AUTOMATION.md#the-helm-panel)). EDCARS always has it, as a section |
+| `FontFamily` | `""` | ✅ | The desktop windows only: the face their text is set in; blank is the system's. A console's own lettering — EDCARS's band, rail and headings — keeps its face. The terminal dashboard uses the terminal's font, and the overlay has its own (`[Overlay] FontFamily`). Set by Options → Appearance; used on Apply |
+| `FigureFamily` | `""` | ✅ | The desktop windows only: a fixed-width face for figures, which are padded into columns; blank is DejaVu Sans Mono, Consolas, Menlo or Courier New, the first installed |
+| `FontSize` | `10` | ✅ | The desktop windows only: the text's size in points, 8–20. Headings, tabs and menus follow it; a console's own lettering does not |
+| `RowStripes` | `true` | ✅ | The desktop windows only: shade every other row, counting afresh under each heading, and every other row of the tables |
+| `ValuePlacement` | `"edge"` | ✅ | The desktop windows only: where a row's value sits — `edge`, at the window's right edge, or `labels`, in one column just right of the longest label in its group, which keeps values near their labels in a wide window |
 
 All the interfaces render the same windows from the same components and share
 one config, one set of per-commander data, and one window layout, so you can
@@ -79,7 +89,7 @@ switch between them freely. `edcars` and `gui` require PySide6; see
 
 Which window sits where is not part of `config.toml`. It lives in
 `windows.json` in the commander's data directory, and the usual way to change
-it is Options → Display, which writes the file for you. `example.layout.json`
+it is Options → Interface → Dashboard windows, which writes the file for you. `example.layout.json`
 in the repository root shows the format and the shipped default.
 
 Slots are addressed `<column><position>` — `A`/`B`/`C` left to right, numbered
@@ -125,13 +135,13 @@ half-populated grid, such a file is replaced with the current defaults and
 rewritten once, on the next launch.
 
 <div align="center">
-<img src="../images/options/gui-display.png" alt="Options → Display, desktop window" width="640"/>
-<br><em>Options → Display, desktop window</em>
+<img src="../images/options/gui-display.png" alt="Options → Interface, desktop window" width="640"/>
+<br><em>Options → Interface, desktop window</em>
 </div>
 
 <details>
 <summary>The same in the terminal dashboard</summary>
-<p align="center"><img src="../images/options/tui-display.png" alt="Options → Display, terminal dashboard" width="760"/></p>
+<p align="center"><img src="../images/options/tui-display.png" alt="Options → Interface, terminal dashboard" width="760"/></p>
 </details>
 
 ---
@@ -594,16 +604,16 @@ file that is missing makes the next load's balance look like income too.
 
 ## Data Contributions (opt-in)
 
-All data contribution features are **opt-in** and disabled by default.  They are configured in their own `[SECTION]` blocks and all require a restart when changed (❌).  Settings can be managed in the **Data** tab of Options.
+All data contribution features are **opt-in** and disabled by default.  They are configured in their own `[SECTION]` blocks and all require a restart when changed (❌).  Settings can be managed on the **Services** page of Options.
 
 <div align="center">
-<img src="../images/options/gui-data.png" alt="Options → Data, desktop window" width="640"/>
-<br><em>Options → Data, desktop window</em>
+<img src="../images/options/gui-data.png" alt="Options → Services, desktop window" width="640"/>
+<br><em>Options → Services, desktop window</em>
 </div>
 
 <details>
 <summary>The same in the terminal dashboard</summary>
-<p align="center"><img src="../images/options/tui-data.png" alt="Options → Data, terminal dashboard" width="760"/></p>
+<p align="center"><img src="../images/options/tui-data.png" alt="Options → Services, terminal dashboard" width="760"/></p>
 </details>
 
 If you run EDLD on multiple machines reading the same journal share (e.g. a remote monitor over NFS), set `PrimaryInstance = false` in `[Settings]` on the secondary machine to prevent duplicate uploads.  See `[Settings]` above.
@@ -729,7 +739,7 @@ Syncs colonization construction supply needs and commander contributions to [Rav
 |-----|---------|-------------|
 | `ApiKey` | `""` | Your Raven Colonial API key — obtain from ravencolonial.com → Account Settings. Leave blank to disable API sync; local tracking is always active |
 
-The API key can be set at runtime via **Options → Data → Raven Colonial API Key** without restarting EDLD.
+The API key can be set at runtime via **Options → Services → Raven Colonial API Key** without restarting EDLD.
 
 ---
 
@@ -859,16 +869,16 @@ How loud each is, and whether it reaches Discord, is its level under `[LogLevels
 | `Enabled` | `true` | Copy every new or grown journal, compressed, at startup, hourly, and when the game shuts down |
 | `Folder` | `""` | Where; blank is `journal-backups` in EDLD's data folder |
 
-Copies are never deleted. **Back up now** on the Backups tab runs one at once.
+Copies are never deleted. Set under Options → General, where **Back up now** runs one at once.
 
 <div align="center">
-<img src="../images/options/gui-backups.png" alt="Options → Backups, desktop window" width="640"/>
-<br><em>Options → Backups, desktop window</em>
+<img src="../images/options/gui-backups.png" alt="Options → General, journal backups, desktop window" width="640"/>
+<br><em>Options → General, journal backups, desktop window</em>
 </div>
 
 <details>
 <summary>The same in the terminal dashboard</summary>
-<p align="center"><img src="../images/options/tui-backups.png" alt="Options → Backups, terminal dashboard" width="760"/></p>
+<p align="center"><img src="../images/options/tui-backups.png" alt="Options → General, journal backups, terminal dashboard" width="760"/></p>
 </details>
 
 ## EDSM flight log — `[EDSMGaps]`
@@ -877,17 +887,18 @@ Copies are never deleted. **Back up now** on the Backups tab runs one at once.
 |-----|---------|-------------|
 | `Days` | `30` | How far back **Find and fill gaps** looks |
 
-The button compares the jumps in your journals with EDSM's flight log and
-sends EDSM the ones it lacks, through the EDSM uploads (which must be on).
+Set under Options → Services. The button compares the jumps in your journals
+with EDSM's flight log and sends EDSM the ones it lacks, through the EDSM
+uploads (which must be on).
 
 <div align="center">
-<img src="../images/options/gui-edsm-log.png" alt="Options → EDSM Log, desktop window" width="640"/>
-<br><em>Options → EDSM Log, desktop window</em>
+<img src="../images/options/gui-edsm-log.png" alt="Options → Services, EDSM flight log, desktop window" width="640"/>
+<br><em>Options → Services, EDSM flight log, desktop window</em>
 </div>
 
 <details>
 <summary>The same in the terminal dashboard</summary>
-<p align="center"><img src="../images/options/tui-edsm-log.png" alt="Options → EDSM Log, terminal dashboard" width="760"/></p>
+<p align="center"><img src="../images/options/tui-edsm-log.png" alt="Options → Services, EDSM flight log, terminal dashboard" width="760"/></p>
 </details>
 
 ## Automation — `[Automation]`

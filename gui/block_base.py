@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from core.palette import rgb
 from gui.markup import to_html
+from gui import theme as _theme
 from gui.theme import classes_to_props
 
 if TYPE_CHECKING:
@@ -74,8 +75,118 @@ class RowLabel(QLabel):
         self.setText(to_html(text, self._palette_map))
 
 
-class KVRow(QWidget):
-    """Single key / value row: key on the left, value right-aligned."""
+# ── Row groups ────────────────────────────────────────────────────────────────
+#
+# The rows sharing a parent are one group: with [UI] ValuePlacement "labels"
+# their keys share one width and their values another, next to the keys; with
+# [UI] RowStripes every other row is striped, counting from each heading.
+# Arranged once per event-loop pass, after the rows have been placed.
+
+_PENDING: dict[int, QWidget] = {}
+
+
+def _schedule(parent: "QWidget | None") -> None:
+    if parent is None:
+        return
+    if not _PENDING:
+        QTimer.singleShot(0, _flush)
+    _PENDING[id(parent)] = parent
+
+
+def _flush() -> None:
+    pending = list(_PENDING.values())
+    _PENDING.clear()
+    for parent in pending:
+        try:
+            arrange_rows(parent)
+        except RuntimeError:
+            pass                  # deleted before its turn came
+
+
+def _set_prop(w: QWidget, name: str, value) -> None:
+    if w.property(name) != value:
+        w.setProperty(name, value)
+        _restyle(w)
+
+
+def arrange_rows(parent: QWidget) -> None:
+    """Widths and stripes for the rows directly under ``parent``."""
+    lay = parent.layout()
+    if lay is None:
+        return
+    widgets = [lay.itemAt(i).widget() for i in range(lay.count())]
+    widgets = [w for w in widgets if w is not None and not w.isHidden()]
+    rows = [w for w in widgets if isinstance(w, (KVRow, HdrRow))]
+
+    stripes = _theme.row_stripes()
+    n, last = 0, False
+    for w in widgets:
+        if isinstance(w, KVRow) and not isinstance(w, TableHdr):
+            last = stripes and n % 2 == 1
+            n += 1
+            _set_prop(w, "stripe", last)
+        elif isinstance(w, NoteRow):
+            _set_prop(w, "stripe", last)
+        elif isinstance(w, (SecHdr, HdrRow, TableHdr, HRule)):
+            n, last = 0, False
+
+    beside = _theme.values_beside_labels()
+    kw = max((r._key.sizeHint().width() for r in rows), default=0) if beside else 0
+    vw = max((r._val.sizeHint().width() for r in rows), default=0) if beside else 0
+    for r in rows:
+        r._place(beside, kw, vw)
+
+
+def rearrange(root: QWidget) -> None:
+    """Every group of rows under ``root``, and its tables' stripes, again:
+    after the settings change."""
+    from PySide6.QtWidgets import QTableView
+    parents = {}
+    for cls in (KVRow, HdrRow):
+        for w in root.findChildren(cls):
+            if w.parentWidget() is not None:
+                parents[id(w.parentWidget())] = w.parentWidget()
+    for parent in parents.values():
+        arrange_rows(parent)
+    for table in root.findChildren(QTableView):
+        table.setAlternatingRowColors(_theme.row_stripes())
+
+
+class _GroupedRow(QWidget):
+    """A row that takes part in its parent's group (arrange_rows)."""
+
+    def _init_group(self, lay: QHBoxLayout) -> None:
+        self.setProperty("kvrow", True)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self._lay = lay
+        self._beside = False
+        lay.addStretch(0)
+
+    def event(self, ev) -> bool:
+        if ev.type() in (QEvent.ParentChange, QEvent.ShowToParent,
+                         QEvent.HideToParent):
+            _schedule(self.parentWidget())
+        return super().event(ev)
+
+    def _changed(self) -> None:
+        if self.parentWidget() is not None and _theme.values_beside_labels():
+            _schedule(self.parentWidget())
+
+    def _place(self, beside: bool, kw: int, vw: int) -> None:
+        self._key.setMinimumWidth(kw)
+        self._val.setMinimumWidth(vw)
+        if beside == self._beside:
+            return
+        self._beside = beside
+        self._key.setSizePolicy(QSizePolicy.Preferred if beside else QSizePolicy.Expanding,
+                                QSizePolicy.Preferred)
+        self._lay.setStretch(0, 0 if beside else 1)
+        self._lay.setStretch(2, 1 if beside else 0)
+
+
+class KVRow(_GroupedRow):
+    """Single key / value row: key on the left, value right-aligned at the
+    right edge, or beside the keys ([UI] ValuePlacement)."""
 
     def __init__(self, key: str = "", value: str = "—",
                  val_classes: str = "val", palette: dict | None = None,
@@ -105,16 +216,19 @@ class KVRow(QWidget):
 
         lay.addWidget(self._key, 1)
         lay.addWidget(self._val, 0)
+        self._init_group(lay)
 
         self.set_key(key)
         self.set_value(value, val_classes)
 
     def set_key(self, text: str) -> None:
         self._key.setText(to_html(text, self._palette))
+        self._changed()
 
     def set_value(self, text: str, classes: str = "val") -> None:
         self._val.setText(to_html(text, self._palette))
         _apply_classes(self._val, classes)
+        self._changed()
 
 
 class NoteRow(QWidget):
@@ -125,6 +239,9 @@ class NoteRow(QWidget):
                  palette: dict | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._palette = palette or rgb("default")
+        # Striped with the row it sits under (arrange_rows).
+        self.setProperty("kvrow", True)
+        self.setAttribute(Qt.WA_StyledBackground, True)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 0, 6, 0)
         lay.setSpacing(0)
@@ -188,7 +305,7 @@ class SecHdr(QLabel):
         self.setText(to_html((title or "").upper(), self._palette))
 
 
-class HdrRow(QWidget):
+class HdrRow(_GroupedRow):
     """Section header fused with its primary value on one row."""
 
     def __init__(self, key: str = "", value: str = "",
@@ -210,6 +327,7 @@ class HdrRow(QWidget):
 
         lay.addWidget(self._key, 1)
         lay.addWidget(self._val, 0)
+        self._init_group(lay)
 
         self._key.setText(to_html((key or "").upper(), self._palette))
         self.set_value(value)
@@ -217,6 +335,7 @@ class HdrRow(QWidget):
     def set_value(self, text: str, classes: str = "val") -> None:
         self._val.setText(to_html(text, self._palette))
         _apply_classes(self._val, classes)
+        self._changed()
 
 
 class HRule(QFrame):

@@ -89,7 +89,7 @@ def test_every_window_fits_somewhere():
         assert cls in slot_classes, f"{window} ({cls}) has nowhere to go"
 
 
-# ── Preferences > Display offers only what fits ───────────────────────────────
+# ── Options → Interface offers only what fits ─────────────────────────────────
 
 @pytest.mark.parametrize("row", summary(default_assignment()), ids=lambda r: r["slot"])
 def test_display_offers_only_windows_of_the_slots_class(row):

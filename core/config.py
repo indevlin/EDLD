@@ -500,6 +500,17 @@ CFG_DEFAULTS_UI = {
     # The Dashboard layouts (desktop and terminal): show the Helm panel along
     # the foot while automation is on (core/helm.py). EDCARS always has it.
     "HelmPanel": True,
+    # The desktop windows (not the terminal dashboard, nor the overlay, which
+    # has its own): the text's face ("" for the system's), the fixed-width
+    # face for figures ("" for the bundled stack) and the size in points.
+    "FontFamily": "",
+    "FigureFamily": "",
+    "FontSize": 10,
+    # The desktop windows: every other row shaded, in the windows and the
+    # tables; a row's value at the window's right "edge" or beside the
+    # "labels" of its group.
+    "RowStripes": True,
+    "ValuePlacement": "edge",
 }
 
 CFG_DEFAULTS_DISCORD = {

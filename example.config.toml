@@ -196,6 +196,19 @@ HelmPanel    = true            # the Dashboard layouts: the Helm panel (the
                                # game's controls and EDLD's automation) along
                                # the foot while [Automation] is on.  EDCARS
                                # always has it, as a section.
+# The desktop windows only (Options → Appearance); the terminal dashboard
+# draws in the terminal's own font, and the overlay has its own [Overlay] type.
+FontFamily   = ""              # the text's face; "" for the system's
+FigureFamily = ""              # a fixed-width face for figures; "" for
+                               # DejaVu Sans Mono, Consolas, Menlo or Courier New
+FontSize     = 10              # points, 8-20; headings and tabs follow it.  A
+                               # console's own lettering (EDCARS's band, rail
+                               # and headings) keeps its size
+RowStripes   = true            # shade every other row, in the windows and the
+                               # tables
+ValuePlacement = "edge"        # where a row's value sits: "edge" (the window's
+                               # right edge) or "labels" (one column just right
+                               # of its group's longest label)
 # ==============================================================================
 # Data contributions (opt-in)
 # ==============================================================================
@@ -578,7 +591,7 @@ Folder  = ""                   # blank: journal-backups in EDLD's data folder
 # ==============================================================================
 # [EDSMGaps] — filling gaps in the EDSM flight log
 # ==============================================================================
-# Options → EDSM Log → Find and fill gaps compares your journals' jumps with
+# Options → Services → Find and fill gaps compares your journals' jumps with
 # EDSM's flight log over this many days and sends EDSM the ones it lacks.
 [EDSMGaps]
 Days = 30

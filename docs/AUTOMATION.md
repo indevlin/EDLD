@@ -246,7 +246,7 @@ Where it is:
 - **The Dashboard**, in the desktop window and the terminal, runs it along
   the foot of the window while automation is on: on a wide screen every group
   in one row, two rows of buttons each; on a narrower one the groups wrap.
-  **Options → Appearance → Dashboard: Helm panel** turns it off
+  **Options → Interface → Helm panel** turns it off
   (`[UI] HelmPanel`).
 - **EDAM** has a Helm section in EDCARS, and a Helm page in the Dashboard's
   drawer — with **Allow paired devices to press keys** on as well. A device

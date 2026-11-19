@@ -55,7 +55,7 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 |--|--|
 | 💥 **Combat Tracking** | Kills, bounties, combat bonds, deaths, and fighter losses with per-kill timing and faction tally |
 | 🎯 **Objectives Window** | The mission board and colonization in one place — every active mission in a table for its type, with what it asks for, the time it has left and its reward, the massacre stack by target faction with each source faction under it, its kills made of kills needed, missions done and value, the community goals you have signed up for with your contribution, and those still open to join, construction sites with their outstanding requirements, and the ore a mining mission asks for already in your hold or on your own carrier |
-| ⛏️ **Mining Window** | Ring Hotspots and Surface Sites, the same tables as the shared survey sheet, each with a filter and an Edit button on every row; double-click a cell to change it in place. Hotspots come from your Detailed Surface Scanner ring maps, past and present, with ring type and reserve level from the planet's scan; overlap and its note are yours to add. A section of its own in EDCARS; in the Dashboard, choose it for a large slot in Options → Display |
+| ⛏️ **Mining Window** | Ring Hotspots and Surface Sites, the same tables as the shared survey sheet, each with a filter and an Edit button on every row; double-click a cell to change it in place. Hotspots come from your Detailed Surface Scanner ring maps, past and present, with ring type and reserve level from the planet's scan; overlap and its note are yours to add. A section of its own in EDCARS; in the Dashboard, choose it for a large slot in Options → Interface |
 | 📊 **Session Statistics** | Tabbed activity dashboard — Combat, Trade, Mining, Exploration, Missions, Exobiology, Odyssey (on foot, SRV, settlements, taxis), PowerPlay and Income — showing totals and /hr rates |
 | 🖵 **Terminal Dashboard** | Full terminal dashboard with all panels. Runs on any machine with Python and a modern terminal |
 | 🖥️ **Desktop Window** | The same dashboard as a native PySide6 window on Linux, Windows and macOS, with resizable columns, real menus, and full platform window controls |
@@ -89,7 +89,7 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 | 🔐 **CAPI Authentication** | OAuth2 to Frontier's Companion API for authoritative fleet roster, market prices, fleet carrier finance, and squadron identity |
 | 🌐 **Data Contributions** | Opt-in journal uploading to EDDN, EDSM, EDAstro, and Inara, sent at every dock and undock, jump, ship or vehicle change, death and loadout change |
 | 🏗️ **Colonization Tracking** | Construction site resource requirements, delivery progress, and Raven Colonial integration (experimental) — in the Objectives window's second tab. A site you stop tracking, or have not delivered to in seven days, is cleared |
-| 🎨 **Themes** | Twelve built-in color themes (Elite Dangerous orange; EDLD default, dark, green, blue, purple, red, yellow and light; and ORDER, REBEL and ROGUE, made for EDCARS's consoles) plus a documented template for custom themes — all render in both the terminal and desktop interfaces, and on a paired EDAM device |
+| 🎨 **Themes** | Twelve built-in color themes (Elite Dangerous orange; EDLD default, dark, green, blue, purple, red, yellow and light; and ORDER, REBEL and ROGUE, made for EDCARS's consoles) plus a documented template for custom themes — all render in both the terminal and desktop interfaces, and on a paired EDAM device. The desktop windows' text face and size, row shading, and values at the edge or beside their labels are set alongside ([guide](docs/THEMING.md)) |
 | 🔌 **Components and Profiles** | Every feature is a self-contained component in `components/`, with its data kept per commander. Named config profiles override any setting for one commander or one machine, selected with `-p` or automatically by commander name |
 | 🔍 **Search Modals** | Searchable pickers for home location and Spansh target market, in both interfaces |
 | ⛏️ **Surface Mining Survey** | Planetary deposits recorded automatically as you work them — position joined from `Status.json`, because the game emits no event that carries one. Bodies surveyed from their DSS signal count, deposits confirmed by driving onto them, depletion kept as a dated history rather than a deletion or an amount. Ctrl+D adds or edits the deposit underfoot, resolved by proximity, with free-text notes for the next commander |
@@ -200,7 +200,7 @@ Every flag is in the [command-line reference](docs/CONFIGURATION.md#command-line
 | No interface, for running as a service | `--headless` | `headless` |
 
 Without a flag EDLD opens the interface you last chose — in **Options →
-Appearance → Interface**, or by starting one with its flag or shortcut — and
+Interface**, or by starting one with its flag or shortcut — and
 EDCARS until you have chosen one. Either way it is kept in `[UI] Interface`. `--mode` takes the same ids, and
 the old `--terminal` still works. Server mode is not an interface: switch it on
 in **Options → Server** and it runs beside whichever one opens, so one launcher

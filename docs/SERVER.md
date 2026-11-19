@@ -446,8 +446,8 @@ it, and `edcars` is what a device needs to draw [EDCARS](EDCARS.md) the way the
 desktop window does — sent whatever EDLD's own style, because a device can
 choose EDCARS by itself:
 
-`console` is the console EDCARS is dressed as (Options → Appearance →
-*EDCARS: console*; see [EDCARS.md](EDCARS.md#consoles)): `edcars`, `order`,
+`console` is the console EDCARS is dressed as (Options → Interface →
+*Console*; see [EDCARS.md](EDCARS.md#consoles)): `edcars`, `order`,
 `rebel` or `rogue`. It is a field of its own rather than part of
 `style`, which stays `edcars` for all four, so a device that knows only
 EDCARS goes on drawing EDCARS. `consoles` names all four, in Options' order,

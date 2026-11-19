@@ -31,9 +31,25 @@ Theme = "default-blue"
 ```
 
 …or pick it from **Options → Appearance** (Ctrl+O), which restarts EDLD to
-apply it. A paired EDAM device set to follow EDLD changes with it. The same
-tab sets the **Interface** a plain launch opens — EDCARS, the Dashboard, the
-terminal dashboard or the terminal text.
+apply it. A paired EDAM device set to follow EDLD changes with it. The
+**Interface** a plain launch opens — EDCARS, the Dashboard, the terminal
+dashboard or the terminal text — is on the page above it, Options → Interface.
+
+In the desktop windows the same page also sets the text and the rows, used as
+soon as Options closes:
+
+| Setting | `[UI]` key | |
+|---------|-----------|---|
+| Face | `FontFamily` | The face the windows' text is set in; Default is the system's |
+| Figures face | `FigureFamily` | A fixed-width face for figures, which are padded into columns |
+| Size | `FontSize` | 8–20 points; headings, tabs and menus follow it |
+| Values | `ValuePlacement` | At the right edge, or beside their labels: one column just right of each group's longest label, so a figure stays near its name in a wide window |
+| Alternate row shading | `RowStripes` | Every other row shaded, counting afresh under each heading, and every other row of the tables |
+
+A console's own lettering — EDCARS's band, rail and frame headings, ORDER's,
+REBEL's and ROGUE's alike — keeps its face and size, since the shapes are
+drawn to fit it. The terminal dashboard is drawn in the terminal's own font,
+and the overlay has type settings of its own (Options → Overlay).
 
 <div align="center">
 <img src="../images/options/gui-appearance.png" alt="Options → Appearance, desktop window" width="640"/>

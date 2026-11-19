@@ -7,7 +7,7 @@ Colors match the theme requested via [UI] Theme config key.
 #
 # Column layout and block heights come from the shared layout model
 # (core/layout_model.py), so every block's size follows its size class and the
-# Display tab can reassign windows.  Each block's height percentage is generated
+# Options → Interface page can reassign windows.  Each block's height percentage is generated
 # at build time by _height_css() from the model's per-column apportionment.
 #
 # Textual is fully terminal-resolution aware — at very narrow widths
@@ -48,7 +48,7 @@ TuiBlock > TabbedContent  { height: 1fr; }
 
 /* Per-block heights are generated from the shared layout model and appended to
    the CSS at build time (see build_css / _height_css), so block heights
-   follow the size classes and the Display tab can reassign windows. */
+   follow the size classes and the Options → Interface page can reassign windows. */
 
 .block-title {
     background: $title-bg;
