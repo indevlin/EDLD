@@ -322,7 +322,7 @@ def community_goals(core, now: datetime | None = None) -> list:
 
 #: Neither CAPI nor Inara has answered.
 NO_GOAL_SOURCE = ("Goals you have not joined come from Frontier's CAPI or from "
-                  "Inara: connect either under Preferences › Data. A goal you "
+                  "Inara: connect either under Options › Services. A goal you "
                   "join at its station shows here from your journal.")
 
 

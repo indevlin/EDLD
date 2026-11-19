@@ -6,6 +6,87 @@ Last updated: 20261118
 
 ## Unreleased
 
+### Added: the desktop windows' text face and size, row shading, and manual value alignment
+
+The desktop windows set their text in the system's face at a fixed ten
+points, and every row put its label at the window's left edge and its value at
+the right, so on a wide screen a figure sat a whole window's width from its
+name, with nothing between to lead the eye across. Options → Appearance now
+sets the face (`[UI] FontFamily`), a fixed-width face for figures
+(`FigureFamily`), and the size from 8 to 20 points (`FontSize`), which
+headings, tabs and menus follow. Alternate row shading (`RowStripes`, on by
+default) shades every other row, counting afresh under each heading, and
+every other row of the tables, which were always shaded and now follow the
+setting. Values (`ValuePlacement`) puts them at the right edge as before, or
+aligns them by hand: from the labels' left (`ValueFromLeft`) the values start
+there, left-aligned, or past the longest label if that is further; from the
+right edge (`ValueFromRight`) they end there, right-aligned; with both they
+run between the two. Each is pixels, "320", or a share of the window's width,
+"25%", each window measured on its own. The right edge is firm: offsets a
+window is too narrow for, or below 0, are corrected rather than push the
+values past it or scroll it sideways. Options says so as the offsets are
+typed, with the range that is safe in every window on screen, and Alerts
+says so for as long as a window on screen is being corrected. EDAM and the terminal
+dashboard keep their own layout. All of it applies
+to the Dashboard and EDCARS alike, and to their dialogs, as soon as Options
+closes or config.toml is saved. A console's own lettering, the band, rail and
+frame headings, keeps its face and size, since its shapes are drawn to fit
+it; the terminal dashboard keeps the terminal's font, and the overlay its own
+type settings.
+
+### Fixed: figures in a window's rows did not line up
+
+A row whose value held two figures, a count and its rate ("6  313 ly"), an
+amount and its share ("1,234 cr  12.5%"), was one string set against the
+window's right edge, as was every lone figure with or without a unit. So the
+last character lined up and nothing else did: a count sat further left or
+right depending on how long the rate beside it was, "cr" and "ly" pushed their
+numbers off the column, and a lone duration sat under the rates. The values
+had always been built that way, and only looked ragged once they sat near
+their labels, where the eye reads them as a table. A window's figures are now
+padded into columns before they are drawn: each number ends where the others
+in its column end, each unit starts where the others start, and a row with
+fewer figures keeps its first in the first column. Anything that is not a
+figure, and the rows of a table, which are padded to their headings already,
+are left alone. The desktop window and the terminal dashboard draw it the
+same, and the fleet carrier route plotter's waypoints, which ran distance,
+fuel used, tank and marks together with no columns at all, now line up too.
+EDAM, whose narrower screen never had the problem, is sent its values as
+before.
+
+### Changed: Options is regrouped
+
+Two pages were named for the same thing and held different ones: Appearance
+held the theme and also which interface opens, EDCARS's alert and console
+choices and the Dashboard's Helm panel, while Display held only the
+Dashboard's window layout. General mixed the journal folder with how kill
+messages are worded and when inactivity alerts fire, and Data held the online
+services. Interface now holds everything about which interface opens and how
+each is arranged, the window layout included; Appearance holds how it looks;
+General holds the journals, with journal backups, which had a page of their
+own; a new Combat page holds the kill messages and inactivity alerts; and
+Data is renamed Services, with the EDSM flight log's gap filling, also once
+a page of its own, at its foot. The column runs in one order in both front
+ends, setting up first, then what EDLD tells you, the activities, and the
+outside world, where it had been EDLD's pages and then the components'
+alphabetically. The settings themselves, their keys and their config.toml
+sections are unchanged.
+
+### Fixed: component pages' notes in the terminal's Options were drawn as dashboard text
+
+The notes under a component page's headings and settings, on Routes,
+Callouts, Automation, Backups and the rest, were given the dashboard's "dim"
+style, which in the terminal is the ordinary text color with no padding, so
+they read as loud, unindented lines among Options' own quiet ones. Nothing
+was wrong with what they said, so nothing flagged it. They now wear the note
+style EDLD's own pages use.
+
+### Fixed: the Objectives window pointed to a page Options never had
+
+With no community goals from CAPI or Inara, the Objectives window said to
+connect either under Preferences › Data, but the window is called Options and
+the page is now Services. It says Options › Services.
+
 ### Fixed: new releases were never announced on Discord
 
 The Discord announcement ran in a workflow of its own, started by GitHub's

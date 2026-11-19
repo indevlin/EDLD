@@ -133,6 +133,9 @@ def plain(text) -> tuple[str, str | None]:
     return _TAG.sub("", raw), tone
 
 
+_UNPAD = _re.compile(r" {3,}")
+
+
 def wire_rows(rows) -> list[dict]:
     """ToolResult rows as wire rows: ("hdr", t) a sub-heading, ("kv", l, v)
     a row, anything else a line."""
@@ -146,7 +149,11 @@ def wire_rows(rows) -> list[dict]:
         elif r[0] == "kv":
             label, _ = plain(r[1])
             value, tone = plain(r[2] if len(r) > 2 else "")
-            row = {"label": label, "value": value, "kind": "kv"}
+            # Without the padding the desktop lines columns up with
+            # (ui_helpers.carrier_route_rows): a device lays its rows out
+            # itself.
+            row = {"label": label.strip(), "value": _UNPAD.sub("  ", value.strip()),
+                   "kind": "kv"}
             if tone:
                 row["tone"] = tone
             out.append(row)

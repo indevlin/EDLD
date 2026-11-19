@@ -31,9 +31,36 @@ Theme = "default-blue"
 ```
 
 …or pick it from **Options → Appearance** (Ctrl+O), which restarts EDLD to
-apply it. A paired EDAM device set to follow EDLD changes with it. The same
-tab sets the **Interface** a plain launch opens — EDCARS, the Dashboard, the
-terminal dashboard or the terminal text.
+apply it. A paired EDAM device set to follow EDLD changes with it. The
+**Interface** a plain launch opens — EDCARS, the Dashboard, the terminal
+dashboard or the terminal text — is on the page above it, Options → Interface.
+
+In the desktop windows the same page also sets the text and the rows, used as
+soon as Options closes:
+
+| Setting | `[UI]` key | |
+|---------|-----------|---|
+| Face | `FontFamily` | The face the windows' text is set in; Default is the system's |
+| Figures face | `FigureFamily` | A fixed-width face for figures, which are padded into columns |
+| Size | `FontSize` | 8–20 points; headings, tabs and menus follow it |
+| Values | `ValuePlacement` | At the right edge, or Manual alignment, placed by the two below, so a figure stays near its name in a wide window |
+| From the labels' left | `ValueFromLeft` | Manual: values start this far from the labels' left edge, left-aligned, or just past the longest label if that is further. `320` is pixels, `25%` a share of the window's width |
+| From the right edge | `ValueFromRight` | Manual: values end this far from the right edge, right-aligned. With both set, the column runs between the two, values right-aligned in it |
+
+Each window is measured on its own, so `25%` is a quarter of that window's
+width, and a section of EDCARS with three windows side by side places each by
+its own width. The right edge is firm: offsets a window is too narrow for,
+or below 0, are corrected, the left giving way first, never the labels or the
+values, so a window does not scroll sideways because of them. Options says so
+under the two fields as you type, with the range that is safe in every window
+on screen, and Alerts carries a notice for as long as a window on screen is
+being corrected.
+| Alternate row shading | `RowStripes` | Every other row shaded, counting afresh under each heading, and every other row of the tables |
+
+A console's own lettering — EDCARS's band, rail and frame headings, ORDER's,
+REBEL's and ROGUE's alike — keeps its face and size, since the shapes are
+drawn to fit it. The terminal dashboard is drawn in the terminal's own font,
+and the overlay has type settings of its own (Options → Overlay).
 
 <div align="center">
 <img src="../images/options/gui-appearance.png" alt="Options → Appearance, desktop window" width="640"/>

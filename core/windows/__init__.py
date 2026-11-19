@@ -132,6 +132,82 @@ def iter_render(rows):
         yield row[0], row, widths
 
 
+# ── Value columns ────────────────────────────────────────────────────────────
+#
+# A value of figures may hold several, two spaces or more apart ("15  6.3 /hr",
+# "1,234 cr  12.5%"), each a number and perhaps a unit after a space. Padded
+# into columns under each heading, the numbers line up on their last digit
+# and the units start together. A value with a part that is not a figure is
+# left alone, as is a lone figure under its heading, and rows under a table's
+# heading, already padded to it.
+
+import re as _re
+
+_GAP = _re.compile(r" {2,}")
+_FIGURE = _re.compile(r"^(?P<num>[-+−]?\d[\d,.:/]*[kKMBT%x]?|—)"
+                      r"(?: (?P<unit>[^\s\d]\S{0,5}))?$")
+_MARKUP = _re.compile(r"\[/?[a-z#][^\]]*\]")
+
+
+def _figures(value: str):
+    """(piece, number, unit) for each part of ``value``, or None when a part
+    is not a figure."""
+    out = []
+    for piece in _GAP.split(value.strip()):
+        m = _FIGURE.match(_MARKUP.sub("", piece))
+        if m is None:
+            return None
+        out.append((piece, m.group("num"), m.group("unit") or ""))
+    return out or None
+
+
+def align_values(rows) -> list:
+    """``rows`` with their figures padded into columns: see above."""
+    rows = list(rows or [])
+    groups: list[dict[int, list]] = [{}]
+    in_table = False
+    for i, row in enumerate(rows):
+        if not row:
+            continue
+        kind = row[0]
+        if kind == "table":
+            in_table = True
+            groups.append({})
+        elif kind in ("hdr", "toggle", "rule"):
+            in_table = False
+            groups.append({})
+        elif kind == "kv" and not in_table and len(row) > 2:
+            figs = _figures(str(row[2]))
+            if figs:
+                groups[-1][i] = figs
+    for parsed in groups:
+        if len(parsed) > 1:
+            _pad(rows, parsed)
+    return rows
+
+
+def _pad(rows: list, parsed: dict) -> None:
+    ncol = max(len(f) for f in parsed.values())
+    wnum = [0] * ncol
+    wunit = [0] * ncol
+    for figs in parsed.values():
+        for c, (_p, num, unit) in enumerate(figs):
+            wnum[c] = max(wnum[c], len(num))
+            wunit[c] = max(wunit[c], len(unit))
+    width = [wnum[c] + (wunit[c] + 1 if wunit[c] else 0) for c in range(ncol)]
+    for i, figs in parsed.items():
+        cells = []
+        for c in range(ncol):
+            if c >= len(figs):
+                cells.append(" " * width[c])
+                continue
+            piece, num, unit = figs[c]
+            tail = (wunit[c] - len(unit)) if unit else (wunit[c] + 1 if wunit[c] else 0)
+            cells.append(" " * (wnum[c] - len(num)) + piece + " " * tail)
+        row = rows[i]
+        rows[i] = row[:2] + ("  ".join(cells),) + row[3:]
+
+
 # ── For the wire ──────────────────────────────────────────────────────────────
 
 _CLASS_TONES = (("health-crit", "crit"), ("health-warn", "warn"), ("health-good", "good"),

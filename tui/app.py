@@ -147,8 +147,8 @@ class EdldTui(App):
         yield Header()
         yield Label("", id="update-notice-bar")
         # Columns, block selection, and vertical order all come from the shared
-        # layout model (the same source the Display tab
-        # use), so the two UIs stay in lockstep and windows can be reassigned.
+        # layout model (the same source Options → Interface
+        # uses), so the two UIs stay in lockstep and windows can be reassigned.
         cols = tui_columns(load_assignment())
         with Horizontal(id="dashboard"):
             for col in COLUMNS:

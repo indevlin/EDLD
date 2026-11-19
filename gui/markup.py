@@ -47,7 +47,7 @@ def _colour(name: str, palette: dict[str, str]) -> str | None:
 
 #: A run of two or more spaces, or a space at the very start of the string.
 #: These are alignment padding, not word gaps.
-_PAD_RE = re.compile(r" {2,}|^ ")
+_PAD_RE = re.compile(r" {2,}|^ | $")
 
 
 def _keep_padding(escaped: str) -> str:
@@ -56,7 +56,8 @@ def _keep_padding(escaped: str) -> str:
     Qt collapses runs of spaces exactly as a browser does, and every label in
     the GUI is ``Qt.RichText``.
 
-    Only runs of two or more, plus a leading single space, are protected.
+    Only runs of two or more, plus a single space leading or ending a run of
+    text, are protected: a value padded into columns may end in one.
     """
     return _PAD_RE.sub(lambda m: "&nbsp;" * len(m.group(0)), escaped)
 

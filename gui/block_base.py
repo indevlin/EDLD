@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from core.palette import rgb
 from gui.markup import to_html
+from gui import theme as _theme
 from gui.theme import classes_to_props
 
 if TYPE_CHECKING:
@@ -74,8 +75,311 @@ class RowLabel(QLabel):
         self.setText(to_html(text, self._palette_map))
 
 
-class KVRow(QWidget):
-    """Single key / value row: key on the left, value right-aligned."""
+# ── Row groups ────────────────────────────────────────────────────────────────
+#
+# The rows sharing a parent are one group: with [UI] ValuePlacement "manual"
+# the value column sits where ValueFromLeft and ValueFromRight put it; with
+# [UI] RowStripes every other row is striped, counting from each heading.
+# Arranged once per event-loop pass, after the rows have been placed.
+
+_PENDING: dict[int, QWidget] = {}
+
+
+def _schedule(parent: "QWidget | None") -> None:
+    if parent is None:
+        return
+    if not _PENDING:
+        QTimer.singleShot(0, _flush)
+    _PENDING[id(parent)] = parent
+
+
+def _flush() -> None:
+    pending = list(_PENDING.values())
+    _PENDING.clear()
+    for parent in pending:
+        try:
+            arrange_rows(parent)
+        except RuntimeError:
+            pass                  # deleted before its turn came
+        except Exception as exc:
+            # One group's fault leaves the others arranged.
+            try:
+                from core import debug as _debug
+                _debug.exception("row arrangement failed", exc)
+            except Exception:
+                pass
+
+
+def _set_prop(w: QWidget, name: str, value) -> None:
+    if w.property(name) != value:
+        w.setProperty(name, value)
+        _restyle(w)
+
+
+def arrange_rows(parent: QWidget) -> None:
+    """Widths and stripes for the rows directly under ``parent``."""
+    lay = parent.layout()
+    if lay is None:
+        return
+    widgets = [lay.itemAt(i).widget() for i in range(lay.count())]
+    widgets = [w for w in widgets if w is not None and not w.isHidden()]
+    rows = [w for w in widgets if isinstance(w, (KVRow, HdrRow))]
+
+    stripes = _theme.row_stripes()
+    n, last = 0, False
+    for w in widgets:
+        if isinstance(w, KVRow) and not isinstance(w, TableHdr):
+            last = stripes and n % 2 == 1
+            n += 1
+            _set_prop(w, "stripe", last)
+        elif isinstance(w, NoteRow):
+            _set_prop(w, "stripe", last)
+        elif isinstance(w, (SecHdr, HdrRow, TableHdr, HRule)):
+            n, last = 0, False
+
+    place = _placement(parent, rows)
+    for r in rows:
+        r._place(place)
+
+
+#: A row's sides and the gap between its label and value (KVRow's layout).
+_ROW_MARGIN = 6
+_ROW_GAP = 8
+_EDGE = (0, 0, False, _ROW_MARGIN, False)
+
+
+class _ViewportWatch(QObject):
+    """Arranges a group again when the viewport it is seen in resizes: the
+    body inside may be held wide by the rows themselves and not resize."""
+
+    def __init__(self, viewport: QWidget, parent_rows: QWidget) -> None:
+        super().__init__(viewport)
+        self._rows = parent_rows
+        viewport.installEventFilter(self)
+
+    def eventFilter(self, obj, ev) -> bool:
+        if ev.type() == QEvent.Resize:
+            _schedule(self._rows)
+        return False
+
+
+def _natural(label: QLabel) -> int:
+    """A label's own width. Not its size hint: a rich-text label lays its
+    text out at the width it was last given, so a column an arrangement once
+    widened would keep itself wide."""
+    from PySide6.QtGui import QTextDocument
+    doc = QTextDocument()
+    doc.setDocumentMargin(0)
+    doc.setDefaultFont(label.font())
+    doc.setHtml(label.text())
+    m = label.contentsMargins()
+    return int(doc.idealWidth() + 0.999) + m.left() + m.right() + 2 * label.margin()
+
+
+def _pane_width(parent: QWidget) -> int:
+    """The width the rows are seen in: a scroll area's viewport, not the
+    body inside it, which the rows themselves may have widened."""
+    from PySide6.QtWidgets import QAbstractScrollArea
+    w = parent
+    while w is not None:
+        if isinstance(w, QAbstractScrollArea):
+            vp = w.viewport()
+            if getattr(parent, "_viewport_watch", None) is None:
+                parent._viewport_watch = _ViewportWatch(vp, parent)
+            return vp.width()
+        w = w.parentWidget()
+    return parent.width()
+
+
+def _placement(parent: QWidget, rows) -> tuple:
+    """(label width, value width, values left-aligned, right margin, value
+    column stretched) for a group, by [UI] ValuePlacement: at the right
+    edge, or by ValueFromLeft and ValueFromRight."""
+    offsets = _theme.value_offsets()
+    if offsets is None or offsets == (None, None):
+        _MEASURED.pop(id(parent), None)
+        return _EDGE
+    width = max(_pane_width(parent), 1)
+    kw = max((_natural(r._key) for r in rows), default=0)
+    vw = max((_natural(r._val) for r in rows), default=0)
+    _MEASURED[id(parent)] = (parent, width, kw, vw)
+    f = fit(width, kw, vw, _theme.offset_px(offsets[0], width),
+            _theme.offset_px(offsets[1], width))
+    if offsets[0] is None:
+        # From the right edge: the values end there, right-aligned.
+        return 0, vw, False, f.margin, False
+    if offsets[1] is None:
+        # From the labels' left: the values start there, left-aligned.
+        return f.kmin, vw, True, f.margin, False
+    # Both: the column runs between them, the values right-aligned in it.
+    return f.kmin, vw, False, f.margin, True
+
+
+class Fit:
+    """Where a group's offsets put its value column, after correction, and
+    the most each can be in it without correction."""
+
+    __slots__ = ("kmin", "margin", "left_out", "right_out", "max_left", "max_right")
+
+    def __init__(self, kmin, margin, left_out, right_out, max_left, max_right):
+        self.kmin, self.margin = kmin, margin
+        self.left_out, self.right_out = left_out, right_out
+        self.max_left, self.max_right = max_left, max_right
+
+    @property
+    def corrected(self) -> bool:
+        return self.left_out or self.right_out
+
+
+def fit(width: int, kw: int, vw: int, left, right) -> Fit:
+    """The offsets, in pixels or None, for a pane ``width`` wide whose
+    longest label and value are ``kw`` and ``vw``. The right edge is firm:
+    an offset that would push the values past it, or a negative one, is
+    corrected, the left giving way first."""
+    room = width - 2 * _ROW_MARGIN - 2 * _ROW_GAP - vw
+    max_left = max(room + _ROW_GAP, 0)
+    kmin, left_out = 0, False
+    if left is not None:
+        want = left - _ROW_GAP
+        kmin = max(kw, min(max(want, 0), room))
+        left_out = left < 0 or want > room
+    max_right = max(room - max(kmin, kw) + _ROW_MARGIN, 0)
+    margin, right_out = _ROW_MARGIN, False
+    if right is not None:
+        margin = max(_ROW_MARGIN, min(max(right, 0), max_right))
+        right_out = right < 0 or right > max_right
+    return Fit(kmin, margin, left_out, right_out, max_left, max_right)
+
+
+#: The groups placed by offsets, by id: (parent, pane width, longest label,
+#: longest value), for fit_report().
+_MEASURED: dict[int, tuple] = {}
+
+
+def fit_report(offsets=None) -> "dict | None":
+    """Whether ``offsets`` (from_left, from_right) as parse_offset gives them
+    — the settings in force when None — are corrected in any window now on
+    screen, and the most each could be in all of them: {"windows": n,
+    "corrected": n, "max_left_px", "max_left_pct", "max_right_px",
+    "max_right_pct"}. None while no window is placed by offsets."""
+    if offsets is None:
+        offsets = _theme.value_offsets() or (None, None)
+    groups = []
+    for key, (parent, _w, kw, vw) in list(_MEASURED.items()):
+        try:
+            if not parent.isVisible():
+                continue
+            width = _pane_width(parent)
+        except RuntimeError:
+            _MEASURED.pop(key, None)
+            continue
+        if width > 50:
+            groups.append((width, kw, vw))
+    if not groups:
+        return None
+    out = {"windows": len(groups), "corrected": 0, "left_out": 0,
+           "negative": any(o is not None and o[0] < 0 for o in offsets)}
+    lefts, rights, alone = [], [], []
+    for width, kw, vw in groups:
+        f = fit(width, kw, vw, _theme.offset_px(offsets[0], width),
+                _theme.offset_px(offsets[1], width))
+        out["corrected"] += bool(f.corrected)
+        out["left_out"] += bool(f.left_out)
+        lefts.append((f.max_left, f.max_left * 100.0 / width))
+        rights.append((f.max_right, f.max_right * 100.0 / width))
+        a = fit(width, kw, vw, None, None).max_right
+        alone.append((a, a * 100.0 / width))
+    out["max_left_px"] = int(min(px for px, _p in lefts))
+    out["max_left_pct"] = int(min(p for _px, p in lefts))
+    with_left = offsets[0] is not None and not out["left_out"]
+    pick = rights if with_left else alone
+    out["max_right_px"] = int(min(px for px, _p in pick))
+    out["max_right_pct"] = int(min(p for _px, p in pick))
+    out["right_with_left"] = with_left
+    return out
+
+
+def fit_advice(report: "dict | None") -> str:
+    """A few lines for Options: what is corrected and the safe range, or ""
+    when nothing is."""
+    if not report or not report["corrected"]:
+        return ""
+    n = report["corrected"]
+    tail = ("with that left" if report.get("right_with_left")
+            else "with the left blank, less as the left grows")
+    text = (f"Out of bounds in {n} window{'s' if n != 1 else ''} at "
+            f"{'its' if n == 1 else 'their'} present size; the values are held "
+            f"inside the right edge. Safe in every window on screen now: from the "
+            f"labels' left 0 to {report['max_left_px']} px or "
+            f"{report['max_left_pct']}%; from the right edge 0 to "
+            f"{report['max_right_px']} px or {report['max_right_pct']}%, {tail}.")
+    if report.get("negative"):
+        text += " Below 0 counts as 0."
+    return text
+
+
+def rearrange(root: QWidget) -> None:
+    """Every group of rows under ``root``, and its tables' stripes, again:
+    after the settings change."""
+    from PySide6.QtWidgets import QTableView
+    parents = {}
+    for cls in (KVRow, HdrRow):
+        for w in root.findChildren(cls):
+            if w.parentWidget() is not None:
+                parents[id(w.parentWidget())] = w.parentWidget()
+    for parent in parents.values():
+        arrange_rows(parent)
+    for table in root.findChildren(QTableView):
+        table.setAlternatingRowColors(_theme.row_stripes())
+
+
+class _GroupedRow(QWidget):
+    """A row that takes part in its parent's group (arrange_rows)."""
+
+    #: The value's vertical alignment; a table's headings sit at the bottom.
+    _VALIGN = Qt.AlignVCenter
+
+    def _init_group(self, lay: QHBoxLayout) -> None:
+        self.setProperty("kvrow", True)
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self._lay = lay
+        self._placed = _EDGE
+        lay.addStretch(0)
+
+    def event(self, ev) -> bool:
+        if ev.type() in (QEvent.ParentChange, QEvent.ShowToParent,
+                         QEvent.HideToParent, QEvent.Resize):
+            _schedule(self.parentWidget())
+        return super().event(ev)
+
+    def _changed(self) -> None:
+        if self.parentWidget() is not None and _theme.value_offsets() is not None:
+            _schedule(self.parentWidget())
+
+    def _place(self, place: tuple) -> None:
+        kmin, vmin, left, margin, stretch_val = place
+        self._key.setMinimumWidth(kmin)
+        self._val.setMinimumWidth(vmin)
+        if place == self._placed:
+            return
+        self._placed = place
+        edge = place == _EDGE
+        self._key.setSizePolicy(QSizePolicy.Expanding if edge or not kmin
+                                else QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self._val.setSizePolicy(QSizePolicy.Expanding if stretch_val
+                                else QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self._val.setAlignment((Qt.AlignLeft if left else Qt.AlignRight) | self._VALIGN)
+        m = self._lay.contentsMargins()
+        self._lay.setContentsMargins(m.left(), m.top(), margin, m.bottom())
+        key_grows = edge or not kmin
+        self._lay.setStretch(0, 1 if key_grows else 0)
+        self._lay.setStretch(1, 1 if stretch_val else 0)
+        self._lay.setStretch(2, 0 if key_grows or stretch_val else 1)
+
+
+class KVRow(_GroupedRow):
+    """Single key / value row: key on the left, value right-aligned at the
+    right edge, or where [UI] ValuePlacement puts it."""
 
     def __init__(self, key: str = "", value: str = "—",
                  val_classes: str = "val", palette: dict | None = None,
@@ -105,16 +409,19 @@ class KVRow(QWidget):
 
         lay.addWidget(self._key, 1)
         lay.addWidget(self._val, 0)
+        self._init_group(lay)
 
         self.set_key(key)
         self.set_value(value, val_classes)
 
     def set_key(self, text: str) -> None:
         self._key.setText(to_html(text, self._palette))
+        self._changed()
 
     def set_value(self, text: str, classes: str = "val") -> None:
         self._val.setText(to_html(text, self._palette))
         _apply_classes(self._val, classes)
+        self._changed()
 
 
 class NoteRow(QWidget):
@@ -125,6 +432,9 @@ class NoteRow(QWidget):
                  palette: dict | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._palette = palette or rgb("default")
+        # Striped with the row it sits under (arrange_rows).
+        self.setProperty("kvrow", True)
+        self.setAttribute(Qt.WA_StyledBackground, True)
         lay = QHBoxLayout(self)
         lay.setContentsMargins(6, 0, 6, 0)
         lay.setSpacing(0)
@@ -163,6 +473,7 @@ class TableHdr(KVRow):
         self._key.setProperty("role", "section")
         _restyle(self._key)
         # The section style pads its top; sit the headings on the same line.
+        self._VALIGN = Qt.AlignBottom
         self._val.setAlignment(Qt.AlignRight | Qt.AlignBottom)
 
     def set_key(self, text: str) -> None:
@@ -188,7 +499,7 @@ class SecHdr(QLabel):
         self.setText(to_html((title or "").upper(), self._palette))
 
 
-class HdrRow(QWidget):
+class HdrRow(_GroupedRow):
     """Section header fused with its primary value on one row."""
 
     def __init__(self, key: str = "", value: str = "",
@@ -210,6 +521,7 @@ class HdrRow(QWidget):
 
         lay.addWidget(self._key, 1)
         lay.addWidget(self._val, 0)
+        self._init_group(lay)
 
         self._key.setText(to_html((key or "").upper(), self._palette))
         self.set_value(value)
@@ -217,6 +529,7 @@ class HdrRow(QWidget):
     def set_value(self, text: str, classes: str = "val") -> None:
         self._val.setText(to_html(text, self._palette))
         _apply_classes(self._val, classes)
+        self._changed()
 
 
 class HRule(QFrame):
@@ -395,9 +708,9 @@ class GuiBlock(QFrame):
         """Widgets for rows from core/windows: the same rows the terminal
         dashboard and EDAM draw. ``on_toggle(system_name=…, market_id=…)``
         is called when a collapsible heading is clicked."""
-        from core.windows import cells_text, iter_render, table_text
+        from core.windows import align_values, cells_text, iter_render, table_text
         out: list = []
-        for kind, row, widths in iter_render(rows):
+        for kind, row, widths in iter_render(align_values(rows)):
             if kind == "hdr":
                 out.append(self.hdr(row[1]))
             elif kind == "kv":

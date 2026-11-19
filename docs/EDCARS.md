@@ -26,7 +26,7 @@ chose. The Dashboard layout is its own interface, with
 its own flag (`--dashg` or `--gui`) and shortcut, **EDLD Dashboard**.
 
 To make a plain launch open something else, start that interface once with
-its shortcut or flag, or set **Options → Appearance → Interface**. Both are
+its shortcut or flag, or set **Options → Interface → Interface**. Both are
 kept in `config.toml`:
 
 ```toml
@@ -160,7 +160,7 @@ ship you are flying, and it is light enough that a section of its own would be
 mostly empty. The Dashboard's Crew / Alerts window is split in two for the same
 reason: the crew half goes to Command, the alerts to their own section.
 
-EDCARS does not use the Dashboard's window layout (Options → Display,
+EDCARS does not use the Dashboard's window layout (Options → Interface,
 `windows.json`). Its sections are fixed, so that the desktop window and EDAM
 always agree on where a window lives.
 
@@ -203,8 +203,8 @@ EDCARS can be drawn as four consoles. The layout is the same in all of them —
 the band and the strip of facts, the rail of nine sections, the same windows
 framed in the same places, the radio along the foot, the same shortcuts and
 the same alerts. What differs is how the band, the pills and the frames are
-drawn, and the faces the chrome is set in. **Options → Appearance →
-*EDCARS: console*** chooses one (`[UI] Console`), from the next start.
+drawn, and the faces the chrome is set in. **Options → Interface →
+*Console*** chooses one (`[UI] Console`), from the next start.
 
 | Console | | Chrome |
 |---------|---|--------|

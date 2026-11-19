@@ -1,14 +1,16 @@
 """tui/preferences.py — TUI preferences screen for EDLD.
 
-The six pages EDLD draws itself:
-  General       — journal folder, UTC, display toggles, inactivity alerts
+EDLD's own pages, in the order core/options_pages.py sets, with the
+components' pages among them:
+  General       — journal folder, UTC (and the Backups component's settings)
+  Interface     — the interface a plain launch opens, EDCARS, the Dashboard's
+                  Helm panel and window layout
+  Appearance    — theme
   Notifications — per-event log levels (0–3)
   Discord       — webhook, user ID, display options
-  Appearance    — theme, the interface a plain launch opens, EDCARS alerts,
-                  the Helm panel
-  Data          — CAPI, EDDN, EDSM, EDAstro, Inara, Raven Colonial
-  Display       — window layout (position → window assignment)
-and after them the components' own, in alphabetical order.
+  Combat        — kill messages, inactivity alerts
+  Services      — CAPI, EDDN, EDSM, EDAstro, Inara, Raven Colonial (and the
+                  EDSM Log component's settings)
 
 The pages are picked from a column down the left, as in the desktop window's
 Options.
@@ -113,15 +115,8 @@ class PreferencesScreen(ModalScreen):
         Binding("ctrl+pageup", "step_page(-1)", "Previous page", show=False),
     ]
 
-    #: EDLD's own pages, by id and name, in the column's order.
-    CORE_PAGES = (
-        ("pref-tab-general",    "General"),
-        ("pref-tab-notif",      "Notifications"),
-        ("pref-tab-discord",    "Discord"),
-        ("pref-tab-appearance", "Appearance"),
-        ("pref-tab-data",       "Data"),
-        ("pref-tab-display",    "Display"),
-    )
+    #: EDLD's own pages, by id and name.
+    from core.options_pages import CORE as CORE_PAGES
 
     def __init__(self, core: "CoreAPI", **kw) -> None:
         super().__init__(**kw)
@@ -133,13 +128,14 @@ class PreferencesScreen(ModalScreen):
         self._baseline: dict[tuple[str, str], object] = {}
         self._settled = False
         self._cached_bindings = None
-        # The components' pages in the order a commander reads the column,
-        # not the order their modules happen to load in; the desktop window
-        # sorts them the same way.
-        self._cached_extra_tabs = sorted(self._extra_tabs(),
-                                         key=lambda e: str(e[1]).casefold())
-        self._pages = list(self.CORE_PAGES) + [
-            (str(tid), str(label)) for tid, label, _c in self._cached_extra_tabs]
+        # Every page in the column's order, the desktop window's
+        # (core/options_pages.py); some components' pages are drawn at the
+        # foot of one of EDLD's own.
+        from core import options_pages as _OP
+        extra = self._extra_tabs()
+        self._pages, self._merged = _OP.arrange(extra)
+        own = {pid for pid, _l in self._pages}
+        self._cached_extra_tabs = [e for e in extra if str(e[0]) in own]
 
     def compose(self) -> ComposeResult:
         cfg = self._cfg
@@ -158,7 +154,7 @@ class PreferencesScreen(ModalScreen):
 
                     # ── General ───────────────────────────────────────────────
                     with VerticalScroll(id="pref-tab-general", classes="pref-page"):
-                        yield Label("SESSION", classes="pref-section")
+                        yield Label("JOURNALS", classes="pref-section")
                         with Horizontal(classes="pref-row"):
                             yield Label("Journal Folder  ⚠", classes="key")
                             yield Input(value=str(s.get("JournalFolder", "")),
@@ -169,52 +165,7 @@ class PreferencesScreen(ModalScreen):
                                     [("Off", "false"), ("On", "true")],
                                     value="true" if s.get("UseUTC", False) else "false",
                                     id="g-utc", classes="pref-bool-sel", allow_blank=False)
-                        yield Label("DISPLAY", classes="pref-section")
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Truncate Names (chars)", classes="key")
-                            yield Input(value=str(s.get("TruncateNames", 30)),
-                                        id="g-trunc", restrict="0123456789",
-                                        max_length=3, classes="pref-input-sm")
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Show Pirate Names", classes="key")
-                            yield Select(
-                                    [("Off", "false"), ("On", "true")],
-                                    value="true" if s.get("PirateNames", False) else "false",
-                                    id="g-pirate", classes="pref-bool-sel", allow_blank=False)
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Show Credit Value per Kill", classes="key")
-                            yield Select(
-                                    [("Off", "false"), ("On", "true")],
-                                    value="true" if s.get("BountyValue", False) else "false",
-                                    id="g-bounty-val", classes="pref-bool-sel", allow_blank=False)
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Show Victim Faction per Kill", classes="key")
-                            yield Select(
-                                    [("Off", "false"), ("On", "true")],
-                                    value="true" if s.get("BountyFaction", False) else "false",
-                                    id="g-bounty-fac", classes="pref-bool-sel", allow_blank=False)
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Extended Kill Stats", classes="key")
-                            yield Select(
-                                    [("Off", "false"), ("On", "true")],
-                                    value="true" if s.get("ExtendedStats", False) else "false",
-                                    id="g-extended", classes="pref-bool-sel", allow_blank=False)
-                        yield Label("INACTIVITY ALERTS", classes="pref-section")
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Alert After N Minutes Without Kill", classes="key")
-                            yield Input(value=str(s.get("WarnNoKills", 20)),
-                                        id="g-warn-kills", restrict="0123456789",
-                                        max_length=3, classes="pref-input-sm")
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Alert When Kill Rate Below (kills/hr)", classes="key")
-                            yield Input(value=str(s.get("WarnKillRate", 20)),
-                                        id="g-warn-rate", restrict="0123456789",
-                                        max_length=3, classes="pref-input-sm")
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Alert Cooldown (minutes)", classes="key")
-                            yield Input(value=str(s.get("WarnCooldown", 15)),
-                                        id="g-warn-cd", restrict="0123456789",
-                                        max_length=3, classes="pref-input-sm")
+                        yield from self._merged_parts("pref-tab-general")
 
                     # ── Notifications ─────────────────────────────────────────
                     with VerticalScroll(id="pref-tab-notif", classes="pref-page"):
@@ -303,62 +254,60 @@ class PreferencesScreen(ModalScreen):
                             classes="pref-select",
                         )
 
-                        # Interface: what a launch without an interface flag
-                        # opens. The same setting, worded the same, as the
-                        # desktop window's Options (core/modes.py).
-                        from core import edcars as _edcars
-                        from core import helm as _helm
-                        from core import modes as _modes
-                        yield Label("INTERFACE", classes="pref-section")
-                        yield Label(f"What EDLD opens when it is started without an "
-                                    f"interface flag: the one chosen here, or the "
-                                    f"last one started by its shortcut or flag "
-                                    f"(--dasht and the rest), whichever was more "
-                                    f"recent. {_edcars.EDCARS_NAME} groups the "
-                                    "windows into sections on a rail; the Dashboard "
-                                    "shows every window at once. Used from the next "
-                                    "start; nothing restarts now.",
+                        yield Label("Text face, size and row shading for the desktop "
+                                    "windows are set in the desktop window's Options.",
                                     classes="pref-note")
-                        with Horizontal(classes="pref-row"):
-                            yield Label("Interface", classes="key")
-                            yield Select(
-                                [(lbl, mid) for mid, lbl in _modes.options_choices()],
-                                value=_modes.normalise(ui.get("Interface")),
-                                id="app-interface",
-                                classes="pref-select", allow_blank=False,
-                            )
-                        with Horizontal(classes="pref-row"):
-                            yield Label(f"{_edcars.EDCARS_NAME}: new urgent alert",
-                                        classes="key")
-                            yield Select(
-                                [(lbl, mid) for mid, lbl in _edcars.ALERT_MODES],
-                                value=_edcars.alert_mode_of(ui), id="app-edcars-alerts",
-                                classes="pref-select", allow_blank=False,
-                            )
-                        with Horizontal(classes="pref-row"):
-                            yield Label(f"{_edcars.EDCARS_NAME}: console", classes="key")
-                            yield Select(
-                                [(lbl, cid) for cid, lbl in _edcars.console_choices()],
-                                value=_edcars.console_of(ui), id="app-edcars-console",
-                                classes="pref-select", allow_blank=False,
-                            )
-                        with Horizontal(classes="pref-row"):
-                            yield Label(f"Dashboard: {_helm.HELM_NAME} panel", classes="key")
-                            yield Select(
-                                [("Off", "false"), ("On", "true")],
-                                value="true" if _helm.panel_wanted(ui) else "false",
-                                id="app-helm-panel", classes="pref-bool-sel",
-                                allow_blank=False,
-                            )
-                        yield Label(f"The {_helm.HELM_NAME} panel — the game's controls "
-                                    "and EDLD's automation — runs along the foot of "
-                                    "the Dashboard while automation is on (Options → "
-                                    f"Automation). {_edcars.EDCARS_NAME} gives it a "
-                                    "section of its own.",
-                                    classes="pref-note")
-                        yield Label(_edcars.console_note(), classes="pref-note")
 
-                    # ── Data & Integrations ───────────────────────────────────
+                    # ── Combat ────────────────────────────────────────────────
+                    with VerticalScroll(id="pref-tab-combat", classes="pref-page"):
+                        yield Label("KILL MESSAGES", classes="pref-section")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Truncate Names (chars)", classes="key")
+                            yield Input(value=str(s.get("TruncateNames", 30)),
+                                        id="g-trunc", restrict="0123456789",
+                                        max_length=3, classes="pref-input-sm")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Show Pirate Names", classes="key")
+                            yield Select(
+                                    [("Off", "false"), ("On", "true")],
+                                    value="true" if s.get("PirateNames", False) else "false",
+                                    id="g-pirate", classes="pref-bool-sel", allow_blank=False)
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Show Credit Value per Kill", classes="key")
+                            yield Select(
+                                    [("Off", "false"), ("On", "true")],
+                                    value="true" if s.get("BountyValue", False) else "false",
+                                    id="g-bounty-val", classes="pref-bool-sel", allow_blank=False)
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Show Victim Faction per Kill", classes="key")
+                            yield Select(
+                                    [("Off", "false"), ("On", "true")],
+                                    value="true" if s.get("BountyFaction", False) else "false",
+                                    id="g-bounty-fac", classes="pref-bool-sel", allow_blank=False)
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Extended Kill Stats", classes="key")
+                            yield Select(
+                                    [("Off", "false"), ("On", "true")],
+                                    value="true" if s.get("ExtendedStats", False) else "false",
+                                    id="g-extended", classes="pref-bool-sel", allow_blank=False)
+                        yield Label("INACTIVITY ALERTS", classes="pref-section")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Alert After N Minutes Without Kill", classes="key")
+                            yield Input(value=str(s.get("WarnNoKills", 20)),
+                                        id="g-warn-kills", restrict="0123456789",
+                                        max_length=3, classes="pref-input-sm")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Alert When Kill Rate Below (kills/hr)", classes="key")
+                            yield Input(value=str(s.get("WarnKillRate", 20)),
+                                        id="g-warn-rate", restrict="0123456789",
+                                        max_length=3, classes="pref-input-sm")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Alert Cooldown (minutes)", classes="key")
+                            yield Input(value=str(s.get("WarnCooldown", 15)),
+                                        id="g-warn-cd", restrict="0123456789",
+                                        max_length=3, classes="pref-input-sm")
+
+                    # ── Services ──────────────────────────────────────────────
                     with VerticalScroll(id="pref-tab-data", classes="pref-page"):
                         eddn    = cfg.eddn_cfg
                         edsm    = cfg.edsm_cfg
@@ -451,10 +400,67 @@ class PreferencesScreen(ModalScreen):
                                 placeholder="optional — from ravencolonial.com",
                                 classes="pref-input",
                             )
+                        yield from self._merged_parts("pref-tab-data")
 
-                    # ── Display (window layout) ──────────────────────────────
-                    with VerticalScroll(id="pref-tab-display", classes="pref-page"):
+                    # ── Interface ─────────────────────────────────────────────
+                    with VerticalScroll(id="pref-tab-interface", classes="pref-page"):
+                        # Interface: what a launch without an interface flag
+                        # opens. The same setting, worded the same, as the
+                        # desktop window's Options (core/modes.py).
+                        from core import edcars as _edcars
+                        from core import helm as _helm
+                        from core import modes as _modes
+                        yield Label("INTERFACE", classes="pref-section")
+                        yield Label(f"What EDLD opens when it is started without an "
+                                    f"interface flag: the one chosen here, or the "
+                                    f"last one started by its shortcut or flag "
+                                    f"(--dasht and the rest), whichever was more "
+                                    f"recent. {_edcars.EDCARS_NAME} groups the "
+                                    "windows into sections on a rail; the Dashboard "
+                                    "shows every window at once. Used from the next "
+                                    "start; nothing restarts now.",
+                                    classes="pref-note")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Interface", classes="key")
+                            yield Select(
+                                [(lbl, mid) for mid, lbl in _modes.options_choices()],
+                                value=_modes.normalise(ui.get("Interface")),
+                                id="app-interface",
+                                classes="pref-select", allow_blank=False,
+                            )
+                        yield Label(_edcars.EDCARS_NAME.upper(), classes="pref-section")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("New urgent alert", classes="key")
+                            yield Select(
+                                [(lbl, mid) for mid, lbl in _edcars.ALERT_MODES],
+                                value=_edcars.alert_mode_of(ui), id="app-edcars-alerts",
+                                classes="pref-select", allow_blank=False,
+                            )
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Console", classes="key")
+                            yield Select(
+                                [(lbl, cid) for cid, lbl in _edcars.console_choices()],
+                                value=_edcars.console_of(ui), id="app-edcars-console",
+                                classes="pref-select", allow_blank=False,
+                            )
+                        yield Label(_edcars.console_note(), classes="pref-note")
+                        yield Label("DASHBOARD", classes="pref-section")
+                        with Horizontal(classes="pref-row"):
+                            yield Label(f"{_helm.HELM_NAME} panel", classes="key")
+                            yield Select(
+                                [("Off", "false"), ("On", "true")],
+                                value="true" if _helm.panel_wanted(ui) else "false",
+                                id="app-helm-panel", classes="pref-bool-sel",
+                                allow_blank=False,
+                            )
+                        yield Label(f"The {_helm.HELM_NAME} panel — the game's controls "
+                                    "and EDLD's automation — runs along the foot of "
+                                    "the Dashboard while automation is on (Options → "
+                                    f"Automation). {_edcars.EDCARS_NAME} gives it a "
+                                    "section of its own.",
+                                    classes="pref-note")
                         from core import layout_model as _LM
+                        yield Label("DASHBOARD WINDOWS", classes="pref-section")
                         yield Label(
                             "Choose which window appears in each position.  Only windows of a "
                             "matching size fit a position; choosing one already shown elsewhere "
@@ -466,7 +472,7 @@ class PreferencesScreen(ModalScreen):
                         _last_col = None
                         for _info in _LM.summary(_asn, _avail):
                             if _info["column"] != _last_col:
-                                yield Label(f"{_info['column'].upper()} COLUMN", classes="pref-section")
+                                yield Label(f"{_info['column'].title()} column", classes="pref-note")
                                 _last_col = _info["column"]
                             _opts = [("(empty)", "")] + [
                                 (_LM.block_display(b), b) for b in _info["eligible"]
@@ -508,6 +514,11 @@ class PreferencesScreen(ModalScreen):
         self.app.set_timer(0.1, lambda: self.app.refresh(layout=True))
 
     # ── Pages ─────────────────────────────────────────────────────────────────
+
+    def _merged_parts(self, page_id: str):
+        """The components' settings drawn at the foot of one of EDLD's pages."""
+        for _tid, _label, composer in self._merged.get(page_id, ()):
+            yield from composer()
 
     def page_labels(self) -> list[str]:
         """The pages' names, top to bottom."""
@@ -835,8 +846,8 @@ class PreferencesScreen(ModalScreen):
     # ── Apply ─────────────────────────────────────────────────────────────────
 
     def _collect_window_assignment(self):
-        """Read the Display tab's selects into a validated assignment, or None
-        if the Display tab isn't present."""
+        """Read the Interface page's window selects into a validated
+        assignment, or None if they aren't present."""
         from core import layout_model as LM
         raw = {}
         for sid in LM.slot_ids():

@@ -16,14 +16,14 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-CORE = ["General", "Notifications", "Discord", "Appearance", "Data", "Display"]
-
-# Loaded in this order, which is not the alphabetical one: the column sorts.
+# Loaded in this order, which is not the column's: core/options_pages.py
+# orders it, and draws EDSM Log under Services and Backups under General.
 SPEC = [("components.navigation", "NavigationPlugin"),      # Routes
         ("components.callouts", "CalloutsPlugin"),           # Callouts
         ("components.edsm_gaps", "EDSMGapsPlugin"),          # EDSM Log
         ("components.backups", "BackupsPlugin")]             # Backups
-EXTRA = ["Backups", "Callouts", "EDSM Log", "Routes"]
+PAGES = ["General", "Interface", "Appearance", "Notifications", "Callouts",
+         "Discord", "Combat", "Routes", "Services"]
 
 
 def _core(tmp_path):
@@ -70,15 +70,15 @@ def _dialog(tmp_path, edcars=False):
 def test_gui_pages_are_a_column_not_tabs(qt, tmp_path, edcars):
     from PySide6.QtWidgets import QPushButton, QTabBar, QTabWidget
     dlg = _dialog(tmp_path, edcars)
-    assert dlg.page_labels() == CORE + EXTRA
+    assert dlg.page_labels() == PAGES
     assert not dlg.findChildren(QTabWidget) and not dlg.findChildren(QTabBar)
     pills = [b for b in dlg.findChildren(QPushButton) if b.objectName() in ("prefPill", "edcarsPill")]
-    want = [p.upper() for p in CORE + EXTRA] if edcars else CORE + EXTRA
+    want = [p.upper() for p in PAGES] if edcars else PAGES
     assert [b.text() for b in pills] == want
     for i, b in enumerate(pills):
         b.click()
         assert dlg._pages.currentIndex() == i and b.isChecked()
-        assert dlg.current_page() == (CORE + EXTRA)[i]
+        assert dlg.current_page() == (PAGES)[i]
 
 
 @pytest.mark.parametrize("edcars", [False, True])
@@ -127,9 +127,9 @@ def test_gui_keys_move_between_pages(qt, tmp_path):
     dlg = _dialog(tmp_path)
     dlg.show()
     dlg._step(1)
-    assert dlg.current_page() == "Notifications"
+    assert dlg.current_page() == "Interface"
     dlg._step(-2)
-    assert dlg.current_page() == EXTRA[-1]          # wraps
+    assert dlg.current_page() == PAGES[-1]          # wraps
     # The shortcuts themselves: an offscreen window is never the active one,
     # so a key press would not reach a window shortcut.
     from PySide6.QtGui import QShortcut
@@ -138,16 +138,16 @@ def test_gui_keys_move_between_pages(qt, tmp_path):
     keys["Ctrl+PgDown"].activated.emit()
     assert dlg.current_page() == "General"
     keys["Ctrl+Shift+Tab"].activated.emit()
-    assert dlg.current_page() == EXTRA[-1]
+    assert dlg.current_page() == PAGES[-1]
     keys["Ctrl+Tab"].activated.emit()
     assert dlg.current_page() == "General"
     # Down on a focused selector opens the next page, as on the rail.
     pill = dlg._nav.button(0)
     pill.setFocus()
     QTest.keyClick(pill, Qt.Key_Down)
-    assert dlg.current_page() == "Notifications"
-    dlg.show_page("Data")
-    assert dlg.current_page() == "Data"
+    assert dlg.current_page() == "Interface"
+    dlg.show_page("Services")
+    assert dlg.current_page() == "Services"
     dlg.close()
 
 
@@ -217,11 +217,12 @@ def test_tui_pages_are_a_column_in_the_desktop_order(tmp_path):
         seen["focus"] = app.focused is nav
 
     seen = _run_tui(_core(tmp_path), steps)
-    assert seen["labels"] == seen["options"] == CORE + EXTRA
+    assert seen["labels"] == seen["options"] == PAGES
     assert seen["tabs"] == 0
-    assert set(seen["ids"]) >= {"pref-tab-general", "pref-tab-display", "pref-tab-routes"}
+    assert set(seen["ids"]) >= {"pref-tab-general", "pref-tab-interface", "pref-tab-combat",
+                              "pref-tab-routes"}
     # Every page's name is on screen at once in a 30-row terminal.
-    assert seen["nav_h"] >= len(CORE + EXTRA)
+    assert seen["nav_h"] >= len(PAGES)
     assert seen["focus"]
 
 
@@ -245,11 +246,11 @@ def test_tui_keys_move_between_pages(tmp_path):
         seen["hl"] = scr.query_one("#pref-nav").highlighted
 
     seen = _run_tui(_core(tmp_path), steps)
-    assert seen["down"] == "Notifications"
-    assert seen["next"] == "Discord"
-    assert seen["wrap"] == EXTRA[-1]
+    assert seen["down"] == "Interface"
+    assert seen["next"] == "Appearance"
+    assert seen["wrap"] == PAGES[-1]
     assert seen["named"] == "Routes"
-    assert seen["hl"] == (CORE + EXTRA).index("Routes")
+    assert seen["hl"] == (PAGES).index("Routes")
 
 
 def test_tui_opening_options_still_records_nothing(tmp_path):

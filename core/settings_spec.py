@@ -120,7 +120,9 @@ class SettingsSpecMixin:
                 if isinstance(s, Heading):
                     yield Label(s.text.upper(), classes="pref-section")
                     if s.note:
-                        yield Label(s.note, classes="dim")
+                        # Options' own note style, not the dashboard's "dim",
+                        # which is the text color and sits unpadded.
+                        yield Label(s.note, classes="pref-note")
                 elif isinstance(s, Action):
                     with Horizontal(classes="pref-row"):
                         yield Button(s.label, id=self._wid(s.id))
@@ -146,7 +148,7 @@ class SettingsSpecMixin:
                             yield Input(value=str(v), id=self._wid(s.key),
                                         classes="pref-input")
                     if s.help:
-                        yield Label(f"  {s.help}", classes="dim")
+                        yield Label(s.help, classes="pref-note")
 
         return (self.SETTINGS_TAB[0], self.SETTINGS_TAB[1], _compose)
 

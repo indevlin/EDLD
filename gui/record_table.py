@@ -91,7 +91,8 @@ class RecordTable(QWidget):
         self.table.setEditTriggers(QAbstractItemView.DoubleClicked)
         self.table.setItemDelegate(_Delegate(self))
         self.table.verticalHeader().setVisible(False)
-        self.table.setAlternatingRowColors(True)
+        from gui.theme import row_stripes
+        self.table.setAlternatingRowColors(row_stripes())
         self.table.setSortingEnabled(True)
         self.table.sortByColumn(0, Qt.AscendingOrder)
         hdr = self.table.horizontalHeader()
