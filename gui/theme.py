@@ -35,18 +35,19 @@ VALUE_PLACEMENTS = (
     (VALUES_MANUAL, "Manual alignment"),
 )
 
-_OFFSET = re.compile(r"^\s*(\d{1,4}(?:\.\d+)?)\s*(px|%)?\s*$", re.IGNORECASE)
+_OFFSET = re.compile(r"^\s*(-?\d{1,4}(?:\.\d+)?)\s*(px|%)?\s*$", re.IGNORECASE)
 
 
 def parse_offset(text) -> "tuple[float, bool] | None":
     """(amount, is_percent) for "320", "320px" or "25%"; None when blank or
-    not understood."""
+    not understood. A negative amount is kept, for the placement to correct
+    and say so."""
     m = _OFFSET.match(str(text or ""))
     if m is None:
         return None
     amount, unit = float(m.group(1)), (m.group(2) or "").lower()
     if unit == "%":
-        return min(amount, 100.0), True
+        return max(min(amount, 100.0), -100.0), True
     return amount, False
 
 
@@ -91,8 +92,11 @@ def configure(ui: "dict | None") -> None:
     from_left = parse_offset(ui.get("ValueFromLeft", ""))
     from_right = parse_offset(ui.get("ValueFromRight", ""))
     if values == "labels":
-        # The first form of manual alignment: values just past the labels.
-        values, from_left, from_right = VALUES_MANUAL, (0.0, False), None
+        # The first form of manual alignment: values just past the labels,
+        # unless offsets have been given since.
+        values = VALUES_MANUAL
+        if from_left is None and from_right is None:
+            from_left = (0.0, False)
     _TYPE.update(
         family=str(ui.get("FontFamily", "") or "").strip(),
         figures=str(ui.get("FigureFamily", "") or "").strip(),

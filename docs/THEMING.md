@@ -46,6 +46,15 @@ soon as Options closes:
 | Values | `ValuePlacement` | At the right edge, or Manual alignment, placed by the two below, so a figure stays near its name in a wide window |
 | From the labels' left | `ValueFromLeft` | Manual: values start this far from the labels' left edge, left-aligned, or just past the longest label if that is further. `320` is pixels, `25%` a share of the window's width |
 | From the right edge | `ValueFromRight` | Manual: values end this far from the right edge, right-aligned. With both set, the column runs between the two, values right-aligned in it |
+
+Each window is measured on its own, so `25%` is a quarter of that window's
+width, and a section of EDCARS with three windows side by side places each by
+its own width. The right edge is firm: offsets a window is too narrow for,
+or below 0, are corrected, the left giving way first, never the labels or the
+values, so a window does not scroll sideways because of them. Options says so
+under the two fields as you type, with the range that is safe in every window
+on screen, and Alerts carries a notice for as long as a window on screen is
+being corrected.
 | Alternate row shading | `RowStripes` | Every other row shaded, counting afresh under each heading, and every other row of the tables |
 
 A console's own lettering — EDCARS's band, rail and frame headings, ORDER's,

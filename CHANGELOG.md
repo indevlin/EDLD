@@ -22,7 +22,12 @@ aligns them by hand: from the labels' left (`ValueFromLeft`) the values start
 there, left-aligned, or past the longest label if that is further; from the
 right edge (`ValueFromRight`) they end there, right-aligned; with both they
 run between the two. Each is pixels, "320", or a share of the window's width,
-"25%". EDAM and the terminal dashboard keep their own layout. All of it applies
+"25%", each window measured on its own. The right edge is firm: offsets a
+window is too narrow for, or below 0, are corrected rather than push the
+values past it or scroll it sideways. Options says so as the offsets are
+typed, with the range that is safe in every window on screen, and Alerts
+says so for as long as a window on screen is being corrected. EDAM and the terminal
+dashboard keep their own layout. All of it applies
 to the Dashboard and EDCARS alike, and to their dialogs, as soon as Options
 closes or config.toml is saved. A console's own lettering, the band, rail and
 frame headings, keeps its face and size, since its shapes are drawn to fit

@@ -476,6 +476,15 @@ class AlertsPlugin(BasePlugin):
         gq = self.core.gui_queue
         if gq: gq.put(("alerts_update", None))
 
+    def drop_notice(self, key: str) -> None:
+        """Remove the notice pushed with ``key``, once what it said no longer
+        holds."""
+        kept = [f for f in self.faults if f.get("key") != key]
+        if len(kept) != len(self.faults):
+            self.faults = kept
+            gq = self.core.gui_queue
+            if gq: gq.put(("alerts_update", None))
+
     def get_alerts(self) -> list[dict]:
         """Return current alerts list for the dashboard block renderer."""
         return list(self.faults) + list(self.alert_queue)

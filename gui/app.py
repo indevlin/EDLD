@@ -389,6 +389,7 @@ class EdldWindow(QMainWindow):
         # config.toml edited by hand: its text and row settings, now.
         if _typography.signature(self._ui_cfg()) != self._type_sig:
             self.apply_text_and_rows()
+        self._check_fit()
         dirty: set[str] = set()
         try:
             while True:
@@ -544,6 +545,32 @@ class EdldWindow(QMainWindow):
         # Automation turned on or off, or the Helm panel: shown or hidden now.
         self._refresh_block("block-helm")
         self.apply_text_and_rows()
+
+    #: The alert's key, and how many polls in a row must agree before it
+    #: is raised or dropped: a window mid-layout is not out of bounds.
+    FIT_NOTICE = "value-fit"
+    FIT_POLLS = 4
+
+    def _check_fit(self) -> None:
+        """Say in Alerts when the value offsets are being corrected in a
+        window on screen, and stop saying so when they no longer are."""
+        from gui.block_base import fit_report
+        report = fit_report()
+        out = bool(report and report["corrected"])
+        if out == getattr(self, "_fit_out", False):
+            self._fit_seen = 0
+            return
+        self._fit_seen = getattr(self, "_fit_seen", 0) + 1
+        if self._fit_seen < self.FIT_POLLS:
+            return
+        self._fit_out, self._fit_seen = out, 0
+        if out:
+            self._core.plugin_call(
+                "alerts", "push_notice", self.FIT_NOTICE, "⚠",
+                "Value offsets out of bounds; corrected. Safe values: "
+                "Options › Appearance")
+        else:
+            self._core.plugin_call("alerts", "drop_notice", self.FIT_NOTICE)
 
     def _ui_cfg(self) -> dict:
         return getattr(getattr(self._core, "cfg", None), "ui_cfg", None) or {}

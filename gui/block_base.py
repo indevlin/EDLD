@@ -11,7 +11,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from PySide6.QtCore import QEvent, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, Qt, QTimer
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -148,28 +148,174 @@ _ROW_GAP = 8
 _EDGE = (0, 0, False, _ROW_MARGIN, False)
 
 
+class _ViewportWatch(QObject):
+    """Arranges a group again when the viewport it is seen in resizes: the
+    body inside may be held wide by the rows themselves and not resize."""
+
+    def __init__(self, viewport: QWidget, parent_rows: QWidget) -> None:
+        super().__init__(viewport)
+        self._rows = parent_rows
+        viewport.installEventFilter(self)
+
+    def eventFilter(self, obj, ev) -> bool:
+        if ev.type() == QEvent.Resize:
+            _schedule(self._rows)
+        return False
+
+
+def _natural(label: QLabel) -> int:
+    """A label's own width. Not its size hint: a rich-text label lays its
+    text out at the width it was last given, so a column an arrangement once
+    widened would keep itself wide."""
+    from PySide6.QtGui import QTextDocument
+    doc = QTextDocument()
+    doc.setDocumentMargin(0)
+    doc.setDefaultFont(label.font())
+    doc.setHtml(label.text())
+    m = label.contentsMargins()
+    return int(doc.idealWidth() + 0.999) + m.left() + m.right() + 2 * label.margin()
+
+
+def _pane_width(parent: QWidget) -> int:
+    """The width the rows are seen in: a scroll area's viewport, not the
+    body inside it, which the rows themselves may have widened."""
+    from PySide6.QtWidgets import QAbstractScrollArea
+    w = parent
+    while w is not None:
+        if isinstance(w, QAbstractScrollArea):
+            vp = w.viewport()
+            if getattr(parent, "_viewport_watch", None) is None:
+                parent._viewport_watch = _ViewportWatch(vp, parent)
+            return vp.width()
+        w = w.parentWidget()
+    return parent.width()
+
+
 def _placement(parent: QWidget, rows) -> tuple:
     """(label width, value width, values left-aligned, right margin, value
     column stretched) for a group, by [UI] ValuePlacement: at the right
     edge, or by ValueFromLeft and ValueFromRight."""
     offsets = _theme.value_offsets()
     if offsets is None or offsets == (None, None):
+        _MEASURED.pop(id(parent), None)
         return _EDGE
-    width = max(parent.width(), 1)
-    left = _theme.offset_px(offsets[0], width)
-    right = _theme.offset_px(offsets[1], width)
-    kw = max((r._key.sizeHint().width() for r in rows), default=0)
-    vw = max((r._val.sizeHint().width() for r in rows), default=0)
-    margin = max(_ROW_MARGIN, right) if right is not None else _ROW_MARGIN
-    if left is None:
+    width = max(_pane_width(parent), 1)
+    kw = max((_natural(r._key) for r in rows), default=0)
+    vw = max((_natural(r._val) for r in rows), default=0)
+    _MEASURED[id(parent)] = (parent, width, kw, vw)
+    f = fit(width, kw, vw, _theme.offset_px(offsets[0], width),
+            _theme.offset_px(offsets[1], width))
+    if offsets[0] is None:
         # From the right edge: the values end there, right-aligned.
-        return 0, vw, False, margin, False
-    kmin = max(kw, left - _ROW_GAP)
-    if right is None:
+        return 0, vw, False, f.margin, False
+    if offsets[1] is None:
         # From the labels' left: the values start there, left-aligned.
-        return kmin, vw, True, margin, False
+        return f.kmin, vw, True, f.margin, False
     # Both: the column runs between them, the values right-aligned in it.
-    return kmin, vw, False, margin, True
+    return f.kmin, vw, False, f.margin, True
+
+
+class Fit:
+    """Where a group's offsets put its value column, after correction, and
+    the most each can be in it without correction."""
+
+    __slots__ = ("kmin", "margin", "left_out", "right_out", "max_left", "max_right")
+
+    def __init__(self, kmin, margin, left_out, right_out, max_left, max_right):
+        self.kmin, self.margin = kmin, margin
+        self.left_out, self.right_out = left_out, right_out
+        self.max_left, self.max_right = max_left, max_right
+
+    @property
+    def corrected(self) -> bool:
+        return self.left_out or self.right_out
+
+
+def fit(width: int, kw: int, vw: int, left, right) -> Fit:
+    """The offsets, in pixels or None, for a pane ``width`` wide whose
+    longest label and value are ``kw`` and ``vw``. The right edge is firm:
+    an offset that would push the values past it, or a negative one, is
+    corrected, the left giving way first."""
+    room = width - 2 * _ROW_MARGIN - 2 * _ROW_GAP - vw
+    max_left = max(room + _ROW_GAP, 0)
+    kmin, left_out = 0, False
+    if left is not None:
+        want = left - _ROW_GAP
+        kmin = max(kw, min(max(want, 0), room))
+        left_out = left < 0 or want > room
+    max_right = max(room - max(kmin, kw) + _ROW_MARGIN, 0)
+    margin, right_out = _ROW_MARGIN, False
+    if right is not None:
+        margin = max(_ROW_MARGIN, min(max(right, 0), max_right))
+        right_out = right < 0 or right > max_right
+    return Fit(kmin, margin, left_out, right_out, max_left, max_right)
+
+
+#: The groups placed by offsets, by id: (parent, pane width, longest label,
+#: longest value), for fit_report().
+_MEASURED: dict[int, tuple] = {}
+
+
+def fit_report(offsets=None) -> "dict | None":
+    """Whether ``offsets`` (from_left, from_right) as parse_offset gives them
+    — the settings in force when None — are corrected in any window now on
+    screen, and the most each could be in all of them: {"windows": n,
+    "corrected": n, "max_left_px", "max_left_pct", "max_right_px",
+    "max_right_pct"}. None while no window is placed by offsets."""
+    if offsets is None:
+        offsets = _theme.value_offsets() or (None, None)
+    groups = []
+    for key, (parent, _w, kw, vw) in list(_MEASURED.items()):
+        try:
+            if not parent.isVisible():
+                continue
+            width = _pane_width(parent)
+        except RuntimeError:
+            _MEASURED.pop(key, None)
+            continue
+        if width > 50:
+            groups.append((width, kw, vw))
+    if not groups:
+        return None
+    out = {"windows": len(groups), "corrected": 0, "left_out": 0,
+           "negative": any(o is not None and o[0] < 0 for o in offsets)}
+    lefts, rights, alone = [], [], []
+    for width, kw, vw in groups:
+        f = fit(width, kw, vw, _theme.offset_px(offsets[0], width),
+                _theme.offset_px(offsets[1], width))
+        out["corrected"] += bool(f.corrected)
+        out["left_out"] += bool(f.left_out)
+        lefts.append((f.max_left, f.max_left * 100.0 / width))
+        rights.append((f.max_right, f.max_right * 100.0 / width))
+        a = fit(width, kw, vw, None, None).max_right
+        alone.append((a, a * 100.0 / width))
+    out["max_left_px"] = int(min(px for px, _p in lefts))
+    out["max_left_pct"] = int(min(p for _px, p in lefts))
+    with_left = offsets[0] is not None and not out["left_out"]
+    pick = rights if with_left else alone
+    out["max_right_px"] = int(min(px for px, _p in pick))
+    out["max_right_pct"] = int(min(p for _px, p in pick))
+    out["right_with_left"] = with_left
+    return out
+
+
+def fit_advice(report: "dict | None") -> str:
+    """A few lines for Options: what is corrected and the safe range, or ""
+    when nothing is."""
+    if not report or not report["corrected"]:
+        return ""
+    n = report["corrected"]
+    tail = ("with that left" if report.get("right_with_left")
+            else "with the left blank, less as the left grows")
+    text = (f"Out of bounds in {n} window{'s' if n != 1 else ''} at "
+            f"{'its' if n == 1 else 'their'} present size; the values are held "
+            f"inside the right edge. Safe in every window on screen now: from the "
+            f"labels' left 0 to {report['max_left_px']} px or "
+            f"{report['max_left_pct']}%; from the right edge 0 to "
+            f"{report['max_right_px']} px or {report['max_right_pct']}%, {tail}.")
+    if report.get("negative"):
+        text += " Below 0 counts as 0."
+    return text
 
 
 def rearrange(root: QWidget) -> None:

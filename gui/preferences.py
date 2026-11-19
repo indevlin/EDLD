@@ -650,9 +650,13 @@ class PreferencesDialog(QDialog):
         form2 = QFormLayout()
         lay.addLayout(form2)
         placement = str(ui.get("ValuePlacement", T.VALUES_EDGE) or T.VALUES_EDGE).lower()
-        if placement == "labels":
-            placement = T.VALUES_MANUAL
-        values = self._choice_pairs(placement, "UI", "ValuePlacement", T.VALUE_PLACEMENTS)
+        values = self._choice_pairs(
+            T.VALUES_MANUAL if placement == "labels" else placement,
+            "UI", "ValuePlacement", T.VALUE_PLACEMENTS)
+        if placement not in dict(T.VALUE_PLACEMENTS):
+            # An old or unknown value: written as what the picker shows, so
+            # that what Apply saves is what was seen.
+            self._record("UI", "ValuePlacement", values.currentData())
         form2.addRow("Values", values)
         offsets = []
         for key, label in (("ValueFromLeft", "From the labels' left"),
@@ -661,12 +665,32 @@ class PreferencesDialog(QDialog):
             offsets.append(edit)
             form2.addRow(label, edit)
 
+        fit_note = _note("")
+        fit_note.setProperty("health", "warn")
+        fit_note.setVisible(False)
+        self._fit_note = fit_note
+
+        def _check_fit(*_a) -> None:
+            # What the typed offsets would do in the windows open now.
+            from gui.block_base import fit_advice, fit_report
+            text = ""
+            if values.currentData() == T.VALUES_MANUAL:
+                wanted = tuple(T.parse_offset(e.text()) for e in offsets)
+                if wanted != (None, None):
+                    text = fit_advice(fit_report(wanted))
+            fit_note.setText(text)
+            fit_note.setVisible(bool(text))
+
         def _manual(_i=0) -> None:
             on = values.currentData() == T.VALUES_MANUAL
             for e in offsets:
                 e.setEnabled(on)
+            _check_fit()
         values.currentIndexChanged.connect(_manual)
+        for e in offsets:
+            e.textChanged.connect(_check_fit)
         _manual()
+        form2.addRow(fit_note)
         form2.addRow("Alternate row shading", self._bool_combo(
             bool(ui.get("RowStripes", True)), "UI", "RowStripes"))
         lay.addWidget(_note(
@@ -674,7 +698,9 @@ class PreferencesDialog(QDialog):
             "the values start there, left-aligned, or past the longest label; "
             "from the right edge, they end there, right-aligned; with both, "
             "they run between the two. Give pixels, 320, or a share of the "
-            "width, 25% (the % is needed). Leave one blank to set only the "
+            "width, 25% (the % is needed), each window measured on its own. "
+            "The right edge is firm: offsets a window is too narrow for are "
+            "corrected, and said so above. Leave one blank to set only the "
             "other. Shading stripes every other row, in the windows and in "
             "the tables. The terminal dashboard and EDAM keep their own "
             "layout."))
@@ -689,7 +715,7 @@ class PreferencesDialog(QDialog):
         edit = QLineEdit(current)
         edit.setPlaceholderText("blank, 320 or 25%")
         edit.setValidator(QRegularExpressionValidator(
-            QRegularExpression(r"^\s*(\d{0,4}(\.\d*)?\s*(px|p|%)?)?\s*$"), edit))
+            QRegularExpression(r"^\s*(-?\d{0,4}(\.\d*)?\s*(px|p|%)?)?\s*$"), edit))
 
         def _changed(text: str) -> None:
             text = text.strip()

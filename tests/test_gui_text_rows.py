@@ -25,6 +25,10 @@ def qt():
     from gui import theme as T
     yield app
     T.configure({})
+    from gui import block_base as B
+    for w in app.topLevelWidgets():
+        w.close()
+    B._MEASURED.clear()
 
 
 def _settle(app):
@@ -51,6 +55,9 @@ def test_the_settings_are_read_forgivingly(qt):
     # The first form of manual alignment, beside the labels, is kept.
     T.configure({"ValuePlacement": "labels"})
     assert T.value_offsets() == ((0.0, False), None)
+    # ...but offsets given since are not ignored.
+    T.configure({"ValuePlacement": "labels", "ValueFromLeft": "30%", "ValueFromRight": "10%"})
+    assert T.value_offsets() == ((30.0, True), (10.0, True))
     T.configure({"FontSize": "big"})
     assert T.sizes()["body"] == T.FONT_SIZES["body"]
 
@@ -199,6 +206,18 @@ def test_with_both_the_column_runs_between_them(qt):
     assert {g[0] for g in got} == {306}
     assert {g[1] for g in got} == {rows[1].width() - 400 - 1}
     assert not any(g[2] for g in got)
+
+
+@pytest.mark.parametrize("ui", [{"ValueFromLeft": "2000"}, {"ValueFromRight": "1500"},
+                                {"ValueFromLeft": "90%", "ValueFromRight": "90%"}])
+def test_offsets_give_way_in_a_narrow_pane(qt, ui):
+    from gui import theme as T
+    T.configure({"ValuePlacement": "manual", **ui})
+    pane, rows = _pane(qt, SPEC)
+    pane.resize(420, 400)
+    _settle(qt)
+    assert not pane.horizontalScrollBar().isVisible()
+    assert all(r.minimumSizeHint().width() <= pane.viewport().width() for r in rows)
 
 
 def test_manual_with_nothing_set_is_the_right_edge(qt):
@@ -376,3 +395,125 @@ def test_edam_is_sent_route_waypoints_as_before():
     got = [(r["label"], r["value"]) for r in wire_rows([("kv", lab, val) for lab, val in rows])]
     assert got == [("0. Sol", "start  [0t]"), ("1. Alpha", "500 ly  -12t  [988t]  ·"),
                    ("2. Beta", "500 ly  -112t  [876t]  ⛽300t  mkt 40t")]
+
+
+def test_options_rewrite_an_old_placement_as_manual(qt, tmp_path):
+    """"labels" from the first build showed as Manual alignment; choosing
+    Manual changed nothing, so it was never written back."""
+    from tests.test_options_pages import _core
+    from gui.preferences import PreferencesDialog
+    core = _core(tmp_path)
+    core.cfg.ui_cfg = {**core.cfg.ui_cfg, "ValuePlacement": "labels"}
+    dlg = PreferencesDialog(core, theme="default")
+    assert dlg._pending[("UI", "ValuePlacement")] == "manual"
+
+
+# ── Out of bounds ─────────────────────────────────────────────────────────────
+
+def test_fit_holds_the_right_edge_and_says_what_was_corrected():
+    from gui.block_base import fit
+    # 600 wide, labels 100, values 150: room for the label column 422.
+    f = fit(600, 100, 150, 300, 50)
+    assert not f.corrected and f.kmin == 292 and f.margin == 50
+    assert f.max_left == 430 and f.max_right == 136
+    f = fit(600, 100, 150, 900, None)
+    assert f.left_out and not f.right_out and f.kmin == 422
+    f = fit(600, 100, 150, 300, 200)
+    assert f.right_out and f.margin == 136
+    f = fit(600, 100, 150, None, -40)
+    assert f.right_out and f.margin == 6
+    f = fit(600, 100, 150, -10, None)
+    assert f.left_out and f.kmin == 100
+
+
+def test_negative_offsets_are_read_so_they_can_be_corrected():
+    from gui import theme as T
+    assert T.parse_offset("-40") == (-40.0, False)
+    assert T.parse_offset("-150%") == (-100.0, True)
+
+
+def test_a_corrected_layout_never_passes_the_right_edge(qt):
+    from gui import theme as T
+    from gui.block_base import fit_report
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "90%", "ValueFromRight": "-20"})
+    pane, rows = _pane(qt, SPEC)
+    width = rows[1].width()
+    assert all(g[1] <= width - 6 for g in _texts(rows))
+    report = fit_report()
+    assert report["corrected"] == 1 and report["windows"] == 1
+    assert 0 < report["max_left_pct"] <= 100 and report["max_left_px"] > 0
+    # Within the safe range nothing is corrected.
+    safe = ((report["max_left_px"] - 1.0, False), (0.0, False))
+    assert fit_report(safe)["corrected"] == 0
+
+
+def test_options_say_when_the_typed_offsets_are_out_of_bounds(qt, tmp_path):
+    from PySide6.QtWidgets import QComboBox, QLineEdit
+    from gui import theme as T
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "10"})
+    pane, _rows = _pane(qt, SPEC)
+    dlg = _dialog(tmp_path)
+    dlg.show_page("Appearance")
+    page = dlg._pages.currentWidget()
+    values = next(b for b in page.findChildren(QComboBox) if b.findData("manual") >= 0)
+    values.setCurrentIndex(values.findData("manual"))
+    edits = [e for e in page.findChildren(QLineEdit) if e.placeholderText() == "blank, 320 or 25%"]
+    edits[0].setText("95%")
+    assert dlg._fit_note.isVisibleTo(page) and "Out of bounds in 1 window" in dlg._fit_note.text()
+    assert "Safe in every window on screen now" in dlg._fit_note.text()
+    edits[0].setText("100")
+    assert not dlg._fit_note.isVisibleTo(page) and dlg._fit_note.text() == ""
+    edits[1].setText("-20")
+    assert "Out of bounds" in dlg._fit_note.text()
+    assert "with that left" in dlg._fit_note.text() and "Below 0 counts as 0" in dlg._fit_note.text()
+    edits[0].setText("99%")
+    edits[1].setText("10")
+    assert "with the left blank, less as the left grows" in dlg._fit_note.text()
+    pane.close()
+
+
+def test_alerts_say_so_and_stop_saying_so(qt):
+    from tests.test_edcars import _window
+    from gui import theme as T
+
+    class Alerts:
+        def __init__(self):
+            self.notices = {}
+
+        def push_notice(self, key, emoji, text):
+            self.notices[key] = text
+
+        def drop_notice(self, key):
+            self.notices.pop(key, None)
+
+        def get_alerts(self):
+            return []
+
+        def opacity_for(self, _a):
+            return 1.0
+
+    alerts = Alerts()
+    w, _ = _window(plugins={"alerts": alerts})
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "10"})
+    pane, _rows = _pane(qt, SPEC)
+    w._type_sig = T.signature(w._ui_cfg())
+    for _ in range(w.FIT_POLLS):
+        w._check_fit()
+    assert not alerts.notices
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "99%"})
+    from gui.block_base import rearrange
+    rearrange(pane)
+    _settle(qt)
+    w._check_fit()
+    assert not alerts.notices                    # one poll is not enough
+    for _ in range(w.FIT_POLLS):
+        w._check_fit()
+    assert "out of bounds" in alerts.notices["value-fit"]
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "10"})
+    rearrange(pane)
+    _settle(qt)
+    for _ in range(w.FIT_POLLS + 1):
+        w._check_fit()
+    assert not alerts.notices
+    pane.close()
+    w.close()
