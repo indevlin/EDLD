@@ -514,9 +514,9 @@ class GuiBlock(QFrame):
         """Widgets for rows from core/windows: the same rows the terminal
         dashboard and EDAM draw. ``on_toggle(system_name=…, market_id=…)``
         is called when a collapsible heading is clicked."""
-        from core.windows import cells_text, iter_render, table_text
+        from core.windows import align_values, cells_text, iter_render, table_text
         out: list = []
-        for kind, row, widths in iter_render(rows):
+        for kind, row, widths in iter_render(align_values(rows)):
             if kind == "hdr":
                 out.append(self.hdr(row[1]))
             elif kind == "kv":

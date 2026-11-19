@@ -157,30 +157,43 @@ def carrier_route_rows(result: dict) -> list[tuple[str, str]]:
         ·      icy ring present
         n t    tritium purchasable in the market
     """
-    rows: list[tuple[str, str]] = []
-    for i, jump in enumerate(result.get("jumps") or []):
+    jumps = list(result.get("jumps") or [])
+    table: list[tuple[str, list[str]]] = []
+    for i, jump in enumerate(jumps):
         name = str(jump.get("name") or "—")
         dist = float(jump.get("distance") or 0.0)
         used = int(jump.get("fuel_used") or 0)
         tank = int(jump.get("fuel_in_tank") or 0)
 
-        parts = [f"{dist:,.0f} ly" if i else "start"]
-        if used:
-            parts.append(f"-{used}t")
-        parts.append(f"[{tank}t]")
-
+        flag = ""
         if jump.get("must_restock"):
-            parts.append(f"⛽{int(jump.get('restock_amount') or 0)}t")
+            flag = f"⛽{int(jump.get('restock_amount') or 0)}t"
         elif jump.get("is_system_pristine") and jump.get("has_icy_ring"):
-            parts.append("✦")
+            flag = "✦"
         elif jump.get("has_icy_ring"):
-            parts.append("·")
-
+            flag = "·"
         market = int(jump.get("tritium_in_market") or 0)
-        if market:
-            parts.append(f"mkt {market}t")
+        table.append((name, [f"{dist:,.0f} ly" if i else "start",
+                             f"-{used}t" if used else "", f"[{tank}t]",
+                             flag, f"mkt {market}t" if market else ""]))
 
-        rows.append((f"{i}. {name}", "  ".join(parts)))
+    # Columns: distance, fuel used and tank right-aligned, the marks after
+    # them left-aligned, so every waypoint's figures line up.
+    try:
+        from rich.cells import cell_len
+    except ImportError:
+        cell_len = len
+    widths = [max((cell_len(c[k]) for _n, c in table), default=0) for k in range(5)]
+    num_w = len(str(len(table)))
+    rows: list[tuple[str, str]] = []
+    for i, (name, cells) in enumerate(table):
+        shown = []
+        for k in range(5):
+            if not widths[k]:
+                continue
+            pad = " " * (widths[k] - cell_len(cells[k]))
+            shown.append(pad + cells[k] if k < 3 else cells[k] + pad)
+        rows.append((f"{i:>{num_w}}. {name}", "  ".join(shown)))
     return rows
 
 

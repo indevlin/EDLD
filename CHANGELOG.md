@@ -26,6 +26,24 @@ frame headings, keeps its face and size, since its shapes are drawn to fit
 it; the terminal dashboard keeps the terminal's font, and the overlay its own
 type settings.
 
+### Fixed: figures in a window's rows did not line up
+
+A row whose value held two figures, a count and its rate ("6  313 ly"), an
+amount and its share ("1,234 cr  12.5%"), was one string set against the
+window's right edge, as was every lone figure with or without a unit. So the
+last character lined up and nothing else did: a count sat further left or
+right depending on how long the rate beside it was, "cr" and "ly" pushed their
+numbers off the column, and a lone duration sat under the rates. The values
+had always been built that way, and only looked ragged once they sat beside
+their labels, where the eye reads them as a table. A window's figures are now
+padded into columns before they are drawn: each number ends where the others
+in its column end, each unit starts where the others start, and a row with
+fewer figures keeps its first in the first column. Anything that is not a
+figure, and the rows of a table, which are padded to their headings already,
+are left alone. The desktop window and the terminal dashboard draw it the
+same, and the fleet carrier route plotter's waypoints, which ran distance,
+fuel used, tank and marks together with no columns at all, now line up too.
+
 ### Changed: Options is regrouped
 
 Two pages were named for the same thing and held different ones: Appearance

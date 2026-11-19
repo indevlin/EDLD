@@ -180,9 +180,9 @@ class TuiBlock(Widget):
         """Widgets for rows from core/windows: the same rows the desktop
         window and EDAM draw."""
         from textual.widgets import Label
-        from core.windows import cells_text, iter_render, table_text
+        from core.windows import align_values, cells_text, iter_render, table_text
         out: list = []
-        for kind, row, widths in iter_render(rows):
+        for kind, row, widths in iter_render(align_values(rows)):
             if kind == "hdr":
                 out.append(SecHdr(row[1]))
             elif kind == "kv":

@@ -161,8 +161,9 @@ class NavigationBlock(TuiBlock):
 
     @staticmethod
     def _rows_widgets(rows) -> list:
+        from core.windows import align_values
         out = []
-        for row in rows or []:
+        for row in align_values(rows):
             if row[0] == "hdr":
                 out.append(SecHdr(row[1]))
             elif row[0] == "kv":

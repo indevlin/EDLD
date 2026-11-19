@@ -258,8 +258,9 @@ class NavigationBlock(GuiBlock):
             self._refresh_footer()
 
     def _rows_widgets(self, rows) -> list:
+        from core.windows import align_values
         out = []
-        for row in rows or []:
+        for row in align_values(rows):
             if row[0] == "hdr":
                 out.append(self.hdr(row[1]))
             elif row[0] == "kv":
