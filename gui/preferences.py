@@ -649,18 +649,54 @@ class PreferencesDialog(QDialog):
         lay.addWidget(_section("ROWS"))
         form2 = QFormLayout()
         lay.addLayout(form2)
-        form2.addRow("Values", self._choice_pairs(
-            str(ui.get("ValuePlacement", T.VALUES_EDGE)), "UI", "ValuePlacement",
-            T.VALUE_PLACEMENTS))
+        placement = str(ui.get("ValuePlacement", T.VALUES_EDGE) or T.VALUES_EDGE).lower()
+        if placement == "labels":
+            placement = T.VALUES_MANUAL
+        values = self._choice_pairs(placement, "UI", "ValuePlacement", T.VALUE_PLACEMENTS)
+        form2.addRow("Values", values)
+        offsets = []
+        for key, label in (("ValueFromLeft", "From the labels' left"),
+                           ("ValueFromRight", "From the right edge")):
+            edit = self._offset_edit(str(ui.get(key, "") or ""), key)
+            offsets.append(edit)
+            form2.addRow(label, edit)
+
+        def _manual(_i=0) -> None:
+            on = values.currentData() == T.VALUES_MANUAL
+            for e in offsets:
+                e.setEnabled(on)
+        values.currentIndexChanged.connect(_manual)
+        _manual()
         form2.addRow("Alternate row shading", self._bool_combo(
             bool(ui.get("RowStripes", True)), "UI", "RowStripes"))
         lay.addWidget(_note(
-            "Beside their labels, each group's values sit in one column just "
-            "right of its longest label rather than at the window's edge. "
-            "Shading stripes every other row, in the windows and in the "
-            "tables."))
+            "Manual alignment places the value column: from the labels' left, "
+            "the values start there, left-aligned, or past the longest label; "
+            "from the right edge, they end there, right-aligned; with both, "
+            "they run between the two. Give pixels, 320, or a share of the "
+            "width, 25% (the % is needed). Leave one blank to set only the "
+            "other. Shading stripes every other row, in the windows and in "
+            "the tables. The terminal dashboard and EDAM keep their own "
+            "layout."))
         lay.addStretch(1)
         return page
+
+    def _offset_edit(self, current: str, key: str) -> QLineEdit:
+        """Pixels or a share of the width, recorded when blank or understood."""
+        from PySide6.QtCore import QRegularExpression
+        from PySide6.QtGui import QRegularExpressionValidator
+        from gui import theme as T
+        edit = QLineEdit(current)
+        edit.setPlaceholderText("blank, 320 or 25%")
+        edit.setValidator(QRegularExpressionValidator(
+            QRegularExpression(r"^\s*(\d{0,4}(\.\d*)?\s*(px|p|%)?)?\s*$"), edit))
+
+        def _changed(text: str) -> None:
+            text = text.strip()
+            if not text or T.parse_offset(text) is not None:
+                self._record("UI", key, text)
+        edit.textChanged.connect(_changed)
+        return edit
 
     def _family_combo(self, current: str, key: str, fixed: bool) -> QComboBox:
         """The installed faces, after the default; with ``fixed``, only those

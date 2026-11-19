@@ -78,7 +78,9 @@ kill-message keys (`TruncateNames`, `PirateNames`, `BountyValue`,
 | `FigureFamily` | `""` | ✅ | The desktop windows only: a fixed-width face for figures, which are padded into columns; blank is DejaVu Sans Mono, Consolas, Menlo or Courier New, the first installed |
 | `FontSize` | `10` | ✅ | The desktop windows only: the text's size in points, 8–20. Headings, tabs and menus follow it; a console's own lettering does not |
 | `RowStripes` | `true` | ✅ | The desktop windows only: shade every other row, counting afresh under each heading, and every other row of the tables |
-| `ValuePlacement` | `"edge"` | ✅ | The desktop windows only: where a row's value sits — `edge`, at the window's right edge, or `labels`, in one column just right of the longest label in its group, which keeps values near their labels in a wide window |
+| `ValuePlacement` | `"edge"` | ✅ | The desktop windows only: where a row's value sits — `edge`, at the window's right edge, or `manual`, placed by the two keys below, which keeps values near their labels in a wide window. The terminal dashboard and EDAM keep their own layout |
+| `ValueFromLeft` | `""` | ✅ | `manual` only: the values start this far from the labels' left, left-aligned — further if a label is longer. Pixels (`"320"`, or `"320px"`) or a share of the window's width (`"25%"`; without the `%` it is pixels). Blank leaves it unset |
+| `ValueFromRight` | `""` | ✅ | `manual` only: the values end this far from the right edge, right-aligned. Set with `ValueFromLeft`, the value column runs between the two, values right-aligned in it. Same units |
 
 All the interfaces render the same windows from the same components and share
 one config, one set of per-commander data, and one window layout, so you can

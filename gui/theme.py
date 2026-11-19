@@ -7,6 +7,8 @@ Qt Style Sheets support a useful subset of CSS.
 
 from __future__ import annotations
 
+import re
+
 from core.palette import rgb
 
 #: Point sizes at the default text size; every size moves with the text's.
@@ -23,23 +25,50 @@ MONO_FAMILIES = '"DejaVu Sans Mono", "Consolas", "Menlo", "Courier New", monospa
 #: Text sizes offered in Options, in points.
 FONT_SIZE_CHOICES = tuple(range(8, 21))
 
-#: Where a row's value sits: [UI] ValuePlacement.
+#: Where a row's value sits: [UI] ValuePlacement. "manual" places the value
+#: column by ValueFromLeft (from the labels' left) and ValueFromRight (from
+#: the right edge), each pixels ("320") or a share of the width ("25%").
 VALUES_EDGE = "edge"
-VALUES_LABELS = "labels"
+VALUES_MANUAL = "manual"
 VALUE_PLACEMENTS = (
     (VALUES_EDGE,   "At the right edge"),
-    (VALUES_LABELS, "Beside their labels"),
+    (VALUES_MANUAL, "Manual alignment"),
 )
+
+_OFFSET = re.compile(r"^\s*(\d{1,4}(?:\.\d+)?)\s*(px|%)?\s*$", re.IGNORECASE)
+
+
+def parse_offset(text) -> "tuple[float, bool] | None":
+    """(amount, is_percent) for "320", "320px" or "25%"; None when blank or
+    not understood."""
+    m = _OFFSET.match(str(text or ""))
+    if m is None:
+        return None
+    amount, unit = float(m.group(1)), (m.group(2) or "").lower()
+    if unit == "%":
+        return min(amount, 100.0), True
+    return amount, False
+
+
+def offset_px(offset, width: int) -> "int | None":
+    """An offset from parse_offset in pixels, for a width of ``width``."""
+    if offset is None:
+        return None
+    amount, pct = offset
+    return int(round(width * amount / 100.0)) if pct else int(amount)
+
 
 #: The [UI] settings the desktop windows' text and rows are drawn by
 #: (configure()). Chrome drawn in a console's own face is not affected.
 _TYPE: dict = {"family": "", "figures": "", "size": FONT_SIZES["body"],
-               "stripes": True, "values": VALUES_EDGE}
+               "stripes": True, "values": VALUES_EDGE,
+               "from_left": None, "from_right": None}
 _APP_FONT = None
 
 
 #: The [UI] keys configure() reads.
-TYPE_KEYS = ("FontFamily", "FigureFamily", "FontSize", "RowStripes", "ValuePlacement")
+TYPE_KEYS = ("FontFamily", "FigureFamily", "FontSize", "RowStripes", "ValuePlacement",
+             "ValueFromLeft", "ValueFromRight")
 
 
 def signature(ui: "dict | None") -> tuple:
@@ -59,12 +88,19 @@ def configure(ui: "dict | None") -> None:
     if not isinstance(stripes, bool):
         stripes = str(stripes).strip().lower() in ("1", "true", "on", "yes")
     values = str(ui.get("ValuePlacement", VALUES_EDGE) or VALUES_EDGE).strip().lower()
+    from_left = parse_offset(ui.get("ValueFromLeft", ""))
+    from_right = parse_offset(ui.get("ValueFromRight", ""))
+    if values == "labels":
+        # The first form of manual alignment: values just past the labels.
+        values, from_left, from_right = VALUES_MANUAL, (0.0, False), None
     _TYPE.update(
         family=str(ui.get("FontFamily", "") or "").strip(),
         figures=str(ui.get("FigureFamily", "") or "").strip(),
         size=min(max(size, FONT_SIZE_CHOICES[0]), FONT_SIZE_CHOICES[-1]),
         stripes=stripes,
         values=values if values in dict(VALUE_PLACEMENTS) else VALUES_EDGE,
+        from_left=from_left,
+        from_right=from_right,
     )
 
 
@@ -83,8 +119,12 @@ def row_stripes() -> bool:
     return bool(_TYPE["stripes"])
 
 
-def values_beside_labels() -> bool:
-    return _TYPE["values"] == VALUES_LABELS
+def value_offsets() -> "tuple | None":
+    """(from_left, from_right) as parse_offset gives them, while manual
+    alignment is chosen; None at the right edge."""
+    if _TYPE["values"] != VALUES_MANUAL:
+        return None
+    return _TYPE["from_left"], _TYPE["from_right"]
 
 
 def apply_app_font(app=None) -> None:
@@ -336,6 +376,10 @@ QLineEdit, QSpinBox, QComboBox {{
     selection-color: {c['bg']};
 }}
 QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border-color: {c['accent']}; }}
+QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{
+    color: {c['dim']};
+    background-color: {c['block-bg']};
+}}
 /* Radio buttons (the Add Station dialog).  Without a rule the platform
    indicator is drawn in the window color and an unchecked one vanishes. */
 QRadioButton {{ spacing: 6px; }}

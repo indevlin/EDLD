@@ -1,6 +1,7 @@
 """tests/test_gui_text_rows.py — the desktop windows' text face and size, row
 shading and value placement ([UI] FontFamily, FigureFamily, FontSize,
-RowStripes, ValuePlacement), and where Options keeps them.
+RowStripes, ValuePlacement, ValueFromLeft, ValueFromRight), and where Options
+keeps them.
 """
 from __future__ import annotations
 
@@ -37,15 +38,19 @@ def test_the_settings_are_read_forgivingly(qt):
     from gui import theme as T
     T.configure({})
     assert T.sizes() == T.FONT_SIZES
-    assert T.row_stripes() and not T.values_beside_labels()
-    T.configure({"FontSize": "14", "RowStripes": "off", "ValuePlacement": "LABELS",
+    assert T.row_stripes() and T.value_offsets() is None
+    T.configure({"FontSize": "14", "RowStripes": "off", "ValuePlacement": "MANUAL",
+                 "ValueFromLeft": "320", "ValueFromRight": "25%",
                  "FigureFamily": "Fira Mono"})
     assert T.sizes()["body"] == 14 and T.sizes()["title"] == 15
-    assert not T.row_stripes() and T.values_beside_labels()
+    assert not T.row_stripes() and T.value_offsets() == ((320.0, False), (25.0, True))
     assert T.mono_families().startswith('"Fira Mono", ')
     T.configure({"FontSize": 99, "ValuePlacement": "middle"})
     assert T.sizes()["body"] == T.FONT_SIZE_CHOICES[-1]
-    assert not T.values_beside_labels()
+    assert T.value_offsets() is None
+    # The first form of manual alignment, beside the labels, is kept.
+    T.configure({"ValuePlacement": "labels"})
+    assert T.value_offsets() == ((0.0, False), None)
     T.configure({"FontSize": "big"})
     assert T.sizes()["body"] == T.FONT_SIZES["body"]
 
@@ -72,7 +77,8 @@ def test_the_face_is_the_applications_and_blank_restores_it(qt):
 
 def test_the_defaults_are_documented():
     from core.config import CFG_DEFAULTS_UI
-    for key in ("FontFamily", "FigureFamily", "FontSize", "RowStripes", "ValuePlacement"):
+    for key in ("FontFamily", "FigureFamily", "FontSize", "RowStripes", "ValuePlacement",
+                "ValueFromLeft", "ValueFromRight"):
         assert key in CFG_DEFAULTS_UI
     assert CFG_DEFAULTS_UI["ValuePlacement"] == "edge" and CFG_DEFAULTS_UI["RowStripes"] is True
 
@@ -131,22 +137,76 @@ def test_values_at_the_edge_by_default(qt):
     assert rights[0] > pane.viewport().width() - 20
 
 
-def test_values_beside_their_labels_share_one_column(qt):
+def test_offsets_are_pixels_unless_marked_percent():
+    from gui import theme as T
+    assert T.parse_offset("320") == (320.0, False)
+    assert T.parse_offset(" 320px ") == (320.0, False)
+    assert T.parse_offset("25%") == (25.0, True)
+    assert T.parse_offset("150%") == (100.0, True)
+    assert T.parse_offset("") is None and T.parse_offset("a lot") is None
+    assert T.offset_px((25.0, True), 1200) == 300 and T.offset_px((40.0, False), 9) == 40
+
+
+def _texts(rows):
+    """(left, right, aligned left) of each value label, in the row."""
+    from PySide6.QtCore import Qt
+    from gui.block_base import KVRow
+    out = []
+    for r in rows:
+        if isinstance(r, KVRow):
+            g = r._val.geometry()
+            out.append((g.left(), g.right(), bool(r._val.alignment() & Qt.AlignLeft)))
+    return out
+
+
+def test_from_the_labels_left_values_start_there_left_aligned(qt):
+    from gui import theme as T
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "300"})
+    _pane_, rows = _pane(qt, SPEC)
+    got = _texts(rows)
+    assert {g[0] for g in got} == {6 + 300} and all(g[2] for g in got), got
+
+
+def test_a_longer_label_pushes_the_column_past_it(qt):
     from gui import theme as T
     from gui.block_base import KVRow
-    T.configure({"ValuePlacement": "labels"})
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "10"})
+    _pane_, rows = _pane(qt, SPEC)
+    kw = max(r._key.sizeHint().width() for r in rows if isinstance(r, KVRow))
+    assert {g[0] for g in _texts(rows)} == {6 + kw + 8}
+
+
+def test_from_the_right_edge_values_end_there_right_aligned(qt):
+    from gui import theme as T
+    T.configure({"ValuePlacement": "manual", "ValueFromRight": "25%"})
     pane, rows = _pane(qt, SPEC)
-    kv = [r for r in rows if isinstance(r, KVRow)]
-    rights = _value_rights(rows)
-    assert len(set(rights)) == 1, rights
-    widest = max(r._key.sizeHint().width() for r in kv)
-    assert rights[0] < widest + max(r._val.sizeHint().width() for r in kv) + 40
-    assert rights[0] < pane.viewport().width() / 2
-    # A longer value later widens the column for every row.
-    kv[0].set_value("123,456,789,000 cr")
+    width = rows[1].parentWidget().width()
+    got = _texts(rows)
+    assert {g[1] for g in got} == {rows[1].width() - round(width * 0.25) - 1}
+    assert not any(g[2] for g in got)
+    # A share of the width follows the width.
+    pane.resize(800, 400)
     _settle(qt)
-    again = _value_rights(rows)
-    assert len(set(again)) == 1 and again[0] > rights[0]
+    width = rows[1].parentWidget().width()
+    assert {g[1] for g in _texts(rows)} == {rows[1].width() - round(width * 0.25) - 1}
+
+
+def test_with_both_the_column_runs_between_them(qt):
+    from gui import theme as T
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "300", "ValueFromRight": "400"})
+    _pane_, rows = _pane(qt, SPEC)
+    got = _texts(rows)
+    assert {g[0] for g in got} == {306}
+    assert {g[1] for g in got} == {rows[1].width() - 400 - 1}
+    assert not any(g[2] for g in got)
+
+
+def test_manual_with_nothing_set_is_the_right_edge(qt):
+    from gui import theme as T
+    T.configure({"ValuePlacement": "manual"})
+    pane, rows = _pane(qt, SPEC)
+    assert len({g[1] for g in _texts(rows)}) == 1
+    assert _value_rights(rows)[0] > pane.viewport().width() - 20
 
 
 def test_rearrange_follows_a_change_of_mind(qt):
@@ -157,11 +217,11 @@ def test_rearrange_follows_a_change_of_mind(qt):
     pane, rows = _pane(qt, SPEC)
     host = QWidget()
     QVBoxLayout(host).addWidget(QTableWidget(2, 2))
-    T.configure({"ValuePlacement": "labels", "RowStripes": False})
+    T.configure({"ValuePlacement": "manual", "ValueFromLeft": "200", "RowStripes": False})
     rearrange(pane)
     rearrange(host)
     _settle(qt)
-    assert _value_rights(rows)[0] < pane.viewport().width() / 2
+    assert {g[0] for g in _texts(rows)} == {206}
     assert not any(r.property("stripe") for r in rows)
     assert not host.findChild(QTableWidget).alternatingRowColors()
 
@@ -245,9 +305,10 @@ def test_a_hand_edited_config_is_taken_up_on_the_next_poll(qt):
     from tests.test_edcars import _window
     from gui import theme as T
     w, _ = _window()
-    w._core.cfg.ui_cfg = {**w._core.cfg.ui_cfg, "FontSize": 15, "ValuePlacement": "labels"}
+    w._core.cfg.ui_cfg = {**w._core.cfg.ui_cfg, "FontSize": 15, "ValuePlacement": "manual",
+                          "ValueFromRight": "30%"}
     w._poll_queue()
-    assert T.sizes()["body"] == 15 and T.values_beside_labels()
+    assert T.sizes()["body"] == 15 and T.value_offsets() == (None, (30.0, True))
     assert "font-size: 15pt;" in w.styleSheet()
     w.close()
 
@@ -282,3 +343,36 @@ def test_component_notes_wear_the_options_note_style(tmp_path):
 
     seen = _run_tui(_core(tmp_path), steps)
     assert seen["notes"] and not seen["dim"]
+
+
+def test_options_take_the_offsets_only_for_manual_alignment(qt, tmp_path):
+    from PySide6.QtWidgets import QComboBox, QLineEdit
+    dlg = _dialog(tmp_path)
+    dlg.show_page("Appearance")
+    page = dlg._pages.currentWidget()
+    edits = [e for e in page.findChildren(QLineEdit) if e.placeholderText() == "blank, 320 or 25%"]
+    assert len(edits) == 2 and not any(e.isEnabled() for e in edits)
+    values = next(b for b in page.findChildren(QComboBox) if b.findData("manual") >= 0)
+    values.setCurrentIndex(values.findData("manual"))
+    assert all(e.isEnabled() for e in edits)
+    edits[0].setText("25%")
+    edits[1].setText("320")
+    assert dlg._pending[("UI", "ValueFromLeft")] == "25%"
+    assert dlg._pending[("UI", "ValueFromRight")] == "320"
+    edits[1].clear()
+    edits[1].insert("lots")
+    assert edits[1].text() == "" and dlg._pending[("UI", "ValueFromRight")] == ""
+
+
+def test_edam_is_sent_route_waypoints_as_before():
+    from core.tooltab import wire_rows
+    from core.ui_helpers import carrier_route_rows
+    rows = carrier_route_rows({"jumps": [
+        {"name": "Sol"},
+        {"name": "Alpha", "distance": 500, "fuel_used": 12, "fuel_in_tank": 988,
+         "has_icy_ring": True},
+        {"name": "Beta", "distance": 499.5, "fuel_used": 112, "fuel_in_tank": 876,
+         "must_restock": True, "restock_amount": 300, "tritium_in_market": 40}]})
+    got = [(r["label"], r["value"]) for r in wire_rows([("kv", lab, val) for lab, val in rows])]
+    assert got == [("0. Sol", "start  [0t]"), ("1. Alpha", "500 ly  -12t  [988t]  ·"),
+                   ("2. Beta", "500 ly  -112t  [876t]  ⛽300t  mkt 40t")]

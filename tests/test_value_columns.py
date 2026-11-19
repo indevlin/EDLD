@@ -19,9 +19,9 @@ def _shown(rows):
     return {r[1]: _MARKUP.sub("", r[2]) for r in rows if r[0] == "kv"}
 
 
-SESSION = [R.hdr("Overview"), R.kv("Duration", "5:22:46"),
-           R.hdr("Exploration"), R.kv("Jumps", "6  313 ly"), R.kv("Bodies scanned", "1  30.4k"),
-           R.hdr("Combat"), R.kv("Kills", "15  6.3 /hr"), R.kv("Bounties", "4,512,000 cr"),
+SESSION = [R.hdr("Session"), R.kv("Duration", "5:22:46"),
+           R.kv("Jumps", "6  313 ly"), R.kv("Bodies scanned", "1  30.4k"),
+           R.kv("Kills", "15  6.3 /hr"), R.kv("Bounties", "4,512,000 cr"),
            R.kv("Share", "[b]1,234 cr[/b]  12.5%")]
 
 
@@ -57,6 +57,16 @@ def test_text_and_tables_are_left_alone():
 def test_a_lone_figure_is_not_padded():
     rows = [R.kv("Kills", "15"), R.kv("Mode", "Solo")]
     assert align_values(rows) == rows
+
+
+def test_each_heading_starts_its_own_columns():
+    """A lone figure among text keeps its own place; the figures under the
+    next heading are padded among themselves."""
+    rows = [R.hdr("Info"), R.kv("Mode", "Solo"), R.kv("Hull", "100%"),
+            R.hdr("Session"), R.kv("Duration", "5:22:46"), R.kv("Bounties", "4,512,000 cr")]
+    got = align_values(rows)
+    assert got[2] == rows[2]
+    assert len(got[4][2]) == len(got[5][2]) and got[4][2] != rows[4][2]
 
 
 def test_carrier_route_waypoints_line_up():

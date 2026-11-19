@@ -507,10 +507,13 @@ CFG_DEFAULTS_UI = {
     "FigureFamily": "",
     "FontSize": 10,
     # The desktop windows: every other row shaded, in the windows and the
-    # tables; a row's value at the window's right "edge" or beside the
-    # "labels" of its group.
+    # tables; a row's value at the window's right "edge", or "manual", placed
+    # from the labels' left and from the right edge, each pixels ("320") or a
+    # share of the width ("25%"). EDAM and the terminal dashboard ignore it.
     "RowStripes": True,
     "ValuePlacement": "edge",
+    "ValueFromLeft": "",
+    "ValueFromRight": "",
 }
 
 CFG_DEFAULTS_DISCORD = {

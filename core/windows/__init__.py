@@ -136,9 +136,10 @@ def iter_render(rows):
 #
 # A value of figures may hold several, two spaces or more apart ("15  6.3 /hr",
 # "1,234 cr  12.5%"), each a number and perhaps a unit after a space. Padded
-# into columns across a tab, the numbers line up on their last digit and the
-# units start together. A value with a part that is not a figure is left
-# alone, as are rows under a table's heading, already padded to it.
+# into columns under each heading, the numbers line up on their last digit
+# and the units start together. A value with a part that is not a figure is
+# left alone, as is a lone figure under its heading, and rows under a table's
+# heading, already padded to it.
 
 import re as _re
 
@@ -163,7 +164,7 @@ def _figures(value: str):
 def align_values(rows) -> list:
     """``rows`` with their figures padded into columns: see above."""
     rows = list(rows or [])
-    parsed: dict[int, list] = {}
+    groups: list[dict[int, list]] = [{}]
     in_table = False
     for i, row in enumerate(rows):
         if not row:
@@ -171,14 +172,21 @@ def align_values(rows) -> list:
         kind = row[0]
         if kind == "table":
             in_table = True
+            groups.append({})
         elif kind in ("hdr", "toggle", "rule"):
             in_table = False
+            groups.append({})
         elif kind == "kv" and not in_table and len(row) > 2:
             figs = _figures(str(row[2]))
             if figs:
-                parsed[i] = figs
-    if len(parsed) < 2:
-        return rows
+                groups[-1][i] = figs
+    for parsed in groups:
+        if len(parsed) > 1:
+            _pad(rows, parsed)
+    return rows
+
+
+def _pad(rows: list, parsed: dict) -> None:
     ncol = max(len(f) for f in parsed.values())
     wnum = [0] * ncol
     wunit = [0] * ncol
@@ -198,7 +206,6 @@ def align_values(rows) -> list:
             cells.append(" " * (wnum[c] - len(num)) + piece + " " * tail)
         row = rows[i]
         rows[i] = row[:2] + ("  ".join(cells),) + row[3:]
-    return rows
 
 
 # ── For the wire ──────────────────────────────────────────────────────────────

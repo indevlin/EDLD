@@ -207,8 +207,15 @@ FontSize     = 10              # points, 8-20; headings and tabs follow it.  A
 RowStripes   = true            # shade every other row, in the windows and the
                                # tables
 ValuePlacement = "edge"        # where a row's value sits: "edge" (the window's
-                               # right edge) or "labels" (one column just right
-                               # of its group's longest label)
+                               # right edge) or "manual" (by the two below).
+                               # The terminal dashboard and EDAM ignore it
+ValueFromLeft  = ""            # manual: the values start this far from the
+                               # labels' left, left-aligned, or past the longest
+                               # label.  Pixels ("320") or a share of the
+                               # width ("25%", the % needed); "" for unset
+ValueFromRight = ""            # manual: the values end this far from the right
+                               # edge, right-aligned.  With both set they run
+                               # between the two
 # ==============================================================================
 # Data contributions (opt-in)
 # ==============================================================================

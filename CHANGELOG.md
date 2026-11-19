@@ -6,7 +6,7 @@ Last updated: 20261118
 
 ## Unreleased
 
-### Added: the desktop windows' text face and size, row shading, and values beside their labels
+### Added: the desktop windows' text face and size, row shading, and manual value alignment
 
 The desktop windows set their text in the system's face at a fixed ten
 points, and every row put its label at the window's left edge and its value at
@@ -18,8 +18,11 @@ headings, tabs and menus follow. Alternate row shading (`RowStripes`, on by
 default) shades every other row, counting afresh under each heading, and
 every other row of the tables, which were always shaded and now follow the
 setting. Values (`ValuePlacement`) puts them at the right edge as before, or
-beside their labels: each group's values share one column just right of its
-longest label, right-aligned so the figures still line up. All of it applies
+aligns them by hand: from the labels' left (`ValueFromLeft`) the values start
+there, left-aligned, or past the longest label if that is further; from the
+right edge (`ValueFromRight`) they end there, right-aligned; with both they
+run between the two. Each is pixels, "320", or a share of the window's width,
+"25%". EDAM and the terminal dashboard keep their own layout. All of it applies
 to the Dashboard and EDCARS alike, and to their dialogs, as soon as Options
 closes or config.toml is saved. A console's own lettering, the band, rail and
 frame headings, keeps its face and size, since its shapes are drawn to fit
@@ -34,7 +37,7 @@ window's right edge, as was every lone figure with or without a unit. So the
 last character lined up and nothing else did: a count sat further left or
 right depending on how long the rate beside it was, "cr" and "ly" pushed their
 numbers off the column, and a lone duration sat under the rates. The values
-had always been built that way, and only looked ragged once they sat beside
+had always been built that way, and only looked ragged once they sat near
 their labels, where the eye reads them as a table. A window's figures are now
 padded into columns before they are drawn: each number ends where the others
 in its column end, each unit starts where the others start, and a row with
@@ -43,6 +46,8 @@ figure, and the rows of a table, which are padded to their headings already,
 are left alone. The desktop window and the terminal dashboard draw it the
 same, and the fleet carrier route plotter's waypoints, which ran distance,
 fuel used, tank and marks together with no columns at all, now line up too.
+EDAM, whose narrower screen never had the problem, is sent its values as
+before.
 
 ### Changed: Options is regrouped
 

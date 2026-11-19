@@ -43,7 +43,9 @@ soon as Options closes:
 | Face | `FontFamily` | The face the windows' text is set in; Default is the system's |
 | Figures face | `FigureFamily` | A fixed-width face for figures, which are padded into columns |
 | Size | `FontSize` | 8–20 points; headings, tabs and menus follow it |
-| Values | `ValuePlacement` | At the right edge, or beside their labels: one column just right of each group's longest label, so a figure stays near its name in a wide window |
+| Values | `ValuePlacement` | At the right edge, or Manual alignment, placed by the two below, so a figure stays near its name in a wide window |
+| From the labels' left | `ValueFromLeft` | Manual: values start this far from the labels' left edge, left-aligned, or just past the longest label if that is further. `320` is pixels, `25%` a share of the window's width |
+| From the right edge | `ValueFromRight` | Manual: values end this far from the right edge, right-aligned. With both set, the column runs between the two, values right-aligned in it |
 | Alternate row shading | `RowStripes` | Every other row shaded, counting afresh under each heading, and every other row of the tables |
 
 A console's own lettering — EDCARS's band, rail and frame headings, ORDER's,

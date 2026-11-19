@@ -77,8 +77,8 @@ class RowLabel(QLabel):
 
 # ── Row groups ────────────────────────────────────────────────────────────────
 #
-# The rows sharing a parent are one group: with [UI] ValuePlacement "labels"
-# their keys share one width and their values another, next to the keys; with
+# The rows sharing a parent are one group: with [UI] ValuePlacement "manual"
+# the value column sits where ValueFromLeft and ValueFromRight put it; with
 # [UI] RowStripes every other row is striped, counting from each heading.
 # Arranged once per event-loop pass, after the rows have been placed.
 
@@ -101,6 +101,13 @@ def _flush() -> None:
             arrange_rows(parent)
         except RuntimeError:
             pass                  # deleted before its turn came
+        except Exception as exc:
+            # One group's fault leaves the others arranged.
+            try:
+                from core import debug as _debug
+                _debug.exception("row arrangement failed", exc)
+            except Exception:
+                pass
 
 
 def _set_prop(w: QWidget, name: str, value) -> None:
@@ -130,11 +137,39 @@ def arrange_rows(parent: QWidget) -> None:
         elif isinstance(w, (SecHdr, HdrRow, TableHdr, HRule)):
             n, last = 0, False
 
-    beside = _theme.values_beside_labels()
-    kw = max((r._key.sizeHint().width() for r in rows), default=0) if beside else 0
-    vw = max((r._val.sizeHint().width() for r in rows), default=0) if beside else 0
+    place = _placement(parent, rows)
     for r in rows:
-        r._place(beside, kw, vw)
+        r._place(place)
+
+
+#: A row's sides and the gap between its label and value (KVRow's layout).
+_ROW_MARGIN = 6
+_ROW_GAP = 8
+_EDGE = (0, 0, False, _ROW_MARGIN, False)
+
+
+def _placement(parent: QWidget, rows) -> tuple:
+    """(label width, value width, values left-aligned, right margin, value
+    column stretched) for a group, by [UI] ValuePlacement: at the right
+    edge, or by ValueFromLeft and ValueFromRight."""
+    offsets = _theme.value_offsets()
+    if offsets is None or offsets == (None, None):
+        return _EDGE
+    width = max(parent.width(), 1)
+    left = _theme.offset_px(offsets[0], width)
+    right = _theme.offset_px(offsets[1], width)
+    kw = max((r._key.sizeHint().width() for r in rows), default=0)
+    vw = max((r._val.sizeHint().width() for r in rows), default=0)
+    margin = max(_ROW_MARGIN, right) if right is not None else _ROW_MARGIN
+    if left is None:
+        # From the right edge: the values end there, right-aligned.
+        return 0, vw, False, margin, False
+    kmin = max(kw, left - _ROW_GAP)
+    if right is None:
+        # From the labels' left: the values start there, left-aligned.
+        return kmin, vw, True, margin, False
+    # Both: the column runs between them, the values right-aligned in it.
+    return kmin, vw, False, margin, True
 
 
 def rearrange(root: QWidget) -> None:
@@ -155,38 +190,50 @@ def rearrange(root: QWidget) -> None:
 class _GroupedRow(QWidget):
     """A row that takes part in its parent's group (arrange_rows)."""
 
+    #: The value's vertical alignment; a table's headings sit at the bottom.
+    _VALIGN = Qt.AlignVCenter
+
     def _init_group(self, lay: QHBoxLayout) -> None:
         self.setProperty("kvrow", True)
         self.setAttribute(Qt.WA_StyledBackground, True)
         self._lay = lay
-        self._beside = False
+        self._placed = _EDGE
         lay.addStretch(0)
 
     def event(self, ev) -> bool:
         if ev.type() in (QEvent.ParentChange, QEvent.ShowToParent,
-                         QEvent.HideToParent):
+                         QEvent.HideToParent, QEvent.Resize):
             _schedule(self.parentWidget())
         return super().event(ev)
 
     def _changed(self) -> None:
-        if self.parentWidget() is not None and _theme.values_beside_labels():
+        if self.parentWidget() is not None and _theme.value_offsets() is not None:
             _schedule(self.parentWidget())
 
-    def _place(self, beside: bool, kw: int, vw: int) -> None:
-        self._key.setMinimumWidth(kw)
-        self._val.setMinimumWidth(vw)
-        if beside == self._beside:
+    def _place(self, place: tuple) -> None:
+        kmin, vmin, left, margin, stretch_val = place
+        self._key.setMinimumWidth(kmin)
+        self._val.setMinimumWidth(vmin)
+        if place == self._placed:
             return
-        self._beside = beside
-        self._key.setSizePolicy(QSizePolicy.Preferred if beside else QSizePolicy.Expanding,
-                                QSizePolicy.Preferred)
-        self._lay.setStretch(0, 0 if beside else 1)
-        self._lay.setStretch(2, 1 if beside else 0)
+        self._placed = place
+        edge = place == _EDGE
+        self._key.setSizePolicy(QSizePolicy.Expanding if edge or not kmin
+                                else QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self._val.setSizePolicy(QSizePolicy.Expanding if stretch_val
+                                else QSizePolicy.Preferred, QSizePolicy.Preferred)
+        self._val.setAlignment((Qt.AlignLeft if left else Qt.AlignRight) | self._VALIGN)
+        m = self._lay.contentsMargins()
+        self._lay.setContentsMargins(m.left(), m.top(), margin, m.bottom())
+        key_grows = edge or not kmin
+        self._lay.setStretch(0, 1 if key_grows else 0)
+        self._lay.setStretch(1, 1 if stretch_val else 0)
+        self._lay.setStretch(2, 0 if key_grows or stretch_val else 1)
 
 
 class KVRow(_GroupedRow):
     """Single key / value row: key on the left, value right-aligned at the
-    right edge, or beside the keys ([UI] ValuePlacement)."""
+    right edge, or where [UI] ValuePlacement puts it."""
 
     def __init__(self, key: str = "", value: str = "—",
                  val_classes: str = "val", palette: dict | None = None,
@@ -280,6 +327,7 @@ class TableHdr(KVRow):
         self._key.setProperty("role", "section")
         _restyle(self._key)
         # The section style pads its top; sit the headings on the same line.
+        self._VALIGN = Qt.AlignBottom
         self._val.setAlignment(Qt.AlignRight | Qt.AlignBottom)
 
     def set_key(self, text: str) -> None:
