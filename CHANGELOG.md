@@ -4,7 +4,7 @@ Last updated: 20261118
 
 ---
 
-## Unreleased
+## Released in 20261119
 
 ### Added: the desktop windows' text face and size, row shading, and manual value alignment
 
