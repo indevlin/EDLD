@@ -4,7 +4,7 @@ Last updated: 20261120
 
 ---
 
-## Unreleased
+## Released in 20261120
 
 ### Fixed: a suit listed in the dossier's fleet
 
