@@ -1,8 +1,30 @@
 # EDLD CHANGELOG
 
-Last updated: 20261119
+Last updated: 20261120
 
 ---
+
+## Unreleased
+
+### Fixed: a suit listed in the dossier's fleet
+
+Resuming the game on foot, the journal's LoadGame names the commander's suit
+as the ship, with the suit loadout's ID as the ShipID. The dossier took it as
+a ship: it went into the fleet as "Explorationsuit Class3", became the
+current ship beside the one actually flown, and was credited with the time
+spent on foot. It went unnoticed because the next visit to a shipyard marked
+it sold, and sold ships are not listed, so it only showed between an on-foot
+login and the next shipyard; an earlier Artemis suit had come and gone that
+way. LoadGame now passes over a suit as it does a surface vehicle, and a
+suit kept as a ship in a saved dossier is removed when it is read.
+
+### Added: where ships, suits and weapons were bought
+
+Each ship's service record gives where it was bought or redeemed, and the On
+foot page gives the date and place each suit and weapon was bought. The
+journal's purchase lines carry no place, so it is where the commander was
+docked at the time; a carrier is named, never placed. A dossier kept from
+before reads the journals still on disk once to fill in earlier purchases.
 
 ## Released in 20261119
 

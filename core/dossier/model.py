@@ -218,6 +218,13 @@ class Model:
             return f"{station} · {system}"
         return station or system or "Unknown"
 
+    def bought_at(self, at: Optional[dict]) -> str:
+        """Where a purchase was made, or "" when it is not known."""
+        if not at:
+            return ""
+        return self.place(at.get("market_id"), at.get("station", ""),
+                          at.get("system", ""))
+
     def where_now(self) -> str:
         where = self.s.get("where", {})
         system = where.get("system", "")
@@ -529,8 +536,10 @@ class Model:
             if acq.get("price"):
                 how += f" for {cr(acq['price'])}"
             how += f", {date(acq.get('ts'))}"
+        at = acq.get("at") or {}
         rows = [
             ("Acquired", how),
+            ("Acquired at", self.bought_at(at) if at else ""),
             ("Time as active ship", duration(sh.get("seconds"))),
             ("Hyperspace jumps", num(sh.get("jumps")) if sh.get("jumps") else ""),
             ("Distance jumped", num(sh.get("ly"), 0, "ly") if sh.get("ly") else ""),
@@ -789,12 +798,16 @@ class Model:
         for suit in suits.values():
             name, cls = names.suit_name(suit.get("name", ""))
             suit_rows.append([name, str(suit.get("class") or cls or ""),
-                              ", ".join(names.suit_mod(m) for m in suit.get("mods") or [])])
+                              ", ".join(names.suit_mod(m) for m in suit.get("mods") or []),
+                              date(suit.get("bought")),
+                              (self.bought_at(suit.get("bought_at")) or "—")])
         suit_rows.sort()
         weapon_rows = sorted([
             names.weapon_name(w.get("name", ""), w.get("display", "")),
             str(w.get("class") or ""),
-            ", ".join(names.weapon_mod(m) for m in w.get("mods") or [])]
+            ", ".join(names.weapon_mod(m) for m in w.get("mods") or []),
+            date(w.get("bought")),
+            (self.bought_at(w.get("bought_at")) or "—")]
             for w in weapons.values())
         lo_rows = []
         for lo in (self.s.get("loadouts") or {}).values():
@@ -813,12 +826,14 @@ class Model:
         blocks = [
             table(["Loadout", "Suit", "Primary 1", "Primary 2", "Secondary"], lo_rows,
                   title="Loadouts", empty="No suit loadouts recorded."),
-            table(["Suit", "Class", "Modifications"], suit_rows, title="Suits",
-                  numeric=(1,), empty="No suits recorded."),
-            table(["Weapon", "Class", "Modifications"], weapon_rows, title="Weapons",
-                  numeric=(1,), empty="No weapons recorded."),
+            table(["Suit", "Class", "Modifications", "Bought", "Bought at"], suit_rows,
+                  title="Suits", numeric=(1,), nowrap=(3,), empty="No suits recorded."),
+            table(["Weapon", "Class", "Modifications", "Bought", "Bought at"], weapon_rows,
+                  title="Weapons", numeric=(1,), nowrap=(3,),
+                  empty="No weapons recorded."),
             note("Suits and weapons bought before the earliest journal EDLD has read "
-                 "appear once they are used in a loadout."),
+                 "appear once they are used in a loadout, with no purchase date or "
+                 "place."),
         ]
         return {"id": "on-foot", "nav": "On foot", "title": "On foot",
                 "subtitle": "Suits, weapons and loadouts", "blocks": blocks}

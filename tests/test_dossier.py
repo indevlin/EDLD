@@ -259,6 +259,109 @@ def test_time_as_active_ship_ignores_long_gaps(tmp_path):
     assert seconds == 10 * 60                     # the two-hour gap is not counted
 
 
+# ── on foot is not a ship ─────────────────────────────────────────────────────
+
+def _on_foot_login(minute):
+    """A relaunch on foot: LoadGame names the suit, ShipID its loadout."""
+    return [
+        {"timestamp": _ts(minute), "event": "Fileheader", "part": 1},
+        {"timestamp": _ts(minute), "event": "Commander", "FID": FID,
+         "Name": "MERRICK CALBRUIN"},
+        {"timestamp": _ts(minute), "event": "LoadGame", "FID": FID,
+         "Commander": "MERRICK CALBRUIN", "Ship": "ExplorationSuit_Class3",
+         "Ship_Localised": "$ExplorationSuit_Class1_Name;", "ShipID": 4293000000,
+         "ShipName": "", "ShipIdent": "", "Credits": 751897248, "GameMode": "Solo"},
+        {"timestamp": _ts(minute + 20), "event": "Music", "MusicTrack": "OnFoot"},
+    ]
+
+
+def test_resuming_on_foot_adds_no_ship(tmp_path):
+    s = _ledger(tmp_path, _fleet(tmp_path) + _on_foot_login(20)).s
+    assert "4293000000" not in s["ships"]
+    assert "4293000000" not in s["roster"]["ids"]
+    assert s["current_ship"] == "12"
+    assert sorted(sh["ship_id"] for sh in Model(s).owned_ships()) == [3, 12]
+
+
+def test_a_suit_kept_as_a_ship_is_dropped_on_load(tmp_path):
+    s = _ledger(tmp_path, _fleet(tmp_path)).s
+    s["ships"]["4293000000"] = dict(s["ships"]["12"], ship_id=4293000000,
+                                    type="explorationsuit_class3")
+    s["roster"]["ids"].append("4293000000")
+    s["current_ship"] = "4293000000"
+    s = Ledger(fid=FID, state=json.loads(json.dumps(s))).s
+    assert "4293000000" not in s["ships"]
+    assert "4293000000" not in s["roster"]["ids"]
+    assert s["current_ship"] is None
+    assert "Explorationsuit" not in _texts(Model(s).pages())
+
+
+# ── where things were bought ──────────────────────────────────────────────────
+
+def _purchases():
+    return _fleet(tmp_path=None) + [
+        {"timestamp": _ts(20), "event": "Docked", "StationName": "Ray Gateway",
+         "StationType": "Coriolis", "MarketID": STATION, "StarSystem": "Diaguandri"},
+        {"timestamp": _ts(21), "event": "BuySuit", "Name": "ExplorationSuit_Class3",
+         "Name_Localised": "$ExplorationSuit_Class1_Name;", "Price": 11250000,
+         "SuitID": 1876016497328208, "SuitMods": ["suit_increasedo2capacity"]},
+        {"timestamp": _ts(22), "event": "BuyWeapon",
+         "Name": "Wpn_M_AssaultRifle_Laser_FAuto", "Name_Localised": "TK Aphelion",
+         "Class": 1, "Price": 125000, "SuitModuleID": 1865594463282990,
+         "WeaponMods": []},
+        {"timestamp": _ts(23), "event": "ShipyardBuy", "ShipType": "type9_military",
+         "ShipPrice": 106042041, "StoreOldShip": "explorer_nx", "StoreShipID": 12,
+         "MarketID": STATION},
+        {"timestamp": _ts(23, 1), "event": "ShipyardNew", "ShipType": "type9_military",
+         "NewShipID": 9},
+        {"timestamp": _ts(24), "event": "Undocked", "StationName": "Ray Gateway",
+         "MarketID": STATION},
+        {"timestamp": _ts(30), "event": "Docked", "StationName": "N2Z-N8M",
+         "StationType": "FleetCarrier", "MarketID": CARRIER, "StarSystem": "HR 5252"},
+        {"timestamp": _ts(31), "event": "ShipRedeemed", "ShipType": "mediumtransport01",
+         "NewShipID": 5},
+    ]
+
+
+def test_suits_and_weapons_record_where_they_were_bought(tmp_path):
+    s = _ledger(tmp_path, _purchases()).s
+    at = {"market_id": STATION, "station": "Ray Gateway", "system": "Diaguandri"}
+    assert s["suits"]["1876016497328208"]["bought_at"] == at
+    assert s["weapons"]["1865594463282990"]["bought_at"] == at
+    page = next(p for p in Model(s).pages() if p["id"] == "on-foot")
+    text = _texts(page)
+    assert text.count("Ray Gateway") == 2 and text.count("Diaguandri") == 2
+    assert "2026-10-14" in text
+
+
+def test_ships_record_where_they_were_acquired(tmp_path):
+    s = _ledger(tmp_path, _purchases()).s
+    assert s["ships"]["9"]["acquired"]["at"]["station"] == "Ray Gateway"
+    assert s["ships"]["5"]["acquired"]["at"]["market_id"] == CARRIER
+    m = Model(s)
+    rows = dict(next(b for b in m.ship_page(s["ships"]["9"])["blocks"]
+                     if b.get("title") == "Service record")["rows"])
+    assert rows["Acquired at"] == "Ray Gateway \u00b7 Diaguandri"
+    rows = dict(next(b for b in m.ship_page(s["ships"]["5"])["blocks"]
+                     if b.get("title") == "Service record")["rows"])
+    assert rows["Acquired at"] == "Carrier VECTURA (N2Z-N8M)"
+
+
+def test_a_kept_state_learns_where_earlier_purchases_were_made(tmp_path):
+    ledger = _ledger(tmp_path, _purchases())
+    s = json.loads(json.dumps(ledger.s))
+    for item in (s["suits"]["1876016497328208"], s["weapons"]["1865594463282990"]):
+        del item["bought_at"]
+    del s["ships"]["9"]["acquired"]["at"]
+    del s["purchases_backfilled"]
+    again = Ledger(fid=FID, state=s)
+    assert again.scan(tmp_path / "journals") == 0
+    assert again.s["purchases_backfilled"] is True
+    assert again.s["suits"]["1876016497328208"]["bought_at"]["station"] == "Ray Gateway"
+    assert again.s["weapons"]["1865594463282990"]["bought_at"]["system"] == "Diaguandri"
+    assert again.s["ships"]["9"]["acquired"]["at"]["market_id"] == STATION
+
+
 # ── hotspots ──────────────────────────────────────────────────────────────────
 
 def _visit(start_min, refinements, every_s, commodity="Platinum",
