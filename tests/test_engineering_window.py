@@ -526,12 +526,29 @@ def test_ship_health_keeps_the_loadouts_engineering():
     p._apply_loadout({"Modules": [
         {"Slot": "FrameShiftDrive", "Item": "int_hyperdrive_size5_class5", "Health": 1.0,
          "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "Quality": 1.0,
-                         "ExperimentalEffect": "special_fsd_heavy", "Modifiers": [{}]}},
+                         "ExperimentalEffect": "special_fsd_heavy", "Modifiers": [
+                             {}, {"Label": "FSDOptimalMass", "Value": 1627.5,
+                                  "OriginalValue": 1050.0, "LessIsGood": 0, "Extra": 1}]}},
         {"Slot": "LifeSupport", "Item": "int_lifesupport_size3_class2", "Health": 1.0}]})
     a, b = p.core.state.ship_modules
     assert a["engineering"] == {"BlueprintName": "FSD_LongRange", "Level": 5, "Quality": 1.0,
-                                "ExperimentalEffect": "special_fsd_heavy"}
+                                "ExperimentalEffect": "special_fsd_heavy",
+                                "Modifiers": [{"Label": "FSDOptimalMass", "Value": 1627.5,
+                                               "OriginalValue": 1050.0, "LessIsGood": 0}]}
     assert "engineering" not in b
+
+
+def test_the_modules_tab_lists_each_modifier():
+    rows = SW.modifier_rows([
+        {"Label": "FSDOptimalMass", "Value": 1627.5, "OriginalValue": 1050.0, "LessIsGood": 0},
+        {"Label": "Mass", "Value": 26.0, "OriginalValue": 20.0, "LessIsGood": 1},
+        {"Label": "Integrity", "Value": 120.0, "OriginalValue": 120.0, "LessIsGood": 0},
+    ], "1  5A   ")
+    assert [r[1] for r in rows] == ["Optimal mass 1,050 → 1,628 +55.0% ▲",
+                                    "Mass 20.0 → 26.0 +30.0% ▼",
+                                    "Integrity 120 → 120 0%"]
+    assert [r[3] for r in rows] == ["health-good", "health-warn", "dim"]
+    assert all(r[2] == "1  5A   " for r in rows)
 
 
 def test_a_craft_updates_the_modules_engineering_until_the_next_loadout():

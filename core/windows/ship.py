@@ -139,6 +139,8 @@ def modules(core) -> Tab:
         eng = engineering_line(m.get("engineering"))
         if eng:
             rows.append(R.note(eng, prio + rating_prefix(name)))
+            rows += modifier_rows((m.get("engineering") or {}).get("Modifiers"),
+                                  prio + rating_prefix(name) + "  ")
     return Tab("modules", "Modules", rows, heading=heading)
 
 
@@ -168,6 +170,20 @@ def engineering_line(eng: dict | None) -> str:
     if fx:
         text = f"{text} ({fx})" if text else fx
     return text
+
+
+def modifier_rows(mods, indent: str) -> list:
+    """One note per engineering modifier: "Optimal mass 1,050 → 1,628 +55.0% ▲",
+    good when it improves the module, warn when it does not."""
+    from core import modifiers as MF
+    rows = []
+    for m in mods or []:
+        d = MF.delta(m)
+        cls = "dim" if d is None or not d[0] else ("health-good" if d[1] else "health-warn")
+        text = (f"{MF.label(m.get('Label', ''))} {MF.value(m.get('OriginalValue'))} → "
+                f"{MF.value(m.get('Value'))} {MF.change(m)}").strip()
+        rows.append(R.note(text, indent, cls))
+    return rows
 
 
 def tabs(core) -> list[Tab]:

@@ -329,6 +329,7 @@ HIDDEN_IMPORTS = (
         "core.server.portmap",
         "core.server.protocol",
         "core.server.service",
+        "core.modifiers",
         "cryptography",
         "segno",
     ]

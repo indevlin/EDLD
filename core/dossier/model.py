@@ -841,52 +841,8 @@ class Model:
 
 # ── modifiers ─────────────────────────────────────────────────────────────────
 
-_MODIFIER_LABELS = {
-    "FSDOptimalMass": "Optimal mass", "MaxFuelPerJump": "Max fuel per jump",
-    "PowerDraw": "Power draw", "Mass": "Mass", "Integrity": "Integrity",
-    "ShieldGenStrength": "Shield strength", "EngineOptimalMass": "Optimal mass",
-    "EngineOptPerformance": "Optimal multiplier", "DamagePerSecond": "DPS",
-    "Damage": "Damage", "RateOfFire": "Rate of fire", "Range": "Range",
-    "PowerCapacity": "Power capacity", "WeaponsCapacity": "Weapons capacity",
-    "WeaponsRecharge": "Weapons recharge", "EnginesCapacity": "Engines capacity",
-    "EnginesRecharge": "Engines recharge", "SystemsCapacity": "Systems capacity",
-    "SystemsRecharge": "Systems recharge", "CargoCapacity": "Capacity",
-    "DefenceModifierHealthMultiplier": "Hull boost",
-    "DefenceModifierShieldMultiplier": "Shield boost",
-    "ScannerRange": "Scanner range", "SensorTargetScanAngle": "Scan angle",
-    "MaxRange": "Max range", "BootTime": "Boot time", "HeatEfficiency": "Heat efficiency",
-}
-
-
-def _split_words(text: str) -> str:
-    out = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text or "")
-    return out[:1].upper() + out[1:].lower()
-
-
-def _modifier_label(label: str) -> str:
-    return _MODIFIER_LABELS.get(label, _split_words(label))
-
-
-def _modifier_value(value) -> str:
-    try:
-        v = float(value)
-    except (TypeError, ValueError):
-        return "—"
-    if abs(v) >= 100:
-        return f"{v:,.0f}"
-    if abs(v) >= 10:
-        return f"{v:,.1f}"
-    return f"{v:,.3f}".rstrip("0").rstrip(".")
-
-
-def _modifier_change(m: dict) -> str:
-    try:
-        value, original = float(m.get("Value")), float(m.get("OriginalValue"))
-    except (TypeError, ValueError):
-        return ""
-    if not original:
-        return ""
-    change = 100.0 * (value - original) / abs(original)
-    better = (change < 0) if m.get("LessIsGood") else (change > 0)
-    sign = "+" if change > 0 else ""
-    return f"{sign}{change:.1f}%" + (" ▲" if better else " ▼") if change else "0%"
+from core.modifiers import LABELS as _MODIFIER_LABELS  # noqa: E402,F401
+from core.modifiers import change as _modifier_change  # noqa: E402,F401
+from core.modifiers import label as _modifier_label  # noqa: E402,F401
+from core.modifiers import split_words as _split_words  # noqa: E402,F401
+from core.modifiers import value as _modifier_value  # noqa: E402,F401

@@ -24,6 +24,7 @@ State published on MonitorState
 
 from pathlib import Path
 
+from core.modifiers import keep as keep_modifiers
 from core.plugin_loader import BasePlugin
 from data.modules import is_cosmetic_module, normalise_module_name
 
@@ -217,6 +218,9 @@ class ShipHealthPlugin(BasePlugin):
                     k: eng[k] for k in ("BlueprintName", "Level", "Quality",
                                         "ExperimentalEffect", "ExperimentalEffect_Localised")
                     if eng.get(k) not in (None, "")}
+                mods = keep_modifiers(eng.get("Modifiers"))
+                if mods:
+                    entry["engineering"]["Modifiers"] = mods
             modules.append(entry)
         state.ship_modules = modules
 

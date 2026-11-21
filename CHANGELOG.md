@@ -4,6 +4,18 @@ Last updated: 20261120
 
 ---
 
+## Unreleased
+
+### Added: engineering modifiers in the Modules tab
+
+Under each engineered module, the Modules tab now lists what the engineering
+changed, one line per stat with its original and current value and the
+change, green where it helps the module and amber where it costs it:
+"Optimal mass 1,050 → 1,628 +55.0% ▲". The journal's Loadout carries these
+for every module, but EDLD had kept only the blueprint, grade and
+experimental effect, so the figures were dropped before any window could
+show them. The same lines reach EDAM.
+
 ## Released in 20261120
 
 ### Fixed: a suit listed in the dossier's fleet
