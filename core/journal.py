@@ -196,6 +196,7 @@ def _poll_status_json(
 
       Flags   (int)   — bit 0x08: ShieldsUp, bit 0x2000000: InFighter
       Balance (int)   — live credit balance; updates immediately on spend
+      Fuel.FuelReservoir, Pips — the Ship window's Stats tab
 
     Status.json does NOT expose hull integrity (Health).
     """
@@ -255,6 +256,18 @@ def _poll_status_json(
                         last_fuel = fuel_main
                         state.fuel_current = float(fuel_main)
                         changed = True
+                    if not in_vehicle:
+                        res = (data.get("Fuel") or {}).get("FuelReservoir")
+                        res = round(float(res), 2) if isinstance(res, (int, float)) else None
+                        if res is not None and res != state.fuel_reservoir:
+                            state.fuel_reservoir = res
+                            changed = True
+                        pips = data.get("Pips")
+                        if (isinstance(pips, list) and len(pips) == 3
+                                and all(isinstance(x, int) for x in pips)
+                                and pips != state.ship_pips):
+                            state.ship_pips = list(pips)
+                            changed = True
 
                     # ── Credit balance (live spend tracking) ──────────
                     balance = data.get("Balance")

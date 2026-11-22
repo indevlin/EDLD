@@ -1,6 +1,6 @@
 """gui/blocks/ship_info.py — Ship window (Qt).
 
-The vessel's name, then Cargo and Modules.
+The vessel's name, then Cargo, Modules and Stats.
 """
 
 from __future__ import annotations
@@ -85,6 +85,9 @@ class ShipInfoBlock(GuiBlock):
         modules_layout.addWidget(self._scroll, 1)
         self._tabs.addTab(modules_page, "Modules")
 
+        self._stats = self.scroll()
+        self._tabs.addTab(self._stats, "Stats")
+
         layout.addWidget(self._tabs, 1)
 
     # ── Target market search ──────────────────────────────────────────────────
@@ -133,6 +136,7 @@ class ShipInfoBlock(GuiBlock):
         mods = W.modules(self.core)
         self._modules_hdr.set_title(mods.heading)
         self._scroll.set_rows(self.render_rows(mods.rows))
+        self._stats.set_rows(self.render_rows(W.stats(self.core).rows))
         src, target = W.price_source(self.core)
         self._price_src.setText(to_html(f" {src} ", self.palette_map))
         self._target_lbl.setText(to_html(target, self.palette_map))

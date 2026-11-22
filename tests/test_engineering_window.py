@@ -515,7 +515,7 @@ def test_an_engineered_module_has_its_engineering_on_the_line_under_it():
 
 def test_the_ship_window_no_longer_carries_the_materials():
     core = SimpleNamespace(state=MonitorState(), _plugins={})
-    assert [t.id for t in SW.tabs(core)] == ["cargo", "modules"]
+    assert [t.id for t in SW.tabs(core)] == ["cargo", "modules", "stats"]
 
 
 def test_ship_health_keeps_the_loadouts_engineering():
@@ -538,17 +538,17 @@ def test_ship_health_keeps_the_loadouts_engineering():
     assert "engineering" not in b
 
 
-def test_the_modules_tab_lists_each_modifier():
-    rows = SW.modifier_rows([
-        {"Label": "FSDOptimalMass", "Value": 1627.5, "OriginalValue": 1050.0, "LessIsGood": 0},
-        {"Label": "Mass", "Value": 26.0, "OriginalValue": 20.0, "LessIsGood": 1},
-        {"Label": "Integrity", "Value": 120.0, "OriginalValue": 120.0, "LessIsGood": 0},
-    ], "1  5A   ")
-    assert [r[1] for r in rows] == ["Optimal mass 1,050 → 1,628 +55.0% ▲",
-                                    "Mass 20.0 → 26.0 +30.0% ▼",
-                                    "Integrity 120 → 120 0%"]
-    assert [r[3] for r in rows] == ["health-good", "health-warn", "dim"]
-    assert all(r[2] == "1  5A   " for r in rows)
+def test_the_modules_tab_lists_the_blueprint_not_each_modifier():
+    s = MonitorState()
+    s.ship_modules = [{"slot": "FrameShiftDrive", "name_display": "5A Frame Shift Drive",
+                       "priority": 0, "health": 1.0, "engineering": {
+                           "BlueprintName": "FSD_LongRange", "Level": 5,
+                           "ExperimentalEffect": "special_fsd_heavy", "Modifiers": [
+                               {"Label": "FSDOptimalMass", "Value": 1627.5,
+                                "OriginalValue": 1050.0, "LessIsGood": 0}]}}]
+    rows = SW.modules(SimpleNamespace(state=s, _plugins={})).rows
+    assert [r[0] for r in rows] == ["kv", "note"]
+    assert rows[1][1] == "G5 Increased Range (Mass Manager)"
 
 
 def test_a_craft_updates_the_modules_engineering_until_the_next_loadout():

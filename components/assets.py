@@ -95,6 +95,23 @@ def _build_loadout_from_capi_modules(modules: dict) -> list[dict]:
     return out
 
 
+
+def ship_stats_from(ev: dict) -> dict:
+    """What a Loadout says about its ship, as the Fleet's folds show it."""
+    fuel = ev.get("FuelCapacity") or {}
+    out = {
+        "max_jump": ev.get("MaxJumpRange"),
+        "unladen": ev.get("UnladenMass"),
+        "fuel": fuel.get("Main"),
+        "reserve": fuel.get("Reserve"),
+        "cargo": ev.get("CargoCapacity"),
+        "hull": ev.get("HullHealth"),
+        "rebuy": ev.get("Rebuy"),
+        "value": (ev.get("HullValue") or 0) + (ev.get("ModulesValue") or 0) or None,
+    }
+    return {k: v for k, v in out.items()
+            if isinstance(v, (int, float)) and not isinstance(v, bool)}
+
 class AssetsPlugin(BasePlugin):
     PLUGIN_NAME        = "assets"
     PLUGIN_DISPLAY     = "Assets"
@@ -162,6 +179,8 @@ class AssetsPlugin(BasePlugin):
         self._shiptype_cache: dict[str, str] = {}
         # Per-ShipID loadout cache — persisted to storage, same approach as Inara
         self._ship_loadout_cache: dict = {}
+        #: ShipID → the Loadout's own figures (ship_stats_from), newest per ship.
+        self._ship_stats_cache: dict = {}
 
         # ── Step 1: build ShipType→localized name cache from Shipyard.json ────
         # Must happen before any parsing in the background scan thread.
@@ -435,6 +454,12 @@ class AssetsPlugin(BasePlugin):
                     int(k): v for k, v in lc.items()
                     if str(k).lstrip("-").isdigit()
                 }
+            sc = saved.get("ship_stats_cache")
+            if isinstance(sc, dict):
+                self._ship_stats_cache = {
+                    int(k): v for k, v in sc.items()
+                    if str(k).lstrip("-").isdigit() and isinstance(v, dict)
+                }
         except Exception:
             pass
 
@@ -598,11 +623,16 @@ class AssetsPlugin(BasePlugin):
                            if capi_owned_ids else None
             # seen_sids: already have loadout for these — skip
             seen_sids: set = set(self._ship_loadout_cache.keys())
+            seen_stats: set = set(self._ship_stats_cache.keys())
             for _f, ev in idx.events(("Loadout",), newest_first=True):
                 ev_sid = ev.get("ShipID")
                 if ev_sid is None:
                     continue
                 ev_sid_i = int(ev_sid)
+                if ev_sid_i not in seen_stats and (
+                        _target_sids is None or ev_sid_i in _target_sids):
+                    seen_stats.add(ev_sid_i)
+                    self._ship_stats_cache[ev_sid_i] = ship_stats_from(ev)
                 if ev_sid_i in seen_sids:
                     continue  # already have loadout for this ship
                 if _target_sids is not None and ev_sid_i not in _target_sids:
@@ -643,6 +673,8 @@ class AssetsPlugin(BasePlugin):
                 orphans = [k for k in self._ship_loadout_cache if k not in valid_ids]
                 for k in orphans:
                     del self._ship_loadout_cache[k]
+                for k in [k for k in self._ship_stats_cache if k not in valid_ids]:
+                    del self._ship_stats_cache[k]
             else:
                 # CAPI unavailable: prune against the most recent StoredShips event.
                 # Prevents sold ships from accumulating in the persistent cache.
@@ -907,6 +939,14 @@ class AssetsPlugin(BasePlugin):
             return list(cur["loadout"])
         return list(self._ship_loadout_cache.get(sid) or [])
 
+    def ship_stats(self, ship_id) -> dict:
+        """The Loadout's own figures for a ship (ship_stats_from), from its
+        newest Loadout; {} when none has been seen."""
+        try:
+            return dict(self._ship_stats_cache.get(int(ship_id)) or {})
+        except (TypeError, ValueError):
+            return {}
+
     def _parse_stored_ships(self, event: dict) -> list:
         ships = []
         for section in ("ShipsHere", "ShipsRemote"):
@@ -925,7 +965,14 @@ class AssetsPlugin(BasePlugin):
                     "type_display": disp,
                     "name":         name,
                     "ident":        ident,
-                    "system":       s.get("StarSystem", "—"),
+                    # ShipsHere are at the station the event is from, and
+                    # carry no system of their own.
+                    "system":       (s.get("StarSystem") or
+                                     (event.get("StarSystem") if section == "ShipsHere"
+                                      else None) or "—"),
+                    "station":      (event.get("StationName", "") if section == "ShipsHere"
+                                     else ""),
+                    "in_transit":   bool(s.get("InTransit")),
                     "value":        s.get("Value", 0),
                     "hot":          s.get("Hot", False),
                 })
@@ -1276,6 +1323,7 @@ class AssetsPlugin(BasePlugin):
             self.storage.write_json({
                 "stored_modules":     getattr(s, "assets_stored_modules", []),
                 "ship_loadout_cache": {str(k): v for k, v in self._ship_loadout_cache.items()},
+                "ship_stats_cache":   {str(k): v for k, v in self._ship_stats_cache.items()},
             }, "data.json")
         except Exception:
             pass
@@ -1428,8 +1476,11 @@ class AssetsPlugin(BasePlugin):
                     "loadout":      _loadout,
                 }
                 # Cache this loadout by ShipID — persists across sessions
+                if _new_sid is not None:
+                    self._ship_stats_cache[int(_new_sid)] = ship_stats_from(event)
                 if _new_sid is not None and _loadout:
                     self._ship_loadout_cache[int(_new_sid)] = _loadout
+                if _new_sid is not None:
                     self._save_to_storage()
                 if gq: gq.put(("plugin_refresh", "assets"))
 
@@ -1474,6 +1525,7 @@ class AssetsPlugin(BasePlugin):
                     try:    sell_id_i = int(sell_id)
                     except: sell_id_i = sell_id
                     self._ship_loadout_cache.pop(sell_id_i, None)
+                    self._ship_stats_cache.pop(sell_id_i, None)
                     # Remove from in-memory stored fleet
                     state.assets_stored_ships = [
                         s for s in getattr(state, "assets_stored_ships", [])

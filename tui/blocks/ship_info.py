@@ -1,6 +1,6 @@
 """tui/blocks/ship_info.py — Ship window (Textual).
 
-The vessel's name, then Cargo and Modules.
+The vessel's name, then Cargo, Modules and Stats.
 """
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ class ShipInfoBlock(TuiBlock):
             with TabPane("Modules", id="ship-tab-modules"):
                 yield SecHdr("Modules", id="sh-modules-hdr")
                 yield VerticalScroll(id="sh-modules")
+            with TabPane("Stats", id="ship-tab-stats"):
+                yield VerticalScroll(id="sh-stats")
 
     def _compose_cargo(self) -> ComposeResult:
         # The panel prices every row against one market, so it has to say
@@ -108,6 +110,7 @@ class ShipInfoBlock(TuiBlock):
         except Exception:
             pass
         self._fill("#sh-modules", mods.rows)
+        self._fill("#sh-stats", W.stats(self.core).rows)
         src, target = W.price_source(self.core)
         try:
             self.query_one("#cargo-price-src", Label).update(f" {src} ")

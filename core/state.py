@@ -268,6 +268,10 @@ class MonitorState:
         self.ship_has_refinery: bool = False
         self.docked_at: dict | None = None        # {system, station, market_id, type}
         self.fuel_current:   "float | None" = None
+        self.fuel_reservoir: "float | None" = None    # Status.json FuelReservoir, tons
+        #: Status.json Pips: [systems, engines, weapons] in half pips; None
+        #: until the ship's Status says.
+        self.ship_pips: "list[int] | None" = None
         self.fuel_burn_rate: "float | None" = None
         self.reward_type             = "credit_total"
         self.fighter_integrity       = 0

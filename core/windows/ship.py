@@ -1,6 +1,7 @@
-"""core/windows/ship.py — the Ship window: the vessel's name, then Cargo and
-Modules, each engineered module with its blueprint, grade and experimental
-effect on the line under it.
+"""core/windows/ship.py — the Ship window: the vessel's name, then Cargo,
+Modules (each engineered module with its blueprint, grade and experimental
+effect on the line under it) and Stats (jump range, fuel, mass, condition,
+pips: what the game reports, and the jump range worked out from it).
 
 Hull, shields and fuel live in the Commander window's Info tab. The materials
 are in the Engineering window's Materials tab (core/windows/engineering.py):
@@ -139,8 +140,6 @@ def modules(core) -> Tab:
         eng = engineering_line(m.get("engineering"))
         if eng:
             rows.append(R.note(eng, prio + rating_prefix(name)))
-            rows += modifier_rows((m.get("engineering") or {}).get("Modifiers"),
-                                  prio + rating_prefix(name) + "  ")
     return Tab("modules", "Modules", rows, heading=heading)
 
 
@@ -172,19 +171,78 @@ def engineering_line(eng: dict | None) -> str:
     return text
 
 
-def modifier_rows(mods, indent: str) -> list:
-    """One note per engineering modifier: "Optimal mass 1,050 → 1,628 +55.0% ▲",
-    good when it improves the module, warn when it does not."""
-    from core import modifiers as MF
-    rows = []
-    for m in mods or []:
-        d = MF.delta(m)
-        cls = "dim" if d is None or not d[0] else ("health-good" if d[1] else "health-warn")
-        text = (f"{MF.label(m.get('Label', ''))} {MF.value(m.get('OriginalValue'))} → "
-                f"{MF.value(m.get('Value'))} {MF.change(m)}").strip()
-        rows.append(R.note(text, indent, cls))
-    return rows
-
-
 def tabs(core) -> list[Tab]:
-    return [cargo(core), modules(core)]
+    return [cargo(core), modules(core), stats(core)]
+
+
+# ── Stats: what the game reports, and what follows from it exactly ───────────
+
+def ly(v) -> str:
+    return "—" if v is None else f"{v:,.2f} ly"
+
+
+def tons(v, digits: int = 1) -> str:
+    return "—" if v is None else f"{v:,.{digits}f} t"
+
+
+def pips_text(pips) -> str:
+    """"SYS 2 · ENG 4 · WEP 0" from Status.json's half pips."""
+    if not pips or len(pips) != 3:
+        return "—"
+    half = lambda n: f"{n // 2}" + ("½" if n % 2 else "")
+    return " · ".join(f"{k} {half(int(n))}" for k, n in zip(("SYS", "ENG", "WEP"), pips))
+
+
+def shields_text(s) -> str:
+    if getattr(s, "ship_shields_recharging", False):
+        return "Recharging"
+    return "Up" if getattr(s, "ship_shields", True) else "Down"
+
+
+def stats(core) -> Tab:
+    """The current ship's figures: from the Loadout and Status.json, and the
+    jump range worked out from them with the drive's own formula."""
+    from core import route_view as RV
+    from core.windows import cr
+    s = core.state
+    drive = getattr(s, "ship_drive", None)
+    if drive is None and getattr(s, "ship_max_jump_range", None) is None:
+        return Tab("stats", "Stats",
+                   [R.text("No loadout data yet — dock or jump to populate.", "dim")])
+    fuel = getattr(s, "fuel_current", None)
+    tank = getattr(s, "fuel_tank_size", None)
+    reserve = getattr(drive, "reserve", None) if drive else None
+    res = getattr(s, "fuel_reservoir", None)
+    cargo = RV.cargo_tons(s)
+    cap = getattr(s, "cargo_capacity", 0) or 0
+    unladen = getattr(s, "ship_unladen_mass", None)
+    rows = [R.hdr("Jump range"),
+            R.kv("Now", ly(RV.jump_range(s))),
+            R.kv("Full tank", ly(RV.plan_range(s))),
+            R.kv("Unladen max", ly(getattr(s, "ship_max_jump_range", None)))]
+    tj = RV.tank_jumps(s)
+    if tj:
+        rows.append(R.kv("On this tank", RV.tank_text(tj)))
+    rows.append(R.hdr("Fuel"))
+    rows.append(R.kv("Main tank", f"{tons(fuel, 2)} / {tons(tank, 0)}" if fuel is not None and tank
+                     else tons(tank, 0) if tank else "—"))
+    if reserve:
+        rows.append(R.kv("Reservoir", f"{tons(res, 2)} / {tons(reserve, 2)}" if res is not None
+                         else tons(reserve, 2)))
+    if drive is not None:
+        rows.append(R.kv("Most per jump", tons(drive.max_fuel, 2)))
+    rows.append(R.hdr("Mass"))
+    rows.append(R.kv("Unladen", tons(unladen)))
+    rows.append(R.kv("Cargo", f"{cargo:,.0f} / {cap:,} t" if cap else tons(cargo, 0)))
+    if unladen is not None and fuel is not None:
+        rows.append(R.kv("Total", tons(float(unladen) + fuel + (res or 0.0) + cargo)))
+    rows.append(R.hdr("Condition"))
+    hull = getattr(s, "ship_hull", None)
+    rows.append(R.kv("Hull", f"{int(hull)}%" if hull is not None else "—",
+                     f"val {health_cls(int(hull))}" if hull is not None and hull < 100 else "val"))
+    rows.append(R.kv("Shields", shields_text(s)))
+    rows.append(R.kv("Pips", pips_text(getattr(s, "ship_pips", None))))
+    rebuy = ((getattr(s, "assets_current_ship", None) or {}).get("rebuy"))
+    if rebuy:
+        rows.append(R.kv("Rebuy", cr(rebuy)))
+    return Tab("stats", "Stats", rows)

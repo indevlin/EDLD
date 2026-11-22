@@ -14,6 +14,10 @@
     ("note", body, indent, classes)      a line under the row above it, set in
                                          as far as ``indent`` reaches in the
                                          row's label (a module's engineering)
+    ("fold", label, value, key, classes, ident)  a row that opens and closes
+                                         the rows under it; ident names its
+                                         ship, for a picture
+    ("in", key, row)                     a row inside the fold ``key``
 """
 from __future__ import annotations
 
@@ -90,6 +94,15 @@ class R:
         return ("note", "" if body is None else str(body), str(indent or ""), classes)
 
     @staticmethod
+    def fold(label, value, key: str, classes: str = "val", ident: str = "") -> tuple:
+        return ("fold", str(label), "" if value is None else str(value), str(key), classes,
+                str(ident or ""))
+
+    @staticmethod
+    def within(key: str, rows) -> list:
+        return [("in", str(key), r) for r in rows or [] if r]
+
+    @staticmethod
     def cells(label, values, classes: str = "val", action: str | None = None) -> tuple:
         row = ("cells", str(label), [str(v) for v in values], classes)
         return row + (action,) if action else row
@@ -105,6 +118,35 @@ class Tab:
     rows: list = field(default_factory=list)
     pages: list = field(default_factory=list)      # [Tab]
     heading: str = ""
+
+
+# ── Folds ────────────────────────────────────────────────────────────────────
+
+FOLD_ACTION = "fold:"
+
+
+def fold_mark(is_open: bool) -> str:
+    return "−" if is_open else "+"
+
+
+def unfold(rows, open_keys) -> list:
+    """Rows as an interface draws them: each fold as a pressable row marked
+    + or −, the rows inside it only while it is open."""
+    out = []
+    for row in rows or []:
+        if not row:
+            continue
+        if row[0] == "fold":
+            is_open = row[3] in open_keys
+            label = f"{fold_mark(is_open)} {row[1]}"
+            out.append(("kv", label, row[2], row[4] if len(row) > 4 else "val",
+                        FOLD_ACTION + row[3]))
+        elif row[0] == "in":
+            if row[1] in open_keys:
+                out.append(row[2])
+        else:
+            out.append(row)
+    return out
 
 
 # ── Columns, for the interfaces that draw them in text ──────────────────────
@@ -224,8 +266,33 @@ def tone_of(classes: str, text: str = "") -> str | None:
 
 def wire_rows(rows) -> list[dict]:
     """Model rows as protocol rows: label, value, kind (kv | sub | line |
-    cells | note), an optional tone, for a table its headings and cells, and
-    for a note the text it is set in under."""
+    cells | note | fold), an optional tone, for a table its headings and
+    cells, for a note the text it is set in under, for a fold its key (and
+    ship ident), and for a row inside a fold that fold's key as ``in``."""
+    from core.tooltab import plain
+    out: list[dict] = []
+    for row in rows or []:
+        if not row:
+            continue
+        if row[0] == "fold":
+            r = {"label": plain(row[1])[0], "value": plain(row[2])[0], "kind": "fold",
+                 "fold": row[3]}
+            tone = tone_of(row[4] if len(row) > 4 else "", "")
+            if tone:
+                r["tone"] = tone
+            if len(row) > 5 and row[5]:
+                r["ident"] = row[5]
+            out.append(r)
+        elif row[0] == "in":
+            for r in _wire_plain([row[2]]):
+                r["in"] = row[1]
+                out.append(r)
+        else:
+            out += _wire_plain([row])
+    return out
+
+
+def _wire_plain(rows) -> list[dict]:
     from core.tooltab import plain
     out: list[dict] = []
     for kind, row, _w in iter_render(rows):

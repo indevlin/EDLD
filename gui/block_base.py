@@ -687,7 +687,21 @@ class GuiBlock(QFrame):
         """Click on `w` calls row_action(action)."""
         w.setCursor(Qt.PointingHandCursor)
         w.mousePressEvent = (lambda ev, a=action:
-                             self.row_action(a) if ev.button() == Qt.LeftButton else None)
+                             self._press(a) if ev.button() == Qt.LeftButton else None)
+
+    def _press(self, action: str) -> None:
+        if not self.toggle_fold(action):
+            self.row_action(action)
+
+    def toggle_fold(self, action: str) -> bool:
+        """Open or close a fold (R.fold); False for any other action."""
+        from core.windows import FOLD_ACTION
+        if not action.startswith(FOLD_ACTION):
+            return False
+        folds = self.__dict__.setdefault("_open_folds", set())
+        folds ^= {action[len(FOLD_ACTION):]}
+        self.refresh_data()
+        return True
 
     def row_action(self, action: str) -> None:
         """A row's action (R.kv(..., action=…)). Blocks override."""
@@ -708,8 +722,9 @@ class GuiBlock(QFrame):
         """Widgets for rows from core/windows: the same rows the terminal
         dashboard and EDAM draw. ``on_toggle(system_name=…, market_id=…)``
         is called when a collapsible heading is clicked."""
-        from core.windows import align_values, cells_text, iter_render, table_text
+        from core.windows import align_values, cells_text, iter_render, table_text, unfold
         out: list = []
+        rows = unfold(rows, self.__dict__.get("_open_folds", set()))
         for kind, row, widths in iter_render(align_values(rows)):
             if kind == "hdr":
                 out.append(self.hdr(row[1]))
