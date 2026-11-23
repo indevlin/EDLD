@@ -4,7 +4,7 @@ Last updated: 20261120
 
 ---
 
-## Unreleased
+## Released in 20261123
 
 ### Added: publishing to ED Commanders
 
