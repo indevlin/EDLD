@@ -1,5 +1,5 @@
 {
-  "version": "20261120",
+  "version": "20261123",
   "sheet_version": 5,
   "sheet_steps": [
     {
@@ -26,7 +26,7 @@
   "min_loader": 2,
   "bundle": {
     "file": "edld_sheet.js",
-    "sha256": "54f241e4dbbfccd1b38a1d8803b1c19287602ec6c85ef2e84b329a85ed4657c0",
+    "sha256": "8035cbb59397f641a5a5d1529a9527eac87443df7ffa1a9cfcec9ff93bba0ec6",
     "bytes": 69325
   },
   "loader": {
