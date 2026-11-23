@@ -16,6 +16,37 @@ for every module, but EDLD had kept only the blueprint, grade and
 experimental effect, so the figures were dropped before any window could
 show them. The same lines reach EDAM.
 
+### Added: the Ship window's Stats tab
+
+The Ship window has a third tab, Stats, with the figures the game gives for
+the ship and what follows from them exactly: the jump range now, with a full
+tank and unladen (the game's own MaxJumpRange), the jumps the fuel in the
+tank makes, the main tank and the reservoir, the most one jump burns, the
+ship's mass unladen and as it flies, hull, shields, the pips and the rebuy.
+The jump range is the drive's formula with the drive's own figures, checked
+against the game's MaxJumpRange; the reservoir and pips come from
+Status.json. Shield strength, speed and the like are not given by the game,
+and are not shown. The same tab reaches EDAM.
+
+### Added: the fleet, a line per ship that opens
+
+The Commander window's Ships tab, EDCARS's Fleet section, lists each ship on
+one line, `SPECULATOR [M-SPEC] (Mandalay)` with where it is, the current ship
+first. A **+** before the name opens it, **−** closes it, in both interfaces:
+the current ship's Stats, and for a stored ship the figures from its last
+Loadout — unladen maximum jump, unladen mass, fuel and cargo capacity, hull
+and rebuy — then its value and its fitting, each engineered module with its
+blueprint under it. A ship not flown since the journals EDLD reads begin has
+no fitting to show, and says so. On a paired EDAM device the fleet is a
+section of its own, Fleet, beside Commander.
+
+### Fixed: ships stored where you are had no location
+
+StoredShips lists the ships at the station you are docked at without their
+system, since it is the station's; EDLD read a system from each ship and so
+showed those ships with none. They now show the station and its system, and
+a ship being transferred shows as in transit.
+
 ## Released in 20261120
 
 ### Fixed: a suit listed in the dossier's fleet
