@@ -4,7 +4,7 @@ Last updated: 20261120
 
 ---
 
-## Released in 20261123
+## Unreleased
 
 ### Added: publishing to ED Commanders
 
@@ -18,6 +18,13 @@ client share keys and settings, so either can publish a commander and
 verification carries over; only one publishes at a time. It is off until you
 turn it on, and suppressed on a secondary instance. See
 [docs/EDCMDR.md](docs/EDCMDR.md); the privacy policy lists what is sent.
+
+### Changed: simpler download names
+
+Release files drop the processor name: `EDLD-<version>-linux.tar.gz`,
+`EDLD-<version>-windows.zip` and `EDLD-<version>-macos.zip`, and
+`EDLD-server-<version>-linux.tar.gz` and `EDLD-server-<version>-windows.zip`
+for EDLD-server. What is inside each archive is unchanged.
 
 ### Added: engineering modifiers in the Modules tab
 
