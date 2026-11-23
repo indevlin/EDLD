@@ -6,6 +6,19 @@ Last updated: 20261120
 
 ## Unreleased
 
+### Added: publishing to ED Commanders
+
+EDLD can publish your commander to [ED Commanders](https://edcmdr.com), the
+public commander showcase, as the EDCMDR client does: your dossier, your
+squadron's roster and the leaderboards, only the sections you switch on, each
+on its own delay. Turn it on in **Options → Services → ED Commanders**; **ED
+Commanders settings…** holds the sharing switches and delays, **Verify with
+Frontier**, your Codex portrait and **Forget on EDCMDR**. EDLD and the EDCMDR
+client share keys and settings, so either can publish a commander and
+verification carries over; only one publishes at a time. It is off until you
+turn it on, and suppressed on a secondary instance. See
+[docs/EDCMDR.md](docs/EDCMDR.md); the privacy policy lists what is sent.
+
 ### Added: engineering modifiers in the Modules tab
 
 Under each engineered module, the Modules tab now lists what the engineering

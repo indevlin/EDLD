@@ -19,7 +19,7 @@
 Combat · Trade · Mining · Exploration · Missions · Exobiology · PowerPlay · On foot · Assets, and more
 
 <ins>Integrations</ins></br>
-FDev CAPI · EDDN · EDSM · EDAstro · Inara · Raven Colonial · Discord Webhooks
+FDev CAPI · EDDN · EDSM · EDAstro · Inara · ED Commanders · Raven Colonial · Discord Webhooks
 
 <ins>Multiple Interface Options</ins></br>
 EDCARS · Desktop dashboard · Terminal dashboard · Terminal scroll · EDAM on your phone or tablet
@@ -88,6 +88,7 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 | 🛡️ **Unified Data Provider** | Single source of truth for all game state — CAPI › journal › Status.json |
 | 🔐 **CAPI Authentication** | OAuth2 to Frontier's Companion API for authoritative fleet roster, market prices, fleet carrier finance, and squadron identity |
 | 🌐 **Data Contributions** | Opt-in journal uploading to EDDN, EDSM, EDAstro, and Inara, sent at every dock and undock, jump, ship or vehicle change, death and loadout change |
+| 🏅 **ED Commanders** | Opt-in publishing to [edcmdr.com](https://edcmdr.com), the public commander showcase: your dossier, squadron roster and leaderboards, only the sections you choose, each on its own delay ([guide](docs/EDCMDR.md)) |
 | 🏗️ **Colonization Tracking** | Construction site resource requirements, delivery progress, and Raven Colonial integration (experimental) — in the Objectives window's second tab. A site you stop tracking, or have not delivered to in seven days, is cleared |
 | 🎨 **Themes** | Twelve built-in color themes (Elite Dangerous orange; EDLD default, dark, green, blue, purple, red, yellow and light; and ORDER, REBEL and ROGUE, made for EDCARS's consoles) plus a documented template for custom themes — all render in both the terminal and desktop interfaces, and on a paired EDAM device. The desktop windows' text face and size, row shading, and values at the edge or beside their labels are set alongside ([guide](docs/THEMING.md)) |
 | 🔌 **Components and Profiles** | Every feature is a self-contained component in `components/`, with its data kept per commander. Named config profiles override any setting for one commander or one machine, selected with `-p` or automatically by commander name |
@@ -349,7 +350,7 @@ and only if you turn session management on — never outside Solo.
 
 The community services it can send data to — EDDN, EDSM, EDAstro, Inara, Raven
 Colonial, Spansh — and the radio stations it can play are run by others and are
-not affiliated with EDLD. Every upload is off until you turn it on;
+not affiliated with EDLD. ED Commanders (edcmdr.com) is run by Indevlin. Every upload is off until you turn it on;
 [docs/PRIVACY.md](docs/PRIVACY.md) lists what goes where.
 
 EDLD is provided as is, without warranty of any kind, as the
