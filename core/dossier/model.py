@@ -218,6 +218,13 @@ class Model:
             return f"{station} · {system}"
         return station or system or "Unknown"
 
+    def bought_at(self, at: Optional[dict]) -> str:
+        """Where a purchase was made, or "" when it is not known."""
+        if not at:
+            return ""
+        return self.place(at.get("market_id"), at.get("station", ""),
+                          at.get("system", ""))
+
     def where_now(self) -> str:
         where = self.s.get("where", {})
         system = where.get("system", "")
@@ -529,8 +536,10 @@ class Model:
             if acq.get("price"):
                 how += f" for {cr(acq['price'])}"
             how += f", {date(acq.get('ts'))}"
+        at = acq.get("at") or {}
         rows = [
             ("Acquired", how),
+            ("Acquired at", self.bought_at(at) if at else ""),
             ("Time as active ship", duration(sh.get("seconds"))),
             ("Hyperspace jumps", num(sh.get("jumps")) if sh.get("jumps") else ""),
             ("Distance jumped", num(sh.get("ly"), 0, "ly") if sh.get("ly") else ""),
@@ -789,12 +798,16 @@ class Model:
         for suit in suits.values():
             name, cls = names.suit_name(suit.get("name", ""))
             suit_rows.append([name, str(suit.get("class") or cls or ""),
-                              ", ".join(names.suit_mod(m) for m in suit.get("mods") or [])])
+                              ", ".join(names.suit_mod(m) for m in suit.get("mods") or []),
+                              date(suit.get("bought")),
+                              (self.bought_at(suit.get("bought_at")) or "—")])
         suit_rows.sort()
         weapon_rows = sorted([
             names.weapon_name(w.get("name", ""), w.get("display", "")),
             str(w.get("class") or ""),
-            ", ".join(names.weapon_mod(m) for m in w.get("mods") or [])]
+            ", ".join(names.weapon_mod(m) for m in w.get("mods") or []),
+            date(w.get("bought")),
+            (self.bought_at(w.get("bought_at")) or "—")]
             for w in weapons.values())
         lo_rows = []
         for lo in (self.s.get("loadouts") or {}).values():
@@ -813,12 +826,14 @@ class Model:
         blocks = [
             table(["Loadout", "Suit", "Primary 1", "Primary 2", "Secondary"], lo_rows,
                   title="Loadouts", empty="No suit loadouts recorded."),
-            table(["Suit", "Class", "Modifications"], suit_rows, title="Suits",
-                  numeric=(1,), empty="No suits recorded."),
-            table(["Weapon", "Class", "Modifications"], weapon_rows, title="Weapons",
-                  numeric=(1,), empty="No weapons recorded."),
+            table(["Suit", "Class", "Modifications", "Bought", "Bought at"], suit_rows,
+                  title="Suits", numeric=(1,), nowrap=(3,), empty="No suits recorded."),
+            table(["Weapon", "Class", "Modifications", "Bought", "Bought at"], weapon_rows,
+                  title="Weapons", numeric=(1,), nowrap=(3,),
+                  empty="No weapons recorded."),
             note("Suits and weapons bought before the earliest journal EDLD has read "
-                 "appear once they are used in a loadout."),
+                 "appear once they are used in a loadout, with no purchase date or "
+                 "place."),
         ]
         return {"id": "on-foot", "nav": "On foot", "title": "On foot",
                 "subtitle": "Suits, weapons and loadouts", "blocks": blocks}
@@ -826,52 +841,8 @@ class Model:
 
 # ── modifiers ─────────────────────────────────────────────────────────────────
 
-_MODIFIER_LABELS = {
-    "FSDOptimalMass": "Optimal mass", "MaxFuelPerJump": "Max fuel per jump",
-    "PowerDraw": "Power draw", "Mass": "Mass", "Integrity": "Integrity",
-    "ShieldGenStrength": "Shield strength", "EngineOptimalMass": "Optimal mass",
-    "EngineOptPerformance": "Optimal multiplier", "DamagePerSecond": "DPS",
-    "Damage": "Damage", "RateOfFire": "Rate of fire", "Range": "Range",
-    "PowerCapacity": "Power capacity", "WeaponsCapacity": "Weapons capacity",
-    "WeaponsRecharge": "Weapons recharge", "EnginesCapacity": "Engines capacity",
-    "EnginesRecharge": "Engines recharge", "SystemsCapacity": "Systems capacity",
-    "SystemsRecharge": "Systems recharge", "CargoCapacity": "Capacity",
-    "DefenceModifierHealthMultiplier": "Hull boost",
-    "DefenceModifierShieldMultiplier": "Shield boost",
-    "ScannerRange": "Scanner range", "SensorTargetScanAngle": "Scan angle",
-    "MaxRange": "Max range", "BootTime": "Boot time", "HeatEfficiency": "Heat efficiency",
-}
-
-
-def _split_words(text: str) -> str:
-    out = re.sub(r"(?<=[a-z])(?=[A-Z])", " ", text or "")
-    return out[:1].upper() + out[1:].lower()
-
-
-def _modifier_label(label: str) -> str:
-    return _MODIFIER_LABELS.get(label, _split_words(label))
-
-
-def _modifier_value(value) -> str:
-    try:
-        v = float(value)
-    except (TypeError, ValueError):
-        return "—"
-    if abs(v) >= 100:
-        return f"{v:,.0f}"
-    if abs(v) >= 10:
-        return f"{v:,.1f}"
-    return f"{v:,.3f}".rstrip("0").rstrip(".")
-
-
-def _modifier_change(m: dict) -> str:
-    try:
-        value, original = float(m.get("Value")), float(m.get("OriginalValue"))
-    except (TypeError, ValueError):
-        return ""
-    if not original:
-        return ""
-    change = 100.0 * (value - original) / abs(original)
-    better = (change < 0) if m.get("LessIsGood") else (change > 0)
-    sign = "+" if change > 0 else ""
-    return f"{sign}{change:.1f}%" + (" ▲" if better else " ▼") if change else "0%"
+from core.modifiers import LABELS as _MODIFIER_LABELS  # noqa: E402,F401
+from core.modifiers import change as _modifier_change  # noqa: E402,F401
+from core.modifiers import label as _modifier_label  # noqa: E402,F401
+from core.modifiers import split_words as _split_words  # noqa: E402,F401
+from core.modifiers import value as _modifier_value  # noqa: E402,F401

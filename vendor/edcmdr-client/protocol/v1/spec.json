@@ -1,0 +1,59 @@
+{
+  "protocol": 1,
+  "kinds": ["enroll", "verify-start", "verify-poll", "verify-finish", "prefs", "snapshot", "presence", "portrait", "squadron", "forget"],
+  "kinds_live": ["enroll", "verify-start", "verify-poll", "verify-finish", "prefs", "snapshot", "presence", "portrait", "squadron", "forget"],
+  "categories": ["identity", "presence", "location", "ranks", "statistics", "fleet", "engineering", "powerplay", "squadron", "portrait"],
+  "snapshot_categories": ["identity", "location", "ranks", "statistics", "fleet", "engineering", "powerplay", "squadron"],
+  "always_shared": ["identity"],
+  "delays": [0, 3600, 43200, 86400, 604800],
+  "limits": {
+    "body_bytes": 1048576,
+    "portrait_bytes": 1572864,
+    "portrait_body_bytes": 2200000,
+    "factions": 5,
+    "tagline_len": 140,
+    "clock_skew_s": 300,
+    "name_len": 32,
+    "text_len": 64,
+    "ships": 100,
+    "modules": 120,
+    "engineers": 60,
+    "stat_sections": 30,
+    "stat_keys": 60
+  },
+  "fid_pattern": "^F[0-9]{1,12}$",
+  "rank_keys": ["Combat", "Trade", "Explore", "Soldier", "Exobiologist", "Empire", "Federation", "CQC"],
+  "reputation_keys": ["Empire", "Federation", "Independent", "Alliance"],
+  "statistics_sections": [
+    "Bank_Account", "Combat", "Crime", "Smuggling", "Trading", "Mining", "Exploration",
+    "Passengers", "Search_And_Rescue", "Squadron", "TG_ENCOUNTERS", "Crafting", "Crew",
+    "Multicrew", "Material_Trader_Stats", "CQC", "FLEETCARRIER", "Exobiology"
+  ],
+  "statistics_may_fall": [
+    "Bank_Account.Current_Wealth", "Bank_Account.Owned_Ship_Count", "Bank_Account.Suits_Owned",
+    "Bank_Account.Weapons_Owned", "Bank_Account.MercCoins_Current", "Crime.Notoriety", "Crime.Fines",
+    "Trading.Average_Profit", "Smuggling.Average_Profit"
+  ],
+  "statistics_wealth": ["Bank_Account.Current_Wealth"],
+  "game_modes": ["Open", "Group", "Solo", "Unknown"],
+  "powers": [
+    "Aisling Duval", "Archon Delaine", "Arissa Lavigny-Duval", "Denton Patreus", "Edmund Mahon",
+    "Felicia Winters", "Jerome Archer", "Li Yong-Rui", "Nakato Kaine", "Pranav Antal",
+    "Yuri Grom", "Zemina Torval"
+  ],
+  "recruiting": ["open", "invite", "closed"],
+  "undelayed": ["portrait"],
+  "codes": {
+    "json": 400, "envelope": 400, "key": 400, "fid": 400, "kind": 400, "body": 400,
+    "signature": 401, "build": 401,
+    "not-enrolled": 403, "claimed": 403, "not-leader": 403,
+    "upstream": 424, "portrait": 422,
+    "method": 405,
+    "clock": 409, "replay": 409, "version": 409, "no-verification": 409, "different-commander": 409, "no-journal": 409,
+    "size": 413,
+    "implausible": 422,
+    "rate": 429,
+    "not-implemented": 501,
+    "server": 500, "unconfigured": 503, "maintenance": 503
+  }
+}

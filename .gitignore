@@ -17,6 +17,8 @@ config.toml
 *.pepk
 keystore.properties
 signing.properties
+# EDCMDR build key, written into the vendored client by the release workflow
+vendor/edcmdr-client/edcmdr/_build_secret.py
 
 # ── Python ────────────────────────────────────────────────────────────────────
 __pycache__/

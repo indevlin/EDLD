@@ -241,10 +241,28 @@ jobs:
             libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-randr0 \
             libxcb-render-util0 libxcb-xinerama0 xvfb
 
+      # ED Commanders accepts pushes only from builds signed with a key it lists.
+      # EDLD's own key goes into the vendored client for this build only.
+      - name: EDCMDR build key
+        shell: bash
+        env:
+          EDCMDR_BUILD_KEY: ${{ secrets.EDCMDR_BUILD_KEY }}
+        run: |
+          if [ -n "$EDCMDR_BUILD_KEY" ]; then
+            printf "BUILD_KEY = '%s'\n" "$EDCMDR_BUILD_KEY" > vendor/edcmdr-client/edcmdr/_build_secret.py
+          else
+            echo '::warning::EDCMDR_BUILD_KEY is not set: this build cannot publish to ED Commanders'
+          fi
+
       - name: Build single-file binary
         env:
           EDLD_VARIANT: ${{ matrix.variant }}
         run: pyinstaller packaging/edld.spec --noconfirm --clean
+
+      - name: Remove the EDCMDR build key
+        if: always()
+        shell: bash
+        run: rm -f vendor/edcmdr-client/edcmdr/_build_secret.py
 
       # ----------------------------------------------------------------- #
       # Code signing. Every step is skipped when its secret is absent, so

@@ -1,6 +1,6 @@
 # EDLD Privacy Policy
 
-Effective 8 November 2026.
+Effective 23 November 2026.
 
 EDLD, the Elite Dangerous Live Dashboard, is published by Indevlin, LLC
 (“Indevlin”, “we”, “us”). This policy covers EDLD on Windows, macOS and Linux,
@@ -10,9 +10,10 @@ EDLD runs on your computer and reads files the game writes there. Almost
 everything it does stays there. This policy lists every outside service it can
 talk to, what it sends, and what has to be true before it sends anything.
 
-Indevlin runs no server for EDLD and collects nothing from it: there is no
-telemetry, no analytics, no account, and nothing is sent to Indevlin by EDLD or
-by the EDAM app’s connection to it.
+There is no telemetry, no analytics and no account, and nothing is sent to
+Indevlin by EDLD or by the EDAM app’s connection to it, with one exception you
+choose: if you turn on ED Commanders, EDLD publishes the sections of your
+commander you switch on to edcmdr.com, Indevlin’s public commander showcase.
 
 ## Always on
 
@@ -32,6 +33,7 @@ Options or `config.toml`.
 | **EDSM** — Elite Dangerous Star Map | `[EDSM] Enabled`, commander name and API key | Your journal — travel, scans, ranks, materials, missions and the rest EDSM accepts — under your EDSM account. EDLD also asks EDSM where it last saw you |
 | **EDAstro** | `[EDAstro] Enabled` | Exploration events — scans, signals, codex entries — and, with `UploadCarrierEvents`, your fleet carrier’s movements |
 | **Inara** | `[Inara] Enabled`, commander name and API key | Your commander’s activity, under your Inara account: ranks and engineer ranks, reputation, credits, ships and their loadouts, cargo and materials, missions, docking and jumps, deaths, and community goals |
+| **ED Commanders** (`edcmdr.com`, run by Indevlin) | `[EDCMDR] Enabled`, then each section switched on in ED Commanders settings | Only the sections you switch on, each after the delay you choose: identity (your commander name), presence, location, ranks, statistics, fleet, engineering, Powerplay, squadron and your Codex portrait. Each commander’s pushes are signed with a key made on your computer. Verifying with Frontier sends your Frontier access token to edcmdr.com once, to read your commander from Frontier; it is not kept. What edcmdr.com keeps, shows and deletes is in its own [privacy policy](https://edcmdr.com/privacy); **Forget on EDCMDR** removes your commander from it |
 | **Raven Colonial** | `[Colonisation] ApiKey` | Construction progress for colonization projects you contribute to |
 | **Discord** | `[Discord] WebhookURL` | Messages to your own channel: the startup notice (commander, location, ship, credits, cargo, fuel, PowerPlay, carrier), alerts, and the quarter-hour summaries, at the levels set under `[LogLevels]` |
 | **Google Sheets** (your own sheet’s Apps Script) | `[SurfaceSurvey] Enabled`, URL and token | Surface deposits you record — system, body, commodity, position, amount, density, notes — ring hotspots you map — system, body, ring, ring type, reserve level, commodity, overlap and note — and the reporter name you choose. EDLD also reads back what others have recorded. See [SURFACE_SURVEY.md](https://github.com/indevlin/EDLD/blob/main/docs/SURFACE_SURVEY.md) |
@@ -90,8 +92,8 @@ What the EDAM app itself does is covered by the
 ## A secondary instance uploads nothing
 
 With `PrimaryInstance = false` — EDLD on a second machine reading the same
-journals — the EDDN, EDSM, EDAstro and Inara uploads are suppressed, so those
-services do not receive the same events twice, and no overlay is drawn. Discord,
+journals — the EDDN, EDSM, EDAstro, Inara and ED Commanders uploads are
+suppressed, so those services do not receive the same events twice, and no overlay is drawn. Discord,
 Raven Colonial and the survey sheet follow their own settings, which is why the
 remote profile in `example.config.toml` turns Discord off. See
 [Remote Access](https://github.com/indevlin/EDLD/blob/main/docs/guides/REMOTE_ACCESS.md).

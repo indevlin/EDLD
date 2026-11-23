@@ -515,7 +515,7 @@ def test_an_engineered_module_has_its_engineering_on_the_line_under_it():
 
 def test_the_ship_window_no_longer_carries_the_materials():
     core = SimpleNamespace(state=MonitorState(), _plugins={})
-    assert [t.id for t in SW.tabs(core)] == ["cargo", "modules"]
+    assert [t.id for t in SW.tabs(core)] == ["cargo", "modules", "stats"]
 
 
 def test_ship_health_keeps_the_loadouts_engineering():
@@ -526,12 +526,29 @@ def test_ship_health_keeps_the_loadouts_engineering():
     p._apply_loadout({"Modules": [
         {"Slot": "FrameShiftDrive", "Item": "int_hyperdrive_size5_class5", "Health": 1.0,
          "Engineering": {"BlueprintName": "FSD_LongRange", "Level": 5, "Quality": 1.0,
-                         "ExperimentalEffect": "special_fsd_heavy", "Modifiers": [{}]}},
+                         "ExperimentalEffect": "special_fsd_heavy", "Modifiers": [
+                             {}, {"Label": "FSDOptimalMass", "Value": 1627.5,
+                                  "OriginalValue": 1050.0, "LessIsGood": 0, "Extra": 1}]}},
         {"Slot": "LifeSupport", "Item": "int_lifesupport_size3_class2", "Health": 1.0}]})
     a, b = p.core.state.ship_modules
     assert a["engineering"] == {"BlueprintName": "FSD_LongRange", "Level": 5, "Quality": 1.0,
-                                "ExperimentalEffect": "special_fsd_heavy"}
+                                "ExperimentalEffect": "special_fsd_heavy",
+                                "Modifiers": [{"Label": "FSDOptimalMass", "Value": 1627.5,
+                                               "OriginalValue": 1050.0, "LessIsGood": 0}]}
     assert "engineering" not in b
+
+
+def test_the_modules_tab_lists_the_blueprint_not_each_modifier():
+    s = MonitorState()
+    s.ship_modules = [{"slot": "FrameShiftDrive", "name_display": "5A Frame Shift Drive",
+                       "priority": 0, "health": 1.0, "engineering": {
+                           "BlueprintName": "FSD_LongRange", "Level": 5,
+                           "ExperimentalEffect": "special_fsd_heavy", "Modifiers": [
+                               {"Label": "FSDOptimalMass", "Value": 1627.5,
+                                "OriginalValue": 1050.0, "LessIsGood": 0}]}}]
+    rows = SW.modules(SimpleNamespace(state=s, _plugins={})).rows
+    assert [r[0] for r in rows] == ["kv", "note"]
+    assert rows[1][1] == "G5 Increased Range (Mass Manager)"
 
 
 def test_a_craft_updates_the_modules_engineering_until_the_next_loadout():

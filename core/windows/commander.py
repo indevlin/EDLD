@@ -191,18 +191,93 @@ def wallet(core) -> Tab:
     return Tab("wallet", "Wallet", rows)
 
 
+def ship_title(ship: dict) -> str:
+    """"SPECULATOR [M-SPEC] (Mandalay)": name and ident as the game shows
+    them, the type after."""
+    name = str(ship.get("name") or "").strip().upper()
+    ident = str(ship.get("ident") or "").strip().upper()
+    kind = str(ship.get("type_display") or ship.get("type") or "Unknown")
+    head = " ".join(p for p in (name, f"[{ident}]" if ident else "") if p)
+    return f"{head} ({kind})" if head else kind
+
+
+def ship_where(ship: dict, current: bool) -> str:
+    """Where a ship is: the current one says so rather than naming the
+    commander's own location."""
+    if current:
+        return "Current ship"
+    if ship.get("in_transit"):
+        return "In transit"
+    station = ship.get("station") or ""
+    system = ship.get("system") or ""
+    if system == "—":
+        system = ""
+    if station and system and station != system:
+        return f"{station} ({system})"
+    return system or station or "—"
+
+
+def ship_fold(core, ship: dict, current: bool) -> list:
+    """What a ship's fold holds: its figures, then its fitting."""
+    from core.windows import ship as SW
+    plugins = getattr(core, "_plugins", None) or {}
+    assets = plugins.get("assets")
+    sid = ship.get("ship_id")
+    rows = []
+    if current:
+        rows += [r for r in SW.stats(core).rows if r[0] != "text"]
+    else:
+        st = assets.ship_stats(sid) if assets is not None and sid is not None else {}
+        if st:
+            rows.append(R.hdr("Stats"))
+            if "max_jump" in st:
+                rows.append(R.kv("Unladen max jump", SW.ly(st["max_jump"])))
+            if "unladen" in st:
+                rows.append(R.kv("Unladen mass", SW.tons(st["unladen"])))
+            if "fuel" in st:
+                fuel = SW.tons(st["fuel"], 0)
+                if st.get("reserve"):
+                    fuel += f" + {SW.tons(st['reserve'], 2)}"
+                rows.append(R.kv("Fuel capacity", fuel))
+            if "cargo" in st:
+                rows.append(R.kv("Cargo capacity", f"{int(st['cargo']):,} t"))
+            if "hull" in st:
+                pct = round(float(st["hull"]) * 100)
+                rows.append(R.kv("Hull", f"{pct}%",
+                                 f"val {health_cls(pct)}" if pct < 100 else "val"))
+            if "rebuy" in st:
+                rows.append(R.kv("Rebuy", _credits(st["rebuy"])))
+    value = ship.get("value")
+    if value:
+        rows.append(R.kv("Value", _credits(value)))
+    if ship.get("hot"):
+        rows.append(R.kv("Status", "Wanted", "val health-crit"))
+    fitted = (assets.loadout_for(sid) if assets is not None and sid is not None else []) \
+        or list(ship.get("loadout") or [])
+    if fitted:
+        rows.append(R.hdr("Fitting"))
+        for m in fitted:
+            name = str(m.get("name_display") or m.get("slot") or "—")
+            rows.append(R.kv(name, ""))
+            eng = SW.engineering_line(m.get("engineering"))
+            if eng:
+                rows.append(R.note(eng, SW.rating_prefix(name)))
+    elif not rows:
+        rows.append(R.text("Not flown since EDLD's journals begin: no fitting known.", "dim"))
+    return rows
+
+
 def ships(core) -> Tab:
+    """One fold per ship, the current one first: name, ident and type, and
+    where it is; open, its figures and its fitting."""
     rows = []
     for i, ship in enumerate(_all_ships(core.state)):
-        name = ship.get("type_display") or ship.get("type", "Unknown")
-        ident = ship.get("name", "")
-        station = ship.get("station") or ""
-        system = ship.get("system") or ""
-        tag = "[green]▶[/green] " if i == 0 else "  "
-        label = f"{tag}[bold]{name}[/bold]" + (f"  {ident}" if ident else "")
-        loc = (f"{station}  ({system})" if station and system and station != system
-               else system or "—")
-        rows.append(R.kv(label, loc))
+        current = bool(ship.get("current"))
+        key = f"ship-{ship.get('ship_id', i)}"
+        rows.append(R.fold(ship_title(ship), ship_where(ship, current), key,
+                           "val highlight" if current else "val",
+                           ident=str(ship.get("ident") or "")))
+        rows += R.within(key, ship_fold(core, ship, current))
     return Tab("ships", "Ships", rows or [R.text("No ship data", "dim")])
 
 

@@ -113,6 +113,8 @@ def fresh_state() -> dict:
         "visit": None,
         "pending_hotspot": None,
         "pending_buy_price": None,
+        "pending_buy_at": None,
+        "purchases_backfilled": True,
     }
 
 
@@ -124,6 +126,7 @@ class Ledger:
         if not isinstance(state, dict) or state.get("version") != STATE_VERSION:
             state = fresh_state()
         self.s = state
+        self._drop_suit_ships()
         self._active_fid: Optional[str] = None
 
     # ── reading journals ─────────────────────────────────────────────────────
@@ -138,6 +141,8 @@ class Ledger:
                            key=journal_sort_key)
         except OSError:
             return 0
+        if not self.s.get("purchases_backfilled"):
+            self._backfill_purchases(journal_dir)
         offsets = self.s["offsets"]
         applied = 0
         for path in files:
@@ -339,6 +344,40 @@ class Ledger:
 
     # ── commander ─────────────────────────────────────────────────────────────
 
+    def _drop_suit_ships(self) -> None:
+        """Removes ships whose type is a suit, and every reference to them."""
+        try:
+            from data.ships import is_suit
+        except Exception:
+            return
+        bad = {k for k, sh in self.s.get("ships", {}).items()
+               if is_suit(sh.get("type"))}
+        if not bad:
+            return
+        for key in bad:
+            del self.s["ships"][key]
+        roster = self.s.get("roster") or {}
+        roster["ids"] = [k for k in roster.get("ids", []) if k not in bad]
+        if self.s.get("current_ship") in bad:
+            self.s["current_ship"] = None
+
+    def _backfill_purchases(self, journal_dir) -> None:
+        """Fills in where earlier purchases were made, for a state kept from
+        before they were recorded, from the journals still on disk."""
+        self.s["purchases_backfilled"] = True
+        replay = Ledger(fid=self.fid)
+        replay.scan(journal_dir)
+        for key, ship in self.s["ships"].items():
+            acq, old = ship.get("acquired"), replay.s["ships"].get(key, {}).get("acquired")
+            if acq and old and not acq.get("at") and old.get("ts") == acq.get("ts"):
+                acq["at"] = old.get("at")
+        for kind in ("suits", "weapons"):
+            for key, item in self.s[kind].items():
+                old = replay.s[kind].get(key, {})
+                if not item.get("bought_at") and old.get("bought_at"):
+                    item["bought_at"] = old["bought_at"]
+                    item.setdefault("bought", old.get("bought"))
+
     def _on_Commander(self, ev, ts):
         if ev.get("Name"):
             self.s["commander"]["name"] = ev["Name"]
@@ -354,11 +393,14 @@ class Ledger:
         self.s["clock"]["in_game"] = True
         sid = ev.get("ShipID")
         try:
-            from data.ships import SRV_TYPE_NAMES
+            from data.ships import SRV_TYPE_NAMES, is_suit
         except Exception:
-            SRV_TYPE_NAMES = ()
-        # Resuming in a surface vehicle names the vehicle as the ship.
-        if sid is not None and str(ev.get("Ship", "")).lower() not in SRV_TYPE_NAMES:
+            SRV_TYPE_NAMES, is_suit = (), (lambda _raw: False)
+        # Resuming in a surface vehicle or on foot names the vehicle or the
+        # suit as the ship, with a loadout ID as its ShipID.
+        vessel = ev.get("Ship", "")
+        if (sid is not None and str(vessel).lower() not in SRV_TYPE_NAMES
+                and not is_suit(vessel)):
             ship = self._ship(sid, create=True)
             self._set_names(ship, ev)
             self._make_current(sid, ts)
@@ -457,6 +499,20 @@ class Ledger:
         if ev.get(type_key):
             entry["type"] = ev[type_key]
 
+    def _here(self, market_id=None) -> Optional[dict]:
+        """Where a purchase is made: the given market, else where the
+        commander is docked, else the current system."""
+        where = self.s["where"]
+        if market_id is None and where.get("docked"):
+            market_id = where.get("market_id")
+        market = self.s["markets"].get(str(market_id), {}) if market_id else {}
+        same = market_id is not None and market_id == where.get("market_id")
+        station = market.get("name") or (where.get("station", "") if same else "")
+        system = market.get("system") or where.get("system", "")
+        if market_id is None and not system:
+            return None
+        return {"market_id": market_id, "station": station, "system": system}
+
     def _on_Docked(self, ev, ts):
         self._learn_market(ev)
         self.s["where"] = {"system": ev.get("StarSystem", ""),
@@ -521,6 +577,7 @@ class Ledger:
             self._gone(ev["SellShipID"], ts,
                        f"Sold for {int(ev.get('SellPrice') or 0):,} cr")
         self.s["pending_buy_price"] = ev.get("ShipPrice")
+        self.s["pending_buy_at"] = self._here(ev.get("MarketID"))
 
     def _on_ShipyardNew(self, ev, ts):
         sid = ev.get("NewShipID")
@@ -529,10 +586,12 @@ class Ledger:
         ship = self._ship(sid, create=True)
         self._set_names(ship, ev, type_key="ShipType", name_key="_", ident_key="_")
         price = self.s.get("pending_buy_price")
-        ship["acquired"] = {"ts": ts, "how": "bought", "price": price}
+        at = self.s.get("pending_buy_at") or self._here()
+        ship["acquired"] = {"ts": ts, "how": "bought", "price": price, "at": at}
         self._note(ship, ts, "acquired",
                    f"Bought for {int(price):,} cr" if price else "Bought")
         self.s["pending_buy_price"] = None
+        self.s["pending_buy_at"] = None
         self._make_current(sid, ts)
 
     def _on_ShipRedeemed(self, ev, ts):
@@ -541,7 +600,8 @@ class Ledger:
             return
         ship = self._ship(sid, create=True)
         self._set_names(ship, ev, type_key="ShipType", name_key="_", ident_key="_")
-        ship["acquired"] = {"ts": ts, "how": "redeemed", "price": None}
+        ship["acquired"] = {"ts": ts, "how": "redeemed", "price": None,
+                            "at": self._here()}
         self._note(ship, ts, "acquired", "Redeemed")
         self._owned(sid, ts)
 
@@ -791,6 +851,7 @@ class Ledger:
         suit = self._suit(ev, ts, name_key="Name")
         if suit is not None:
             suit["bought"] = ts
+            suit["bought_at"] = self._here()
 
     def _on_SellSuit(self, ev, ts):
         suit = self.s["suits"].get(str(ev.get("SuitID")))
@@ -809,6 +870,7 @@ class Ledger:
         weapon = self._weapon(ev, ts)
         if weapon is not None:
             weapon["bought"] = ts
+            weapon["bought_at"] = self._here()
 
     def _on_SellWeapon(self, ev, ts):
         weapon = self.s["weapons"].get(str(ev.get("SuitModuleID")))

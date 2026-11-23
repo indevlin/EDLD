@@ -81,7 +81,7 @@ strip until you open the Alerts section.
 | Objectives | `Ctrl+4` | Missions and colonization |
 | Exploration | `Ctrl+5` | Exploration / Exobiology beside Navigation |
 | Mining | `Ctrl+6` | Ring Hotspots and Surface Sites, each a filterable table |
-| Fleet | `Ctrl+7` | Ships, stored modules, the fleet carrier and the squadron carrier |
+| Fleet | `Ctrl+7` | Ships — a line each, opened with **+** to its figures and fitting — stored modules, the fleet carrier and the squadron carrier |
 | Engineering | `Ctrl+8` | Fitting — each ship beside the build planned for it, the work left and its materials — and Materials |
 | Career | `Ctrl+9` | Career / Session |
 

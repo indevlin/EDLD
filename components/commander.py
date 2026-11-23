@@ -152,7 +152,7 @@ class CommanderPlugin(BasePlugin):
         return math.sqrt(dx*dx + dy*dy + dz*dz)
 
     def _read_status_json(self, core) -> None:
-        """Read FuelMain from Status.json for immediate display on startup."""
+        """Read the fuel and pips from Status.json for immediate display on startup."""
         import json
         from pathlib import Path
         try:
@@ -166,6 +166,13 @@ class CommanderPlugin(BasePlugin):
                               or bool(int(data.get("Flags2", 0) or 0) & 0x1))
                 if main is not None and not in_vehicle:
                     core.state.fuel_current = float(main)
+                res = fuel.get("FuelReservoir")
+                if isinstance(res, (int, float)) and not in_vehicle:
+                    core.state.fuel_reservoir = round(float(res), 2)
+                pips = data.get("Pips")
+                if (isinstance(pips, list) and len(pips) == 3 and not in_vehicle
+                        and all(isinstance(x, int) for x in pips)):
+                    core.state.ship_pips = list(pips)
         except Exception:
             pass
 

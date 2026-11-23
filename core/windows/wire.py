@@ -2,11 +2,11 @@
 
     group        panels                                     window
     vessel       ship (the vessel's name), cargo            Ship
-    ship         ship.modules                               Ship
+    ship         ship.modules, ship.stats                   Ship
     engineering  engineering.fitting, .materials (pages)    Engineering
-    commander    commander.info, .ranks, .wallet,           Commander
-                 .ships, .stored-modules, .carrier,
-                 .squadron-carrier
+    commander    commander.info, .ranks, .wallet            Commander
+    fleet        commander.ships (a fold per ship),         Commander's fleet
+                 .stored-modules, .carrier, .squadron-carrier  tabs (EDCARS: Fleet)
     crew         crew.crew                                  Crew / SLF
     exploration  exploration.system                         Exploration
     navigation   navigation.route — and the forms, sent     Navigation
@@ -57,6 +57,9 @@ def panels(core, fault=lambda name, exc: None) -> list[dict]:
     t = _safe(fault, "ship", ship.modules, core)
     if t is not None:
         out.append(panel(f"ship.{t.id}", t.title, "ship", t, 1000))
+    t = _safe(fault, "ship stats", ship.stats, core)
+    if t is not None:
+        out.append(panel(f"ship.{t.id}", t.title, "ship", t, 1001))
 
     order = 1250
     for fn in (engineering.fitting_tab, engineering.materials):
@@ -66,10 +69,12 @@ def panels(core, fault=lambda name, exc: None) -> list[dict]:
         order += 1
 
     order = 1100
-    tabs = (_safe(fault, "commander", commander.identity_tabs, core) or []) + \
-        (_safe(fault, "fleet", commander.fleet_tabs, core) or [])
-    for t in tabs:
+    for t in _safe(fault, "commander", commander.identity_tabs, core) or []:
         out.append(panel(f"commander.{t.id}", t.title, "commander", t, order))
+        order += 1
+    order = 1150
+    for t in _safe(fault, "fleet", commander.fleet_tabs, core) or []:
+        out.append(panel(f"commander.{t.id}", t.title, "fleet", t, order))
         order += 1
 
     t = _safe(fault, "crew", crew.tab, core)

@@ -1,8 +1,86 @@
 # EDLD CHANGELOG
 
-Last updated: 20261119
+Last updated: 20261120
 
 ---
+
+## Released in 20261123
+
+### Added: publishing to ED Commanders
+
+EDLD can publish your commander to [ED Commanders](https://edcmdr.com), the
+public commander showcase, as the EDCMDR client does: your dossier, your
+squadron's roster and the leaderboards, only the sections you switch on, each
+on its own delay. Turn it on in **Options → Services → ED Commanders**; **ED
+Commanders settings…** holds the sharing switches and delays, **Verify with
+Frontier**, your Codex portrait and **Forget on EDCMDR**. EDLD and the EDCMDR
+client share keys and settings, so either can publish a commander and
+verification carries over; only one publishes at a time. It is off until you
+turn it on, and suppressed on a secondary instance. See
+[docs/EDCMDR.md](docs/EDCMDR.md); the privacy policy lists what is sent.
+
+### Added: engineering modifiers in the Modules tab
+
+Under each engineered module, the Modules tab now lists what the engineering
+changed, one line per stat with its original and current value and the
+change, green where it helps the module and amber where it costs it:
+"Optimal mass 1,050 → 1,628 +55.0% ▲". The journal's Loadout carries these
+for every module, but EDLD had kept only the blueprint, grade and
+experimental effect, so the figures were dropped before any window could
+show them. The same lines reach EDAM.
+
+### Added: the Ship window's Stats tab
+
+The Ship window has a third tab, Stats, with the figures the game gives for
+the ship and what follows from them exactly: the jump range now, with a full
+tank and unladen (the game's own MaxJumpRange), the jumps the fuel in the
+tank makes, the main tank and the reservoir, the most one jump burns, the
+ship's mass unladen and as it flies, hull, shields, the pips and the rebuy.
+The jump range is the drive's formula with the drive's own figures, checked
+against the game's MaxJumpRange; the reservoir and pips come from
+Status.json. Shield strength, speed and the like are not given by the game,
+and are not shown. The same tab reaches EDAM.
+
+### Added: the fleet, a line per ship that opens
+
+The Commander window's Ships tab, EDCARS's Fleet section, lists each ship on
+one line, `SPECULATOR [M-SPEC] (Mandalay)` with where it is, the current ship
+first. A **+** before the name opens it, **−** closes it, in both interfaces:
+the current ship's Stats, and for a stored ship the figures from its last
+Loadout — unladen maximum jump, unladen mass, fuel and cargo capacity, hull
+and rebuy — then its value and its fitting, each engineered module with its
+blueprint under it. A ship not flown since the journals EDLD reads begin has
+no fitting to show, and says so. On a paired EDAM device the fleet is a
+section of its own, Fleet, beside Commander.
+
+### Fixed: ships stored where you are had no location
+
+StoredShips lists the ships at the station you are docked at without their
+system, since it is the station's; EDLD read a system from each ship and so
+showed those ships with none. They now show the station and its system, and
+a ship being transferred shows as in transit.
+
+## Released in 20261120
+
+### Fixed: a suit listed in the dossier's fleet
+
+Resuming the game on foot, the journal's LoadGame names the commander's suit
+as the ship, with the suit loadout's ID as the ShipID. The dossier took it as
+a ship: it went into the fleet as "Explorationsuit Class3", became the
+current ship beside the one actually flown, and was credited with the time
+spent on foot. It went unnoticed because the next visit to a shipyard marked
+it sold, and sold ships are not listed, so it only showed between an on-foot
+login and the next shipyard; an earlier Artemis suit had come and gone that
+way. LoadGame now passes over a suit as it does a surface vehicle, and a
+suit kept as a ship in a saved dossier is removed when it is read.
+
+### Added: where ships, suits and weapons were bought
+
+Each ship's service record gives where it was bought or redeemed, and the On
+foot page gives the date and place each suit and weapon was bought. The
+journal's purchase lines carry no place, so it is where the commander was
+docked at the time; a carrier is named, never placed. A dossier kept from
+before reads the journals still on disk once to fill in earlier purchases.
 
 ## Released in 20261119
 

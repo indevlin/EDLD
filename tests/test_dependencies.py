@@ -31,7 +31,9 @@ RUNTIME_ELSEWHERE = {
     "psutil",
 }
 
-_LOCAL = {p.name for p in ROOT.iterdir() if p.is_dir()} | {p.stem for p in ROOT.glob("*.py")}
+_LOCAL = ({p.name for p in ROOT.iterdir() if p.is_dir()} | {p.stem for p in ROOT.glob("*.py")}
+          # the vendored EDCMDR client is first-party code, not a dependency
+          | {p.name for p in (ROOT / "vendor" / "edcmdr-client").glob("*") if p.is_dir()})
 
 
 def _norm(name: str) -> str:

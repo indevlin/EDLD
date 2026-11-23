@@ -33,12 +33,12 @@ Options → Dossier shows the full path.
 |---|---|
 | **Commander** | Squadron and rank, Powerplay, the eight ranks with progress, superpower reputation, career statistics, and career income by source and spending by category |
 | **Fleet** | Every ship: type, where it is kept, jump range, cargo, rebuy, time as the active ship, last flown |
-| **Ship** (one each) | Jump range, cargo, mass, fuel, rebuy and values; the fitting by hardpoints, utility mounts, core and optional internals, with each module's engineering, experimental and engineer; cosmetics; engineering modifiers; links that open the fitting in Coriolis and EDSY; and the ship's service record — when it was acquired, named, transferred, destroyed, how long it has been flown, how far it has jumped |
+| **Ship** (one each) | Jump range, cargo, mass, fuel, rebuy and values; the fitting by hardpoints, utility mounts, core and optional internals, with each module's engineering, experimental and engineer; cosmetics; engineering modifiers; links that open the fitting in Coriolis and EDSY; and the ship's service record — when and where it was acquired, named, transferred, destroyed, how long it has been flown, how far it has jumped |
 | **Stored modules** | Every stored module, its engineering, and where it is kept |
 | **Engineering** | Every engineer and your standing with them, and every engineered module across the fleet |
 | **Carrier** | Name, callsign, docking, tritium, capacity, weekly upkeep, tariffs, services and crew, lifetime figures |
 | **Survey & mining** | Ring hotspots you have mined, sorted by commodity and then by refinements per minute, best first; the surface deposits in your survey; and the hotspots you have found but not mined |
-| **On foot** | Suit loadouts, suits and weapons with their classes and modifications |
+| **On foot** | Suit loadouts, suits and weapons with their classes and modifications, and when and where each suit and weapon was bought |
 
 <div align="center">
 <img src="../images/dossier-fleet.png" alt="The dossier's Fleet page in a web browser" width="760"/>

@@ -169,19 +169,31 @@ class TuiBlock(Widget):
         while w is not None and w is not self:
             action = getattr(w, "row_action", None)
             if isinstance(action, str) and action:
-                self.row_action(action)
+                if not self.toggle_fold(action):
+                    self.row_action(action)
                 return
             w = w.parent
 
     def row_action(self, action: str) -> None:
         """A row's action (R.kv(..., action=…)). Blocks override."""
 
+    def toggle_fold(self, action: str) -> bool:
+        """Open or close a fold (R.fold); False for any other action."""
+        from core.windows import FOLD_ACTION
+        if not action.startswith(FOLD_ACTION):
+            return False
+        folds = self.__dict__.setdefault("_open_folds", set())
+        folds ^= {action[len(FOLD_ACTION):]}
+        self.refresh_data()
+        return True
+
     def render_rows(self, rows) -> list:
         """Widgets for rows from core/windows: the same rows the desktop
         window and EDAM draw."""
         from textual.widgets import Label
-        from core.windows import align_values, cells_text, iter_render, table_text
+        from core.windows import align_values, cells_text, iter_render, table_text, unfold
         out: list = []
+        rows = unfold(rows, self.__dict__.get("_open_folds", set()))
         for kind, row, widths in iter_render(align_values(rows)):
             if kind == "hdr":
                 out.append(SecHdr(row[1]))

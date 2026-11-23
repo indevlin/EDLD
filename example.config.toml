@@ -264,6 +264,16 @@ Enabled       = false
 ApiKey        = ""                 # from Inara Settings → API Key
 # Commander name is sourced from your journal — no CommanderName setting.
 
+# ── ED Commanders ────────────────────────────────────────────────────────────
+# Publishes the sections of your commander you choose to edcmdr.com, each on
+# its own delay, as the EDCMDR client does.  What to share, verification with
+# Frontier and your portrait are set in Options → Services → ED Commanders
+# settings.  Keys and settings are shared with the EDCMDR client; only one of
+# the two publishes at a time.  See docs/EDCMDR.md.
+
+[EDCMDR]
+Enabled       = false
+
 # ==============================================================================
 # Session Management  [SessionMgmt]      ⚠  SOLO MODE ONLY
 # ==============================================================================
