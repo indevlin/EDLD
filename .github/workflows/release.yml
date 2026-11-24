@@ -103,6 +103,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.read.outputs.version }}
+      edcmdr_client: ${{ steps.client.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -128,6 +129,24 @@ jobs:
               exit 1
             fi
           fi
+
+      # The ED Commanders conduit is the EDCMDR client's code. Every build vendors
+      # the client's latest release (a YYYYMMDD tag on its main), so EDLD ships
+      # the current client without anyone remembering to sync it. All build jobs
+      # use the tag found here, so every platform carries the same client.
+      - id: client
+        name: Find the latest EDCMDR client release
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="$(git ls-remote --tags --refs https://github.com/indevlin/EDCMDR-client.git \
+                   | sed -n 's#.*refs/tags/\([0-9]\{8\}\)$#\1#p' | sort -r | head -n 1 || true)"
+          if [ -z "$TAG" ]; then
+            echo "::warning::No EDCMDR client release found: building with the vendored copy in vendor/edcmdr-client"
+          else
+            echo "EDCMDR client ${TAG}"
+          fi
+          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       # Everything the build needs must be in the checkout. A file missing here
       # fails in seconds with a clear message; without this check the same
@@ -240,6 +259,23 @@ jobs:
           sudo apt-get install -y libegl1 libxkbcommon-x11-0 libxcb-cursor0 \
             libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-randr0 \
             libxcb-render-util0 libxcb-xinerama0 xvfb
+
+      - name: Check out the EDCMDR client
+        if: needs.verify.outputs.edcmdr_client != ''
+        uses: actions/checkout@v6
+        with:
+          repository: indevlin/EDCMDR-client
+          ref: ${{ needs.verify.outputs.edcmdr_client }}
+          path: _edcmdr-client
+          fetch-depth: 1
+
+      - name: Vendor the EDCMDR client
+        if: needs.verify.outputs.edcmdr_client != ''
+        shell: bash
+        run: |
+          python scripts/sync_edcmdr.py _edcmdr-client
+          cat vendor/edcmdr-client/VENDORED
+          rm -rf _edcmdr-client
 
       # ED Commanders accepts pushes only from builds signed with a key it lists.
       # EDLD's own key goes into the vendored client for this build only.
@@ -711,6 +747,11 @@ jobs:
             echo "| macOS (Apple silicon) | \`EDLD-${VERSION}-macos.zip\` |"
             echo "| EDLD-server, Linux | \`EDLD-server-${VERSION}-linux.tar.gz\` |"
             echo "| EDLD-server, Windows | \`EDLD-server-${VERSION}-windows.zip\` |"
+            CLIENT="${{ needs.verify.outputs.edcmdr_client }}"
+            if [ -n "$CLIENT" ]; then
+              echo ""
+              echo "Publishing to ED Commanders uses the EDCMDR client ${CLIENT}."
+            fi
             echo ""
             echo "No Python install is needed for the binaries. Each archive"
             echo "carries the licence texts required by the LGPL."

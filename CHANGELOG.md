@@ -1,10 +1,10 @@
 # EDLD CHANGELOG
 
-Last updated: 20261123
+Last updated: 20261120
 
 ---
 
-## Released in 20261123
+## Unreleased
 
 ### Added: publishing to ED Commanders
 
@@ -21,7 +21,8 @@ turn it on, and suppressed on a secondary instance. See
 gets the Squadron tab in **ED Commanders settings…**: it names the squadron each
 commander leads and saves only to that squadron, and it goes away when the journal
 shows the commander no longer leads it. "In game" on ED Commanders follows EDLD's own
-test: the game running and a session loaded.
+test: the game running and a session loaded. Release builds now carry the EDCMDR client's latest
+release automatically, named in the release notes.
 
 ### Changed: simpler download names
 
