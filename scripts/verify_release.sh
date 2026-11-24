@@ -2,7 +2,7 @@
 # scripts/verify_release.sh — verify an EDLD release artifact
 #
 # Usage:
-#   bash verify_release.sh EDLD-20260830-linux-x86_64.tar.gz
+#   bash verify_release.sh EDLD-20260830-linux.tar.gz
 #   bash verify_release.sh                       # verify everything present
 #
 # A release ships one signed manifest rather than a signature per file:
@@ -45,7 +45,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 if [ $# -gt 1 ]; then
     echo "Usage: $0 [artifact]"
-    echo "Example: $0 EDLD-20260830-linux-x86_64.tar.gz"
+    echo "Example: $0 EDLD-20260830-linux.tar.gz"
     echo "With no argument, every artifact listed in the manifest is checked."
     exit 1
 fi

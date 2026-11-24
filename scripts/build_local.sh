@@ -59,13 +59,13 @@ die()  { printf '\033[31mERROR:\033[0m %s\n' "$*" >&2; exit 1; }
 
 # ── Platform ─────────────────────────────────────────────────────────────────
 case "$(uname -s)" in
-  Linux)                      OS=linux;   PLATFORM="linux-$(uname -m)" ;;
+  Linux)                      OS=linux;   PLATFORM="linux" ;;
   Darwin)                     OS=macos
                               case "$(uname -m)" in
-                                arm64) PLATFORM="macos-arm64" ;;
-                                *)     PLATFORM="macos-x86_64" ;;
+                                arm64) PLATFORM="macos" ;;
+                                *)     PLATFORM="macos-intel" ;;
                               esac ;;
-  MINGW*|MSYS*|CYGWIN*)       OS=windows; PLATFORM="windows-x86_64" ;;
+  MINGW*|MSYS*|CYGWIN*)       OS=windows; PLATFORM="windows" ;;
   *) die "Unsupported platform: $(uname -s)" ;;
 esac
 
@@ -185,7 +185,7 @@ fi
 # accompany the binary, and a link does not satisfy it.
 if [ "$PACKAGE" -eq 1 ]; then
   say "Packaging"
-  STEM="EDLD-${VERSION}-${SUFFIX}${PLATFORM}"
+  STEM="EDLD-${SUFFIX}${VERSION}-${PLATFORM}"
 
   case "$OS" in
     windows)
@@ -242,13 +242,12 @@ EOF
   fi
 
   # ── Checksum ──────────────────────────────────────────────────────────────
-  # dist/ holds the loose binary too. "EDLD-*" needs the hyphen, so it
-  # matches the archives and never EDLD, EDLD.exe or EDLD.app.
+  # dist/ holds the loose binary too; only the archives are listed.
   ( cd dist
     if command -v sha256sum >/dev/null 2>&1; then
-      sha256sum EDLD-* | grep -v '\.sha256' | grep -v '\.sig' > "EDLD-${VERSION}.sha256"
+      sha256sum EDLD-*.zip EDLD-*.tar.gz 2>/dev/null | grep -v '\.sha256' | grep -v '\.sig' > "EDLD-${VERSION}.sha256"
     else
-      shasum -a 256 EDLD-* | grep -v '\.sha256' | grep -v '\.sig' > "EDLD-${VERSION}.sha256"
+      shasum -a 256 EDLD-*.zip EDLD-*.tar.gz 2>/dev/null | grep -v '\.sha256' | grep -v '\.sig' > "EDLD-${VERSION}.sha256"
     fi
     cat "EDLD-${VERSION}.sha256" | sed 's/^/  /' )
 

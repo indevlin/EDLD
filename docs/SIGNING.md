@@ -14,11 +14,11 @@ one detached signature over that manifest.
 
 | File | Contents |
 |------|----------|
-| `EDLD-<version>-linux-x86_64.tar.gz` | Linux binary |
-| `EDLD-<version>-windows-x86_64.zip` | Windows binary |
-| `EDLD-<version>-macos-arm64.zip` | macOS binary |
-| `EDLD-<version>-server-linux-x86_64.tar.gz` | EDLD-server, Linux ([SERVER.md](SERVER.md)) |
-| `EDLD-<version>-server-windows-x86_64.zip` | EDLD-server, Windows |
+| `EDLD-<version>-linux.tar.gz` | Linux binary |
+| `EDLD-<version>-windows.zip` | Windows binary |
+| `EDLD-<version>-macos.zip` | macOS binary |
+| `EDLD-server-<version>-linux.tar.gz` | EDLD-server, Linux ([SERVER.md](SERVER.md)) |
+| `EDLD-server-<version>-windows.zip` | EDLD-server, Windows |
 | `EDLD-<version>.sha256` | SHA-256 of all five, one per line |
 | `EDLD-<version>.sha256.sig` | SSH signature over that manifest |
 
@@ -52,7 +52,7 @@ platform.
 
 ```bash
 # One artefact
-bash scripts/verify_release.sh EDLD-20261009-linux-x86_64.tar.gz
+bash scripts/verify_release.sh EDLD-20261009-linux.tar.gz
 
 # Or every artefact you downloaded, from the download directory
 bash scripts/verify_release.sh

@@ -35,13 +35,13 @@ name: Release
 # against that failed every dispatch run on dev.
 #
 # Artifacts:
-#   EDLD-{version}-linux-x86_64.tar.gz            binary
-#   EDLD-{version}-windows-x86_64.zip             binary
-#   EDLD-{version}-macos-arm64.zip                binary
-#   EDLD-{version}-server-linux-x86_64.tar.gz     EDLD-server binary
-#   EDLD-{version}-server-windows-x86_64.zip      EDLD-server binary
-#   EDLD-{version}.sha256                         checksums over all of it
-#   EDLD-{version}.sha256.sig                     signature over the manifest
+#   EDLD-{version}-linux.tar.gz           binary
+#   EDLD-{version}-windows.zip            binary
+#   EDLD-{version}-macos.zip              binary
+#   EDLD-server-{version}-linux.tar.gz    EDLD-server binary
+#   EDLD-server-{version}-windows.zip     EDLD-server binary
+#   EDLD-{version}.sha256                 checksums over all of it
+#   EDLD-{version}.sha256.sig             signature over the manifest
 #
 # Only the manifest is signed. It lists every artefact above by digest, so one
 # signature check authenticates the whole release; a .sig beside each file
@@ -192,27 +192,27 @@ jobs:
       matrix:
         include:
           - os: ubuntu-latest
-            platform: linux-x86_64
+            platform: linux
             variant: full
             exe: EDLD
             suffix: ""
           - os: windows-latest
-            platform: windows-x86_64
+            platform: windows
             variant: full
             exe: EDLD
             suffix: ""
           - os: macos-latest
-            platform: macos-arm64
+            platform: macos
             variant: full
             exe: EDLD
             suffix: ""
           - os: ubuntu-latest
-            platform: linux-x86_64
+            platform: linux
             variant: server
             exe: EDLD-server
             suffix: "server-"
           - os: windows-latest
-            platform: windows-x86_64
+            platform: windows
             variant: server
             exe: EDLD-server
             suffix: "server-"
@@ -510,7 +510,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ env.VERSION }}"
-          STEM="EDLD-${VERSION}-${{ matrix.suffix }}${{ matrix.platform }}"
+          STEM="EDLD-${{ matrix.suffix }}${VERSION}-${{ matrix.platform }}"
           EXE="${{ matrix.exe }}"
 
           # Every archive carries the licence texts. LGPLv3 section 4(b)
@@ -542,7 +542,7 @@ jobs:
           # dist/ also holds the loose binary this archive was built from.
           # The version in the pattern is what excludes it: the binary is
           # EDLD, EDLD-server, EDLD.exe or EDLD.app, and none carry it.
-          path: dist/EDLD-${{ env.VERSION }}-*
+          path: dist/EDLD-${{ matrix.suffix }}${{ env.VERSION }}-*
           if-no-files-found: error
           retention-days: 14
 
@@ -577,7 +577,7 @@ jobs:
       - name: Generate unified SHA-256 file
         working-directory: dist
         run: |
-          sha256sum EDLD-${{ env.VERSION }}* \
+          sha256sum EDLD-${{ env.VERSION }}-* EDLD-server-${{ env.VERSION }}-* \
             | grep -v '\.sha256' \
             | grep -v '\.sig' \
             > EDLD-${{ env.VERSION }}.sha256
@@ -706,9 +706,11 @@ jobs:
             echo ""
             echo "| Platform | File |"
             echo "|---|---|"
-            echo "| Linux (x86_64) | \`EDLD-${VERSION}-linux-x86_64.tar.gz\` |"
-            echo "| Windows (x86_64) | \`EDLD-${VERSION}-windows-x86_64.zip\` |"
-            echo "| macOS (Apple silicon) | \`EDLD-${VERSION}-macos-arm64.zip\` |"
+            echo "| Linux (x86_64) | \`EDLD-${VERSION}-linux.tar.gz\` |"
+            echo "| Windows (x86_64) | \`EDLD-${VERSION}-windows.zip\` |"
+            echo "| macOS (Apple silicon) | \`EDLD-${VERSION}-macos.zip\` |"
+            echo "| EDLD-server, Linux | \`EDLD-server-${VERSION}-linux.tar.gz\` |"
+            echo "| EDLD-server, Windows | \`EDLD-server-${VERSION}-windows.zip\` |"
             echo ""
             echo "No Python install is needed for the binaries. Each archive"
             echo "carries the licence texts required by the LGPL."
@@ -718,7 +720,7 @@ jobs:
             echo "signature check covers the whole release:"
             echo ""
             echo "\`\`\`"
-            echo "bash scripts/verify_release.sh EDLD-${VERSION}-linux-x86_64.tar.gz"
+            echo "bash scripts/verify_release.sh EDLD-${VERSION}-linux.tar.gz"
             echo "\`\`\`"
             echo ""
             echo "See [docs/SIGNING.md](docs/SIGNING.md) to verify by hand."
