@@ -72,6 +72,12 @@ class Settings:
             self.data['commanders'].setdefault(fid, {}).update(kw)
             self.save()
 
+    def set_integration(self, fid: str, service: str, values: dict) -> None:
+        with self.lock:
+            c = self.data['commanders'].setdefault(fid, {})
+            c.setdefault('integrations', {})[service] = dict(values)
+            self.save()
+
     def forget_commander(self, fid: str) -> None:
         with self.lock:
             self.data['commanders'].pop(fid, None)

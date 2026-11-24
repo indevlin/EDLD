@@ -44,9 +44,14 @@ a key made for each commander on this computer. Release builds of EDLD carry
 EDLD's own build key, which ED Commanders lists; a build without one runs, but
 ED Commanders refuses what it sends.
 
-The engine is the client's code, vendored in `vendor/edcmdr-client` and
-refreshed with `python3 scripts/sync_edcmdr.py ~/projects/indevlin/EDCMDR-client`,
-which checks the protocol spec against the client's `protocol.lock`.
+The engine is the client's code, vendored in `vendor/edcmdr-client`. Release
+builds vendor the client's latest release automatically: the workflow finds the
+newest `YYYYMMDD` tag on EDCMDR-client, checks it out and runs
+`scripts/sync_edcmdr.py` on it, and the release notes name that client. The
+committed copy is what source runs use, and what a build falls back to when no
+client release is found. To refresh it, `python3 scripts/sync_edcmdr.py
+~/projects/indevlin/EDCMDR-client`; the script checks the protocol spec against
+the client's `protocol.lock`.
 
 What is sent, and what ED Commanders keeps, is in [PRIVACY.md](PRIVACY.md)
 and edcmdr.com's [privacy policy](https://edcmdr.com/privacy).

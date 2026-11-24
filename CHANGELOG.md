@@ -4,7 +4,7 @@ Last updated: 20261120
 
 ---
 
-## Released in 20261123
+## Unreleased
 
 ### Added: publishing to ED Commanders
 
@@ -17,7 +17,12 @@ Frontier**, your Codex portrait and **Forget on EDCMDR**. EDLD and the EDCMDR
 client share keys and settings, so either can publish a commander and
 verification carries over; only one publishes at a time. It is off until you
 turn it on, and suppressed on a secondary instance. See
-[docs/EDCMDR.md](docs/EDCMDR.md); the privacy policy lists what is sent.
+[docs/EDCMDR.md](docs/EDCMDR.md); the privacy policy lists what is sent. A verified squadron leader
+gets the Squadron tab in **ED Commanders settings…**: it names the squadron each
+commander leads and saves only to that squadron, and it goes away when the journal
+shows the commander no longer leads it. "In game" on ED Commanders follows EDLD's own
+test: the game running and a session loaded. Release builds now carry the EDCMDR client's latest
+release automatically, named in the release notes.
 
 ### Changed: simpler download names
 

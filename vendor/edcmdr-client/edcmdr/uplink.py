@@ -13,6 +13,8 @@ import time
 from typing import Callable
 
 from . import NAME, VERSION, journal, keys
+from . import capi, game
+from .integrations import Hub
 from .single import PublisherLock
 from .config import SPEC, Settings
 from .proto import Client, ProtoError
@@ -22,7 +24,7 @@ log = logging.getLogger('edcmdr')
 
 TICK = 1.0
 DEBOUNCE = 60
-PRESENCE_EVERY = 300
+PRESENCE_EVERY = 120
 HELLO_EVERY = 6 * 3600
 VERIFY_POLL = 4
 TRANSIENT = ('net', 'reply', 'rate', 'maintenance', 'clock', 'server', 'replay')
@@ -53,8 +55,10 @@ class Runtime:
         self.verify_next = 0.0
         self.verifier: str | None = None
         self.vtoken: str | None = None
+        self.vkeep: tuple | None = None
         self.verify_note: tuple[str, float] | None = None
         self.leader_of: int | None = None
+        self.leader_squadron: dict | None = None
 
     def note(self, j: dict) -> dict:
         """Take verified and leader_of from a reply that carries them."""
@@ -62,6 +66,8 @@ class Runtime:
             self.verified = bool(j['verified'])
         if 'leader_of' in j:
             self.leader_of = j['leader_of'] if isinstance(j['leader_of'], int) else None
+            sq = j.get('leader_squadron')
+            self.leader_squadron = sq if self.leader_of is not None and isinstance(sq, dict) and sq.get('id') == self.leader_of else None
         return j
 
 
@@ -72,6 +78,9 @@ class Engine:
         self.cmdrs: dict[str, Commander] = {}
         self.rt: dict[str, Runtime] = {}
         self.watcher = journal.Watcher(settings.journal_dirs, self._event, EVENTS)
+        self.needles = self.watcher.needles
+        # Hosts (EDLD) run their own uploaders; the client's stay off there.
+        self.hub = Hub(settings) if NAME == 'EDCMDR-client' else None
         self.state = 'paused' if settings.data.get('start_paused') else 'running'
         self.status = 'Starting'
         self.server: dict | None = None
@@ -98,6 +107,8 @@ class Engine:
         if self.thread:
             self.thread.join(5)
         self.publisher.release()
+        if self.hub is not None:
+            self.hub.shutdown()
 
     def pause(self) -> None:
         self._set_state('paused')
@@ -172,9 +183,12 @@ class Engine:
                                              st, 'press Verify again.'))
                     return
                 r.verify_note = ('Verifying: finishing with Frontier', time.time() + VERIFY_NOTE)
-                r.vtoken = self.client.frontier_token(str(p.get('token_url', '')), {
+                url = str(p.get('token_url', ''))
+                tokens = self.client.frontier_tokens(url, {
                     'grant_type': 'authorization_code', 'client_id': p.get('client_id', ''), 'code': p.get('code', ''),
                     'code_verifier': r.verifier, 'redirect_uri': p.get('redirect_uri', '')})
+                r.vtoken = tokens['access_token']
+                r.vkeep = (tokens, url, str(p.get('client_id', '')), str(p.get('redirect_uri', '')))
             j = self.client.push(key, fid, 'verify-finish', {'access_token': r.vtoken})
         except ProtoError as e:
             if e.code == 'upstream':
@@ -184,9 +198,12 @@ class Engine:
                 raise
             self._verify_end(r, str(e))
             return
+        if r.vkeep and Hub.config(self.settings, fid, 'capi')['enabled']:
+            capi.Store(fid).keep(*r.vkeep)
         self._verify_end(r, None)
         r.enrolled, r.verified = True, True
         r.pub_id = j.get('pub_id') or r.pub_id
+        r.note(j)
         r.blocked, r.blocked_until = None, 0.0
         r.prefs_sent = None
         r.sent.clear()
@@ -194,7 +211,7 @@ class Engine:
 
     @staticmethod
     def _verify_end(r: Runtime, why: str | None) -> None:
-        r.verify_until, r.verifier, r.vtoken = 0.0, None, None
+        r.verify_until, r.verifier, r.vtoken, r.vkeep = 0.0, None, None, None
         r.verify_note = (f'Verification failed: {why}', time.time() + VERIFY_NOTE) if why else None
 
     def _ensure_enrolled(self, fid: str) -> None:
@@ -224,12 +241,20 @@ class Engine:
         self._notify()
         return str(j.get('portrait', ''))
 
-    def save_squadron(self, fid: str, details: dict) -> None:
+    def save_squadron(self, fid: str, details: dict, squadron_id: int) -> dict:
+        """Save the details of the squadron this commander leads; the server refuses any other squadron."""
         with self.lock:
             self._ensure_enrolled(fid)
             r = self._rt(fid)
-            r.note(self.client.push(keys.commander_key(fid), fid, 'squadron', details))
-        self.settings.set_commander(fid, squadron_details=details)
+            try:
+                j = r.note(self.client.push(keys.commander_key(fid), fid, 'squadron', dict(details, squadron_id=squadron_id)))
+            except ProtoError as e:
+                if e.code == 'not-leader':
+                    r.leader_of, r.leader_squadron = None, None
+                    self._notify()
+                raise
+        self.settings.set_commander(fid, squadron_details=dict(details, squadron_id=squadron_id))
+        return j
 
     def forget(self, fid: str) -> str | None:
         """Ask the server to delete this commander; on success drop the local key and settings."""
@@ -269,10 +294,10 @@ class Engine:
             for fid, c in sorted(self.cmdrs.items(), key=lambda kv: kv[1].name):
                 r = self._rt(fid)
                 cm.append({'fid': fid, 'name': c.name, 'enrolled': r.enrolled, 'verified': r.verified,
-                           'leader_of': r.leader_of,
+                           'leader_of': r.leader_of, 'leader_squadron': r.leader_squadron,
                            'pub_id': r.pub_id, 'blocked': r.blocked, 'error': r.error, 'last_push': r.last_push,
                            'verify': r.verify_note[0] if r.verify_note and r.verify_note[1] > time.time() else None,
-                           'in_game': c.presence()['in_game']})
+                           'in_game': c.presence(self._running(c.fid))['in_game']})
             return {'state': self.state, 'status': self.status, 'official': self.client.official,
                     'server': self.client.base, 'commanders': cm, 'update': self.update_available()}
 
@@ -285,6 +310,11 @@ class Engine:
         if c is None:
             c = self.cmdrs[fid] = Commander(fid)
         c.handle(ev)
+        if self.hub is not None:
+            if self.watcher.imported and self.state == 'running':
+                self.hub.live(fid, ev, self.watcher.current)
+            else:
+                self.hub.observe(fid, ev)
 
     def run(self) -> None:
         while not self._stop.is_set():
@@ -308,6 +338,8 @@ class Engine:
             state = self.state
             if state != 'stopped':
                 first = not self.watcher.imported
+                if self.hub is not None and self.watcher.imported:
+                    self.watcher.needles = None if self.hub.any_on() else self.needles
                 self.watcher.poll()
                 if first:
                     for c in self.cmdrs.values():
@@ -435,10 +467,13 @@ class Engine:
                 r.sent[cat] = cats[cat][1]
         r.last_push = now
 
+    def _running(self, fid: str) -> bool:
+        return game.running(self.watcher.where.get(fid))
+
     def _presence(self, c: Commander, r: Runtime, key, prefs: dict, now: float) -> None:
         if not prefs['presence']:
             return
-        p = c.presence()
+        p = c.presence(self._running(c.fid))
         d = digest(p)
         last_d, last_t = r.presence_sent
         if d == last_d and (not p['in_game'] or now - last_t < PRESENCE_EVERY) and not self.force:

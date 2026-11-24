@@ -104,6 +104,10 @@ class Client:
 
     def frontier_token(self, url: str, form: dict) -> str:
         """Exchange Frontier's one-time code at its token endpoint, from this computer. Returns the access token."""
+        return self.frontier_tokens(url, form)['access_token']
+
+    def frontier_tokens(self, url: str, form: dict) -> dict:
+        """The token endpoint's whole answer: access_token, and refresh_token and expires_in when given."""
         _check_url(url)
         req = urllib.request.Request(url, data=urllib.parse.urlencode(form).encode(), method='POST', headers={
             'Content-Type': 'application/x-www-form-urlencoded', 'Accept': 'application/json'})
@@ -117,7 +121,7 @@ class Client:
         if status != 200 or not isinstance(tok, str) or not tok:
             why = j.get('error_description') or j.get('error') or f'HTTP {status}'
             raise ProtoError('frontier', f'Frontier refused the sign-in ({why}).', status)
-        return tok
+        return j
 
     def hello(self) -> dict:
         n = keys.b64u(secrets.token_bytes(18))
