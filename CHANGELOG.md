@@ -1,10 +1,10 @@
 # EDLD CHANGELOG
 
-Last updated: 20261120
+Last updated: 20261123
 
 ---
 
-## Unreleased
+## Released in 20261123
 
 ### Added: publishing to ED Commanders
 
