@@ -1,6 +1,5 @@
 """Per-commander state built from journal events, emitted as protocol categories."""
 import json
-import time
 from datetime import datetime
 
 from . import paths
@@ -19,7 +18,7 @@ EVENTS = frozenset({
     'PowerplayLeave', 'PowerplayDefect', 'PowerplayRank', 'PowerplayMerits', 'EngineerProgress',
     'Location', 'FSDJump', 'CarrierJump', 'Docked', 'Undocked', 'SupercruiseEntry', 'ApproachBody', 'LeaveBody',
     'StoredShips', 'Loadout', 'ShipyardSwap', 'ShipyardNew', 'ShipyardSell', 'ShipyardTransfer',
-    'SetUserShipName', 'SellShipOnRebuy',
+    'SetUserShipName', 'SellShipOnRebuy', 'ShipyardBuy', 'CarrierStats', 'CarrierLocation', 'Music',
 })
 
 
@@ -48,6 +47,9 @@ class Commander:
         self.ships: dict[int, dict] = {}
         self.current: int | None = None
         self.loaded = False
+        self.market: int | None = None
+        self.markets: dict[int, dict] = {}
+        self.carrier: int | None = None
 
     # ── events ──────────────────────────────────────────────────────────────
     def handle(self, ev: dict) -> None:
@@ -78,6 +80,10 @@ class Commander:
 
     def _e_Shutdown(self, ev):
         self.in_game = False
+
+    def _e_Music(self, ev):
+        if ev.get('MusicTrack') == 'MainMenu':
+            self.in_game = False
 
     def _e_Rank(self, ev):
         self.ranks['rank'].update({k: ev[k] for k in RANK_KEYS if isinstance(ev.get(k), int)})
@@ -120,13 +126,14 @@ class Commander:
     _e_SquadronDemotion = _e_SquadronPromotion
 
     def _e_Powerplay(self, ev):
-        self.powerplay = {'power': ev.get('Power'), 'rank': ev.get('Rank'), 'merits': ev.get('Merits')}
+        self.powerplay = {'power': ev.get('Power'), 'rank': ev.get('Rank'), 'merits': ev.get('Merits'),
+                          'pledged': ev.get('TimePledged') if isinstance(ev.get('TimePledged'), int) else None}
 
     def _e_PowerplayJoin(self, ev):
-        self.powerplay = {'power': ev.get('Power'), 'rank': 1, 'merits': 0}
+        self.powerplay = {'power': ev.get('Power'), 'rank': 1, 'merits': 0, 'pledged': 0}
 
     def _e_PowerplayDefect(self, ev):
-        self.powerplay = {'power': ev.get('ToPower'), 'rank': 1, 'merits': 0}
+        self.powerplay = {'power': ev.get('ToPower'), 'rank': 1, 'merits': 0, 'pledged': 0}
 
     def _e_PowerplayLeave(self, ev):
         self.powerplay = None
@@ -150,23 +157,48 @@ class Commander:
                     'rank': e.get('Rank', prev.get('rank')),
                 }
 
+    def _seen(self, mid, name=None, system=None) -> None:
+        """What a market (station or carrier) is called and where it was last seen."""
+        if not isinstance(mid, int):
+            return
+        m = self.markets.setdefault(mid, {'name': None, 'system': None})
+        if name and not (mid == self.carrier and m['name']):
+            m['name'] = name
+        if system:
+            m['system'] = system
+
     def _e_Location(self, ev):
+        docked = bool(ev.get('Docked'))
         self.location = {'system': ev.get('StarSystem'), 'body': ev.get('Body'),
-                         'station': ev.get('StationName') if ev.get('Docked') else None,
-                         'docked': bool(ev.get('Docked'))}
+                         'station': ev.get('StationName') if docked else None, 'docked': docked}
+        self.market = ev.get('MarketID') if docked else None
+        if docked:
+            self._seen(ev.get('MarketID'), ev.get('StationName'), ev.get('StarSystem'))
 
     _e_CarrierJump = _e_Location
 
+    def _e_CarrierLocation(self, ev):
+        self._seen(ev.get('CarrierID'), system=ev.get('StarSystem'))
+
+    def _e_CarrierStats(self, ev):
+        if ev.get('CarrierType', 'FleetCarrier') == 'FleetCarrier' and isinstance(ev.get('CarrierID'), int):
+            self.carrier = ev['CarrierID']
+            m = self.markets.setdefault(self.carrier, {'name': None, 'system': None})
+            if ev.get('Name') and ev.get('Callsign'):
+                m['name'] = f"{ev['Name']} ({ev['Callsign']})"
+
     def _e_FSDJump(self, ev):
         self.location = {'system': ev.get('StarSystem'), 'body': None, 'station': None, 'docked': False}
+        self.market = None
 
     def _e_Docked(self, ev):
         self.location.update(station=ev.get('StationName'), docked=True, system=ev.get('StarSystem') or self.location['system'])
-        if self.current in self.ships:
-            self.ships[self.current].update(system=self.location['system'], station=ev.get('StationName'))
+        self.market = ev.get('MarketID')
+        self._seen(ev.get('MarketID'), ev.get('StationName'), self.location['system'])
 
     def _e_Undocked(self, ev):
         self.location.update(station=None, docked=False)
+        self.market = None
 
     def _e_SupercruiseEntry(self, ev):
         self.location.update(body=None, station=None, docked=False)
@@ -180,7 +212,8 @@ class Commander:
     def _ship(self, sid: int, t: str) -> dict:
         s = self.ships.setdefault(sid, {'id': sid, 'type': t.lower(), 'type_name': ship_name(t), 'name': None,
                                         'ident': None, 'value': None, 'hull': None, 'rebuy': None, 'jump': None,
-                                        'cargo': None, 'system': None, 'station': None, 'modules': []})
+                                        'cargo': None, 'system': None, 'market': None, 'modules': [],
+                                        'loadout': False})
         s['type'] = t.lower()
         s['type_name'] = ship_name(t)
         return s
@@ -190,14 +223,19 @@ class Commander:
         for s in ev.get('ShipsHere') or []:
             if is_ship(s.get('ShipType', ''), s.get('ShipID')):
                 x = self._ship(s['ShipID'], s['ShipType'])
-                x.update(name=s.get('Name') or x['name'], value=s.get('Value', x['value']),
-                         system=ev.get('StarSystem'), station=ev.get('StationName'))
+                x.update(name=s.get('Name') or x['name'], system=ev.get('StarSystem'), market=ev.get('MarketID'))
+                if not x['loadout']:
+                    x['value'] = s.get('Value', x['value'])
                 seen.add(s['ShipID'])
+        self._seen(ev.get('MarketID'), ev.get('StationName'), ev.get('StarSystem'))
         for s in ev.get('ShipsRemote') or []:
             if is_ship(s.get('ShipType', ''), s.get('ShipID')):
                 x = self._ship(s['ShipID'], s['ShipType'])
-                x.update(name=s.get('Name') or x['name'], value=s.get('Value', x['value']),
-                         system=None if s.get('InTransit') else s.get('StarSystem'), station=None)
+                transit = bool(s.get('InTransit'))
+                x.update(name=s.get('Name') or x['name'], system=None if transit else s.get('StarSystem'),
+                         market=None if transit else s.get('ShipMarketID'))
+                if not x['loadout']:
+                    x['value'] = s.get('Value') or x['value']
                 seen.add(s['ShipID'])
         for sid in list(self.ships):
             if sid not in seen and sid != self.current:
@@ -220,14 +258,21 @@ class Commander:
             mods.append({'slot': m['Slot'], 'item': m['Item'], 'eng': eng})
         hv, mv = ev.get('HullValue'), ev.get('ModulesValue')
         s.update(name=ev.get('ShipName') or s['name'], ident=ev.get('ShipIdent') or s['ident'],
-                 value=(hv or 0) + (mv or 0) if (hv or mv) else s['value'], hull=ev.get('HullHealth'),
+                 value=(hv or 0) + (mv or 0) if (hv or mv) else s['value'], hull=ev.get('HullHealth'), loadout=True,
                  rebuy=ev.get('Rebuy'), jump=ev.get('MaxJumpRange'), cargo=ev.get('CargoCapacity'), modules=mods)
         self.current = sid
 
+    def _store_here(self, sid) -> None:
+        if sid in self.ships:
+            self.ships[sid].update(system=self.location['system'], market=self.market)
+
+    def _e_ShipyardBuy(self, ev):
+        self._store_here(ev.get('StoreShipID'))
+        self.ships.pop(ev.get('SellShipID'), None)
+
     def _e_ShipyardSwap(self, ev):
-        old = ev.get('StoreShipID')
-        if old in self.ships:
-            self.ships[old].update(system=self.location['system'], station=self.location['station'])
+        self._store_here(ev.get('StoreShipID'))
+        self.ships.pop(ev.get('SellShipID'), None)
         sid, t = ev.get('ShipID'), ev.get('ShipType', '')
         if is_ship(t, sid):
             self._ship(sid, t)
@@ -246,7 +291,7 @@ class Commander:
 
     def _e_ShipyardTransfer(self, ev):
         if ev.get('ShipID') in self.ships:
-            self.ships[ev['ShipID']].update(system=self.location['system'], station=self.location['station'])
+            self.ships[ev['ShipID']].update(system=self.location['system'], market=ev.get('MarketID') or self.market)
 
     def _e_SetUserShipName(self, ev):
         sid, t = ev.get('ShipID'), ev.get('Ship', '')
@@ -271,15 +316,22 @@ class Commander:
             out['engineering'] = {'engineers': sorted(self.engineers.values(), key=lambda e: e['name'])}
         ships = sorted(self.ships.values(), key=lambda s: s['id'])
         if self.location['system']:
-            out['location'] = dict(self.location, ships=[{'id': s['id'], 'system': s['system'], 'station': s['station']}
-                                                         for s in ships if s['system'] or s['station']])
+            out['location'] = dict(self.location, ships=[w for s in ships if s['id'] != self.current
+                                                         and (w := self._where(s))['system']])
         if ships:
             out['fleet'] = {'current': self.current if self.current in self.ships else None,
-                            'ships': [{k: v for k, v in s.items() if k not in ('system', 'station')} for s in ships]}
+                            'ships': [{k: v for k, v in s.items() if k not in ('system', 'market', 'loadout')}
+                                      for s in ships]}
         return out
 
-    def presence(self, stale_after: int = 900) -> dict:
-        live = self.in_game and time.time() - self.last_event < stale_after
+    def _where(self, s: dict) -> dict:
+        """A stored ship's place; one on a fleet carrier is where the carrier was last seen."""
+        m = self.markets.get(s['market']) if s['market'] is not None else None
+        return {'id': s['id'], 'system': (m or {}).get('system') or s['system'], 'station': (m or {}).get('name')}
+
+    def presence(self, running: bool) -> dict:
+        """In game: the game is running and a session is loaded (LoadGame, with no Shutdown or main menu since)."""
+        live = self.in_game and running
         cur = self.ships.get(self.current)
         return {'in_game': live, 'mode': self.mode if live else 'Unknown',
                 'ship': cur['type_name'] if live and cur else None}

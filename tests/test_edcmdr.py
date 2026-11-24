@@ -117,6 +117,33 @@ def test_publishes_to_edcmdr(tmp_path, monkeypatch):
         assert p.engine.update_available() == "", "no client update notice inside EDLD"
         st, html, _ = ts.request("/cmdr")
         assert "EDLD PILOT" in html
+        assert p.engine.hub is None, "EDLD's own uploaders stay in charge"
+
+        # Squadron leader through EDLD: verify, then edits bound to the squadron the commander leads.
+        import urllib.parse
+        from edcmdr.proto import ProtoError
+        v = p.engine.verify_start("F7300001")
+        path = urllib.parse.urlsplit(v["url"]).path
+        st, h = ts.get_noredirect(path + "/go")
+        q = urllib.parse.parse_qs(urllib.parse.urlsplit(h["Location"]).query)
+        ts.Frontier.challenge = q["code_challenge"][0]
+        ts.Frontier.profile = {"commander": {"id": 7300001, "name": "EDLD PILOT"},
+                               "squadron": {"id": 7301, "name": "EDLD WING", "tag": "EDW", "rank": 0}}
+        st, _, _ = ts.request("/verify/callback?" + urllib.parse.urlencode({"code": "good-code", "state": q["state"][0]}))
+        assert st == 200
+        p.engine.rt["F7300001"].verify_next = 0
+        p.engine._wake.set()
+        deadline = time.time() + 20
+        while time.time() < deadline and p.engine.rt["F7300001"].leader_of is None:
+            time.sleep(0.3)
+        rt = p.engine.rt["F7300001"]
+        assert (rt.leader_of, rt.leader_squadron) == (7301, {"id": 7301, "name": "EDLD WING", "tag": "EDW"})
+        with pytest.raises(ProtoError):
+            p.engine.save_squadron("F7300001", {"tagline": "not ours"}, 7302)
+        rt.leader_of = 7301
+        assert p.engine.save_squadron("F7300001", {"tagline": "From EDLD"}, 7301)["squadron"] == 7301
+        st, html, _ = ts.request("/squad/edw")
+        assert "From EDLD" in html
         p.on_unload()
     finally:
         ts.tearDownModule()
