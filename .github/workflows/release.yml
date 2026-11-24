@@ -786,6 +786,15 @@ jobs:
               --draft=false \
               "${FLAGS[@]}"
             gh release upload "$VERSION" "${FILES[@]}" --clobber
+            # A rebuilt tag keeps exactly this build's files: assets from an
+            # earlier run under other names (a rename, a dropped platform) go.
+            KEEP=" $(for f in "${FILES[@]}"; do printf '%s ' "$(basename "$f")"; done)"
+            gh release view "$VERSION" --json assets -q '.assets[].name' | while read -r old; do
+              case "$KEEP" in
+                *" $old "*) ;;
+                *) echo "Removing stale asset $old"; gh release delete-asset "$VERSION" "$old" -y ;;
+              esac
+            done
           else
             echo "Creating release $VERSION."
             gh release create "$VERSION" "${FILES[@]}" \
