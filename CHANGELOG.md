@@ -1,10 +1,21 @@
 # EDLD CHANGELOG
 
-Last updated: 20261120
+Last updated: 20261125
 
 ---
 
-## Unreleased
+## Released in 20261125
+
+### Fixed: Inara uploads
+
+EDLD now sends Inara only the events and properties in Inara's API
+documentation. A sold ship, or one CAPI no longer lists, is removed from your
+Inara fleet with Inara's own event (it was sent under a name Inara does not
+know, so sold ships stayed). Stored ships now carry where they are stored, so
+Inara shows their locations. The Odyssey ship locker is sent as Inara's
+inventory, and a death names who killed you. Multicrew sessions and community
+goal joins and rewards, which Inara has no events for, are no longer sent;
+community goal progress still is, from the game's community goal updates.
 
 ### Added: publishing to ED Commanders
 

@@ -4,17 +4,16 @@ Posts commander activity to the Inara API (https://inara.cz/inapi/v1/).
 
 What is posted
 --------------
+Only events and properties in Inara's API documentation
+(https://inara.cz/elite/inara-api-docs/).
+
 Travel       — FSD jumps, carrier jumps, locations, dockings
 Status       — credits, ranks (pilot, engineer, power), reputation
 Missions     — accepted, completed, failed, abandoned
-Ship         — current ship identity and full loadout
-Materials    — Horizons materials snapshot (from Materials journal event)
-
-What is NOT posted (yet — pending CAPI integration)
-----------------------------------------------------
-Fleet (stored ships)       — StoredShips is stale; CAPI /profile is authoritative
-Combat log (kills, bonds)  — high-frequency; Inara does not require real-time
-Market transactions        — covered by EDDN for the galaxy-wide dataset
+Ship         — current ship identity and full loadout; stored ships; sold ships
+Inventory    — materials, cargo and the Odyssey ship locker
+Combat       — deaths
+Community    — community goals and progress
 
 Config [Inara] in config.toml
 ------------------------------
@@ -416,16 +415,14 @@ class InaraPlugin(BasePlugin):
         "Materials",
         # Cargo snapshot
         "Cargo",
-        # Micro-resources (Odyssey ship locker)
-        "ShipLockerMaterials",
+        # Odyssey ship locker
+        "ShipLocker",
         # Exobiology
         "SellOrganicData",
         # Combat death
         "Died",
         # Community goals
-        "CommunityGoal", "CommunityGoalJoin", "CommunityGoalReward",
-        # Multicrew
-        "MulticrewJoin", "MulticrewEnd",
+        "CommunityGoal",
         # core/push_triggers (flush only)
         "Undocked", "StartJump", "ShipyardNew", "LaunchSRV", "DockSRV",
         "SRVDestroyed", "LaunchFighter", "DockFighter", "FighterDestroyed",
@@ -445,7 +442,7 @@ class InaraPlugin(BasePlugin):
         self._star_pos:     list | None = None
         self._rank_values:    dict[str, int]   = {}   # key → rankValue
         self._rank_progress:  dict[str, float] = {}   # key → fraction 0-1
-        self._micro_items:    list[dict]        = []   # last ShipLockerMaterials snapshot
+        self._micro_items:    list[dict]        = []   # last ShipLocker snapshot
         self._last_loadout:   dict | None       = None  # dedup: only send changed loadouts
 
         # Wealth tracking — replicates Inara's journal-import behavior.
@@ -472,12 +469,18 @@ class InaraPlugin(BasePlugin):
         #    after CAPI's /profile poll has populated state.capi_raw, then
         #    never again until next process start.
         self._seen_ship_ids:   set[int] = set()
+        self._seen_ship_types: dict[int, str] = {}
         self._reconciled:      bool     = False
         try:
             saved = self.storage.read_json("data.json") or {}
             for x in saved.get("seen_ship_ids", []):
                 try:
                     self._seen_ship_ids.add(int(x))
+                except (TypeError, ValueError):
+                    continue
+            for k, v in (saved.get("seen_ship_types") or {}).items():
+                try:
+                    self._seen_ship_types[int(k)] = str(v)
                 except (TypeError, ValueError):
                     continue
         except Exception:
@@ -920,25 +923,21 @@ class InaraPlugin(BasePlugin):
                         all_materials.append({
                             "itemName":     item.get("Name", ""),
                             "itemCount":    int(item.get("Count", 0)),
-                            "itemCategory": category,
                         })
                 if all_materials:
                     self._push(ts, "setCommanderInventoryMaterials", all_materials)
 
-            case "ShipLockerMaterials":
-                items = []
-                for category, key in [("data", "Data"), ("goods", "Goods"), ("assets", "Assets")]:
-                    for item in event.get(key, []):
-                        name = item.get("Name", "")
-                        if name:
-                            items.append({
-                                "itemName":     name,
-                                "itemCount":    int(item.get("Count", 0)),
-                                "itemCategory": category,
-                            })
-                self._micro_items = items
-                if items:
-                    self._push(ts, "setCommanderInventoryMicroResources", items)
+            case "ShipLocker":
+                locker = event
+                kinds = ("Items", "Components", "Data", "Consumables")
+                if not all(k in locker for k in kinds):
+                    locker = self._read_journal_json("ShipLocker") or {}
+                if all(k in locker for k in kinds):
+                    items = [{"itemName": x["Name"], "itemCount": int(x.get("Count", 0)), "itemType": t}
+                             for t in kinds for x in locker.get(t) or [] if isinstance(x, dict) and x.get("Name")]
+                    self._micro_items = items
+                    self._push(ts, "resetCommanderInventory", [{"itemType": t} for t in kinds])
+                    self._push(ts, "setCommanderInventory", items)
 
             case "Cargo":
                 cargo = self._read_cargo_json()
@@ -954,13 +953,11 @@ class InaraPlugin(BasePlugin):
             case "ShipyardSell":
                 ship_type = event.get("ShipType", "")
                 ship_id   = event.get("SellShipID")
-                if ship_type:
-                    d = {"shipType": ship_type}
-                    if ship_id is not None:
-                        d["shipGameID"] = int(ship_id)
-                    self._push(ts, "setCommanderShipDestroyed", d)
+                if ship_type and ship_id is not None:
+                    self._push(ts, "delCommanderShip", {"shipType": ship_type, "shipGameID": int(ship_id)})
                 if ship_id is not None:
                     try:
+                        self._seen_ship_types.pop(int(ship_id), None)
                         self._seen_ship_ids.discard(int(ship_id))
                         self._save_seen()
                     except (TypeError, ValueError):
@@ -971,7 +968,7 @@ class InaraPlugin(BasePlugin):
                     stype = ship.get("ShipType", "")
                     if not stype:
                         return
-                    d: dict = {"shipType": stype, "isCurrentShip": False, "shipInGarage": in_garage}
+                    d: dict = {"shipType": stype, "isCurrentShip": False}
                     sid = ship.get("ShipID")
                     if sid is not None: d["shipGameID"] = int(sid)
                     sname  = ship.get("Name")
@@ -987,14 +984,16 @@ class InaraPlugin(BasePlugin):
                     if capi_mods is not None:
                         d["shipModulesValue"] = capi_mods
                     hot = ship.get("Hot")
-                    if hot is not None: d["shipIsHot"] = bool(hot)
-                    if in_garage:
-                        loc = ship.get("StarSystem")
-                        sta = ship.get("StationName")
-                        if loc: d["shipStarSystem"] = loc
-                        if sta: d["shipStation"]    = sta
-                        in_t = ship.get("InTransit")
-                        if in_t is not None: d["shipInTransit"] = bool(in_t)
+                    if hot is not None: d["isHot"] = bool(hot)
+                    if not in_garage:
+                        d["starsystemName"] = event.get("StarSystem", "")
+                        d["stationName"] = event.get("StationName", "")
+                        if isinstance(event.get("MarketID"), int):
+                            d["marketID"] = event["MarketID"]
+                    elif ship.get("StarSystem") and not ship.get("InTransit"):
+                        d["starsystemName"] = ship["StarSystem"]
+                        if isinstance(ship.get("ShipMarketID"), int):
+                            d["marketID"] = ship["ShipMarketID"]
                     self._push_ship(ts, d)
                 for ship in event.get("ShipsHere", []):
                     _push_stored(ship, False)
@@ -1019,11 +1018,17 @@ class InaraPlugin(BasePlugin):
                     self._push_ship(ts, d)
 
             case "Died":
-                killer_ship = event.get("KillerShip", "")
+                killers = event.get("Killers") if isinstance(event.get("Killers"), list) else (
+                    [{"Name": event["KillerName"]}] if event.get("KillerName") else [])
+                names = [k["Name"] for k in killers if isinstance(k, dict) and k.get("Name")]
                 d: dict = {}
-                if killer_ship:
-                    d["killerShipType"] = killer_ship
-                    d["isPlayerKill"]   = bool(event.get("KillerRank") is not None)
+                if self._system_name:
+                    d["starsystemName"] = self._system_name
+                if len(names) == 1:
+                    d["opponentName"] = names[0]
+                elif names:
+                    d["wingOpponentNames"] = names
+                d["isPlayer"] = any(n.lower().startswith("cmdr ") for n in names)
                 self._push(ts, "addCommanderCombatDeath", d)
 
             case "SellOrganicData":
@@ -1114,45 +1119,18 @@ class InaraPlugin(BasePlugin):
                         progress["isTopRank"] = bool(g["PlayerInTopRank"])
                     self._push(ts, "setCommanderCommunityGoalProgress", progress)
 
-            case "CommunityGoalJoin":
-                cgid = event.get("CGID")
-                if cgid is not None:
-                    self._push(ts, "addCommanderCommunityGoalProgress", {
-                        "communitygoalGameID": int(cgid),
-                        "communitygoalName":   event.get("Name", ""),
-                        "starsystemName":      event.get("SystemName", ""),
-                        "stationName":         event.get("MarketName", ""),
-                        "percentileBand":      0,
-                        "contribution":        0,
-                    })
-
-            case "CommunityGoalReward":
-                cgid   = event.get("CGID")
-                reward = event.get("Reward", 0)
-                if cgid is not None:
-                    self._push(ts, "addCommanderCommunityGoalProgress", {
-                        "communitygoalGameID": int(cgid),
-                        "communitygoalName":   event.get("Name", ""),
-                        "contribution":        int(reward),
-                        "isCompleted":         True,
-                    })
-
-            case "MulticrewJoin":
-                self._push(ts, "addCommanderFleetActivity", {
-                    "activityType":  "multicrew",
-                    "isJoining":     True,
-                    "shipType":      event.get("ShipType", ""),
-                    "commanderName": event.get("CaptainName", ""),
-                })
-
-            case "MulticrewEnd":
-                self._push(ts, "addCommanderFleetActivity", {
-                    "activityType":   "multicrew",
-                    "isJoining":      False,
-                    "timeInSession":  int(event.get("Timespan", 0)),
-                })
-
     # ── Internal helpers ──────────────────────────────────────────────────────
+
+    def _read_journal_json(self, name: str) -> dict | None:
+        """The game's <name>.json beside the journal, or None."""
+        jdir = getattr(self.core, "journal_dir", None)
+        if jdir is None:
+            return None
+        try:
+            data = json.loads((Path(jdir) / f"{name}.json").read_text(encoding="utf-8"))
+        except Exception:
+            return None
+        return data if isinstance(data, dict) else None
 
     def _read_cargo_json(self) -> list[dict]:
         """Read Cargo.json and return Inara-formatted cargo list."""
@@ -1370,16 +1348,21 @@ class InaraPlugin(BasePlugin):
             sid_int = int(sid)
         except (TypeError, ValueError):
             return
-        if sid_int in self._seen_ship_ids:
+        stype = ship_data.get("shipType")
+        if sid_int in self._seen_ship_ids and (not stype or self._seen_ship_types.get(sid_int) == stype):
             return
         self._seen_ship_ids.add(sid_int)
+        if stype:
+            self._seen_ship_types[sid_int] = str(stype)
         self._save_seen()
 
     def _save_seen(self) -> None:
         """Persist _seen_ship_ids to data.json.  Best-effort."""
         try:
             self.storage.write_json(
-                {"seen_ship_ids": sorted(self._seen_ship_ids)},
+                {"seen_ship_ids": sorted(self._seen_ship_ids),
+                 "seen_ship_types": {str(k): v for k, v in self._seen_ship_types.items()
+                                     if k in self._seen_ship_ids}},
                 "data.json",
             )
         except Exception:
@@ -1392,7 +1375,7 @@ class InaraPlugin(BasePlugin):
         /profile poll has populated state.capi_raw["profile"].
 
           1. Ships in _seen_ship_ids that are no longer in CAPI get a
-             setCommanderShipDestroyed — these are sells/transfers we missed
+             delCommanderShip — these are sells/transfers we missed
              while EDLD was offline (or, on first run, will be empty).
           2. Every ship currently in CAPI is re-emitted via setCommanderShip
              with hull + modules values from CAPI, so stored ships' values
@@ -1429,7 +1412,9 @@ class InaraPlugin(BasePlugin):
         # 1) Phantom cleanup — ships we've reported to Inara that no longer exist.
         stale = self._seen_ship_ids - capi_ids
         for sid in sorted(stale):
-            self._push(ts, "setCommanderShipDestroyed", {"shipGameID": int(sid)})
+            stype = self._seen_ship_types.pop(sid, None)
+            if stype:
+                self._push(ts, "delCommanderShip", {"shipType": stype, "shipGameID": int(sid)})
             self._seen_ship_ids.discard(sid)
 
         # 2) Refresh values for every currently-owned ship.
@@ -1451,7 +1436,6 @@ class InaraPlugin(BasePlugin):
                 "shipType":      stype,
                 "shipGameID":    sid,
                 "isCurrentShip": (sid == current_ship_id),
-                "shipInGarage":  (sid != current_ship_id),
             }
             if ship.get("shipName"):
                 d["shipName"]  = ship["shipName"]
@@ -1473,10 +1457,12 @@ class InaraPlugin(BasePlugin):
             if sid != current_ship_id:
                 ss = ship.get("starsystem") or {}
                 if isinstance(ss, dict) and ss.get("name"):
-                    d["shipStarSystem"] = ss["name"]
+                    d["starsystemName"] = ss["name"]
                 st = ship.get("station") or {}
                 if isinstance(st, dict) and st.get("name"):
-                    d["shipStation"] = st["name"]
+                    d["stationName"] = st["name"]
+                if isinstance(st, dict) and isinstance(st.get("id"), int):
+                    d["marketID"] = st["id"]
 
             self._push_ship(ts, d)
 
