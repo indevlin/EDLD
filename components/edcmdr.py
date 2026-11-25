@@ -71,8 +71,22 @@ class EDCMDRPlugin(BasePlugin):
         if jd not in settings.data["journal_dirs"]:
             settings.set_journal_dirs(settings.data["journal_dirs"] + [jd])
         self.engine = Engine(settings)
+        if hasattr(self.engine, "frontier_token"):
+            kept = self.engine.frontier_token
+            self.engine.frontier_token = lambda fid: self._frontier_token(fid) or kept(fid)
         self.engine.start()
         _dbg.info(f"  [EDCMDR] publishing to {self.engine.client.base}")
+
+    def _frontier_token(self, fid: str):
+        """EDLD's own Frontier sign-in (Options → CAPI) for the commander it is signed in as: the engine uses
+        it to refresh a renamed squadron from Frontier without the player verifying again."""
+        try:
+            if getattr(self.core.state, "pilot_fid", "") != fid:
+                return None
+            capi = getattr(getattr(self.core, "data", None), "capi", None)
+            return capi._valid_token() if capi is not None else None
+        except Exception:
+            return None
 
     def on_unload(self) -> None:
         if self.engine is not None:
