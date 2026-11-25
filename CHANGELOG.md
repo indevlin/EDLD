@@ -6,6 +6,12 @@ Last updated: 20261125
 
 ## Released in 20261125
 
+### Changed: a renamed squadron follows on ED Commanders by itself
+
+When ED Commanders asks for a squadron to be confirmed again after a rename in
+game, EDLD does it with its own Frontier sign-in (CAPI), so the squadron's new
+name and tag appear without anyone pressing Verify.
+
 ### Fixed: rows jumped on every refresh with values aligned by hand
 
 With Values set to manual alignment (`ValueFromLeft` or `ValueFromRight`),
