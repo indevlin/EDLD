@@ -18,6 +18,7 @@ class UploadMark:
         self._storage = storage
         self._path = None
         self._through = ""
+        self._floor = ""
         self._dirty = False
         self._saved_at = 0.0
 
@@ -37,6 +38,7 @@ class UploadMark:
             except Exception:
                 data = {}
             self._through = str(data.get("through", "") or "")
+            self._floor = self._through
             self._dirty = False
         return self._through
 
@@ -46,12 +48,14 @@ class UploadMark:
 
     def replayed(self, event: dict, state: Any) -> bool:
         """True for an event an earlier run already handled: one replayed at
-        startup whose timestamp is not after the mark."""
+        startup whose timestamp is not after the mark as this run found it.
+        Events this run handles do not move that line, so several events in
+        the same second are all sent."""
         if not getattr(state, "in_preload", False):
             return False
         ts = str((event or {}).get("timestamp", "") or "")
-        mark = self._current()
-        return bool(ts) and bool(mark) and ts <= mark
+        self._current()
+        return bool(ts) and bool(self._floor) and ts <= self._floor
 
     # ── writing ───────────────────────────────────────────────────────────────
 

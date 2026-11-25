@@ -115,3 +115,11 @@ def test_each_uploader_goes_through_the_mark(name):
     unload = next(f for f in cls.body
                   if isinstance(f, ast.FunctionDef) and f.name == "on_unload")
     assert "save()" in ast.unparse(unload)
+
+
+def test_events_in_the_same_second_are_all_sent(tmp_path):
+    m = UploadMark(_Storage(tmp_path))
+    first, second = _ev("2026-10-20T10:00:00Z"), dict(_ev("2026-10-20T10:00:00Z"), event="LoadGame")
+    assert not m.replayed(first, PRELOAD)
+    m.advance(first, PRELOAD)
+    assert not m.replayed(second, PRELOAD), "the replay line is where the last run stopped"

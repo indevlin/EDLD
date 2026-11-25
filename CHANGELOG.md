@@ -6,6 +6,28 @@ Last updated: 20261125
 
 ## Released in 20261125
 
+### Changed: uploads catch up on play EDLD did not see
+
+EDDN, EDSM, EDAstro and Inara now get what you played while EDLD was closed.
+At startup, before the current journal, EDLD reads the journals since each
+upload last sent anything, for the same commander and at most 30 days back,
+and each upload sends what it has not sent. Before, only the current journal
+was looked at, so a session played without EDLD never reached them.
+
+The first time Inara is switched on, the startup replay sends your commander
+as they are now: ranks, credits, statistics, reputation, engineers, ships and
+fittings, storage, inventory, suits and location. Older travel, missions and
+combat are left out, since another app may have sent them already; from then
+on everything goes.
+
+### Fixed: uploads skipped events that shared a second
+
+In the startup replay, an event written in the same second as the one before
+it was taken as already sent. The game writes several events in one second
+all the time (a session's file header, commander and LoadGame together, a
+jump and its scans), so each restart lost some of them for EDDN, EDSM, EDAstro
+and Inara. The replay now skips only what the last run had sent.
+
 ### Fixed: Inara uploads
 
 EDLD now sends Inara only the events and properties in Inara's API

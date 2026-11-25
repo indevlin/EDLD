@@ -55,6 +55,16 @@ SEND_INTERVAL_S = 30        # 2 requests/minute hard limit from Inara
 STARTUP_DELAY_S = 8         # wait before first send so preload finishes
 BATCH_MAX       = 100       # events per request (Inara has no documented per-batch limit)
 
+#: What a first run's startup replay sends: events that set state, not log entries.
+FIRST_RUN_STATE = frozenset({
+    "setCommanderCredits", "setCommanderRankPilot", "setCommanderRankPower", "setCommanderRankEngineer",
+    "setCommanderReputationMajorFaction", "setCommanderReputationMinorFaction", "setCommanderGameStatistics",
+    "setCommanderInventoryCargo", "setCommanderInventoryMaterials", "resetCommanderInventory",
+    "setCommanderInventory", "setCommanderStorageModules", "setCommanderShip", "setCommanderShipLoadout",
+    "addCommanderShip", "delCommanderShip", "setCommanderSuitLoadout", "updateCommanderSuitLoadout",
+    "delCommanderSuitLoadout", "setCommanderTravelLocation", "setCommunityGoal",
+})
+
 # Journal Rank keys → Inara rankName strings
 _RANK_KEYS = {
     "Combat":       "combat",
@@ -552,6 +562,14 @@ class InaraPlugin(BasePlugin):
         # current journal at startup — is handled for tracking but not sent
         # again (core/upload_mark.py).
         mark = self._upload_mark()
+        try:
+            path = self.storage.path
+        except Exception:
+            path = None
+        if self.__dict__.get("_first_run_path", 0) != path:
+            self._first_run_path = path
+            self._first_run = not mark.through
+        self._preloading = bool(getattr(state, "in_preload", False))
         self._replaying = mark.replayed(event, state)
         replayed = self._replaying
         try:
@@ -1314,6 +1332,11 @@ class InaraPlugin(BasePlugin):
     def _push(self, timestamp: str, event_name: str, event_data) -> None:
         """Enqueue a single Inara API event."""
         if getattr(self, "_replaying", False):
+            return
+        # First run, no mark: the startup replay sends the commander's state
+        # only. Log entries may already be on Inara from another app.
+        if (self.__dict__.get("_first_run") and self.__dict__.get("_preloading")
+                and event_name not in FIRST_RUN_STATE):
             return
         if self._sender:
             self._sender.push({
