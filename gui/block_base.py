@@ -84,6 +84,10 @@ class RowLabel(QLabel):
 
 _PENDING: dict[int, QWidget] = {}
 
+#: Each group's last placement, by id: (parent, placement). A row joining the
+#: group takes it at once, so it is never drawn at the edge first.
+_PLACED: dict[int, tuple] = {}
+
 
 def _schedule(parent: "QWidget | None") -> None:
     if parent is None:
@@ -122,7 +126,10 @@ def arrange_rows(parent: QWidget) -> None:
     if lay is None:
         return
     widgets = [lay.itemAt(i).widget() for i in range(lay.count())]
-    widgets = [w for w in widgets if w is not None and not w.isHidden()]
+    # Hidden on purpose only: a row just added is hidden until the layout
+    # shows it, and is placed now so it is first drawn where it belongs.
+    widgets = [w for w in widgets if w is not None
+               and not (w.isHidden() and w.testAttribute(Qt.WA_WState_ExplicitShowHide))]
     rows = [w for w in widgets if isinstance(w, (KVRow, HdrRow))]
 
     stripes = _theme.row_stripes()
@@ -138,6 +145,7 @@ def arrange_rows(parent: QWidget) -> None:
             n, last = 0, False
 
     place = _placement(parent, rows)
+    _PLACED[id(parent)] = (parent, place)
     for r in rows:
         r._place(place)
 
@@ -347,8 +355,14 @@ class _GroupedRow(QWidget):
         lay.addStretch(0)
 
     def event(self, ev) -> bool:
-        if ev.type() in (QEvent.ParentChange, QEvent.ShowToParent,
-                         QEvent.HideToParent, QEvent.Resize):
+        t = ev.type()
+        if t == QEvent.ParentChange:
+            parent = self.parentWidget()
+            last = _PLACED.get(id(parent)) if parent is not None else None
+            if last is not None and last[0] is parent:
+                self._place(last[1])
+        if t in (QEvent.ParentChange, QEvent.ShowToParent,
+                 QEvent.HideToParent, QEvent.Resize):
             _schedule(self.parentWidget())
         return super().event(ev)
 
@@ -619,9 +633,21 @@ class RowScroll(QScrollArea):
         self.clear_rows()
         for i, w in enumerate(rows):
             self._lay.insertWidget(i, w)
+        self._arrange_now()
 
     def add_row(self, w: QWidget) -> None:
         self._lay.insertWidget(self._lay.count() - 1, w)
+        self._arrange_now()
+
+    def _arrange_now(self) -> None:
+        """Place the new rows before they are first drawn: arranged only on
+        the next pass, a refresh drew them at the edge and then moved them."""
+        if _theme.value_offsets() is None:
+            return
+        try:
+            arrange_rows(self._body)
+        except Exception:
+            _schedule(self._body)
 
 
 # ── Block base ────────────────────────────────────────────────────────────────

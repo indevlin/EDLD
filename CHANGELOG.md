@@ -6,6 +6,14 @@ Last updated: 20261125
 
 ## Released in 20261125
 
+### Fixed: rows jumped on every refresh with values aligned by hand
+
+With Values set to manual alignment (`ValueFromLeft` or `ValueFromRight`),
+each refresh drew a window's new rows with their values at the right edge and
+moved them into place a moment later, so the text twitched across the window
+several times a second. New rows now take their group's placement before they
+are first drawn.
+
 ### Changed: uploads catch up on play EDLD did not see
 
 EDDN, EDSM, EDAstro and Inara now get what you played while EDLD was closed.
