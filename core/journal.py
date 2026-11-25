@@ -1778,6 +1778,14 @@ def monitor_journal(
     print(f"{Terminal.YELL}Journal file:{Terminal.END} {jfile}")
     state.in_preload = True
 
+    # Journals before this one that EDLD never saw: the uploaders catch up on
+    # them first (core/upload_catchup.py).
+    try:
+        from core.upload_catchup import catch_up
+        catch_up(jfile, journal_dir, state, plugin_dispatch)
+    except Exception as exc:
+        trace(f"upload catch-up failed: {exc}", trace_mode)
+
     bootstrap_last_session_end(state, journal_dir, jfile, trace_mode)
 
     # A line the game has only half written is held back until the rest
