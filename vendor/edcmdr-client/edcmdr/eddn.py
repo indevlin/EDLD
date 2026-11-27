@@ -66,7 +66,7 @@ class Builder:
                 self.odyssey = bool(ev['Odyssey'])
         elif e == 'Docked':
             self.docked_id, self.docked_name = ev.get('MarketID'), ev.get('StationName') or ''
-            for k in ('commodity', 'outfitting', 'shipyard'):
+            for k in ('commodity', 'outfitting', 'shipyard', 'capi-commodity', 'capi-outfitting', 'capi-shipyard'):
                 self.seen[k] = None
         elif e == 'Undocked':
             self.docked_id, self.docked_name = None, ''
@@ -284,6 +284,63 @@ class Builder:
         msg = self._station(data, trigger)
         msg['ships'] = ships
         return [(schema('shipyard', 2), self._flags(msg))]
+
+    def capi(self, market, shipyard, mid, when: str) -> list[tuple[str, dict, str]]:
+        """(schemaRef, message, gameversion) from CAPI /market and /shipyard, only while still docked at mid."""
+        if mid is None or mid != self.docked_id:
+            return []
+        out = []
+        st = {'timestamp': when, 'systemName': self.system or '', 'stationName': self.docked_name, 'marketId': mid}
+        sy = shipyard if isinstance(shipyard, dict) and shipyard.get('id') == mid else {}
+        mods = sy.get('modules') if isinstance(sy.get('modules'), dict) else {}
+        ships = sy.get('ships') if isinstance(sy.get('ships'), dict) else {}
+        listed = ships.get('shipyard_list') if isinstance(ships.get('shipyard_list'), dict) else {}
+        gone = ships.get('unavailable_list') if isinstance(ships.get('unavailable_list'), list) else []
+        mk = market if isinstance(market, dict) and market.get('id') == mid else {}
+        econ = mk.get('economies') if isinstance(mk.get('economies'), dict) else {}
+        horizons = (any(isinstance(e, dict) and e.get('name') == 'Colony' for e in econ.values())
+                    or any(isinstance(m, dict) and m.get('sku') == HORIZONS_SKU for m in mods.values())
+                    or any(isinstance(v, dict) and v.get('sku') == HORIZONS_SKU for v in listed.values()))
+        flags = {'horizons': horizons}
+        if self.odyssey is not None:
+            flags['odyssey'] = self.odyssey
+        if mk and isinstance(mk.get('commodities'), list) and self.system:
+            try:
+                goods = []
+                for c in mk['commodities']:
+                    if c.get('categoryname') == 'NonMarketable' or c.get('legality'):
+                        continue
+                    g = {'name': str(c['name']).lower(), 'meanPrice': int(c['meanPrice']), 'buyPrice': int(c['buyPrice']),
+                         'stock': int(c['stock']), 'stockBracket': c['stockBracket'], 'sellPrice': int(c['sellPrice']),
+                         'demand': int(c['demand']), 'demandBracket': c['demandBracket']}
+                    if c.get('statusFlags'):
+                        g['statusFlags'] = list(c['statusFlags'])
+                    goods.append(g)
+            except (KeyError, TypeError, ValueError):
+                goods = None
+            if goods is not None:
+                goods.sort(key=lambda x: x['name'])
+                if self._once('capi-commodity', [goods, mid, self.system]):
+                    msg = {**st, 'commodities': goods, **flags}
+                    if econ:
+                        msg['economies'] = sorted(({'name': e['name'], 'proportion': e['proportion']} for e in econ.values()
+                                                   if isinstance(e, dict) and 'name' in e and 'proportion' in e),
+                                                  key=lambda e: e['name'])
+                    if isinstance(mk.get('prohibited'), dict) and mk['prohibited']:
+                        msg['prohibited'] = sorted(str(x) for x in mk['prohibited'].values())
+                    out.append((schema('commodity', 3), msg, 'CAPI-Live-market'))
+        if self.system:
+            fit = sorted({MODULE_RE.sub(lambda m: m.group(0).capitalize(), str(m['name']).lower())
+                          for m in mods.values() if isinstance(m, dict) and isinstance(m.get('name'), str)
+                          and MODULE_RE.search(m['name']) and m.get('sku') in (None, HORIZONS_SKU)
+                          and m['name'].lower() != 'int_planetapproachsuite'})
+            if fit and self._once('capi-outfitting', [fit, mid, self.system, horizons]):
+                out.append((schema('outfitting', 2), {**st, 'modules': fit, **flags}, 'CAPI-Live-shipyard'))
+            hulls = sorted({str(v['name']).lower() for v in listed.values() if isinstance(v, dict) and v.get('name')}
+                           | {str(v['name']).lower() for v in gone if isinstance(v, dict) and v.get('name')})
+            if hulls and self._once('capi-shipyard', [hulls, mid, self.system, horizons]):
+                out.append((schema('shipyard', 2), {**st, 'ships': hulls, **flags}, 'CAPI-Live-shipyard'))
+        return out
 
     def _navroute(self, trigger: dict, journal_dir) -> list:
         data = self._file(journal_dir, 'NavRoute')

@@ -50,6 +50,22 @@ def test_vendored_client_matches_its_lock():
     assert not (VENDOR / "edcmdr" / "_build_secret.py").exists(), "build keys never enter the repository"
 
 
+def test_vendored_engine_has_what_edld_uses(tmp_path, monkeypatch):
+    """The component's hooks land on the vendored engine; a stale copy would skip them silently."""
+    monkeypatch.setenv("EDCMDR_HOME", str(tmp_path / "home"))
+    sys.path.insert(0, str(VENDOR))
+    try:
+        from edcmdr.config import SHAREABLE, Settings
+        from edcmdr.uplink import Engine
+        e = Engine(Settings(tmp_path / "settings.json"))
+        assert callable(getattr(e, "frontier_token", None)), "squadron refresh with EDLD's Frontier sign-in"
+        assert "carriers" in SHAREABLE
+    finally:
+        sys.path.remove(str(VENDOR))
+        for name in [m for m in sys.modules if m == "edcmdr" or m.startswith("edcmdr.")]:
+            del sys.modules[name]
+
+
 def test_off_by_default(tmp_path):
     mod = _load_component()
     p = mod.EDCMDRPlugin()

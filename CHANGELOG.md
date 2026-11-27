@@ -1,8 +1,29 @@
 # EDLD CHANGELOG
 
-Last updated: 20261125
+Last updated: 20261126
 
 ---
+
+## Released in 20261126
+
+### Added: carriers on ED Commanders
+
+ED Commanders settings gain a **Carriers** section: your fleet carrier and the
+squadron carrier you can manage, with location, docking, services, space and
+packs, kept current from your journal. With net worth shared, their bank
+balances go too; your page adds your fleet carrier's bank to Frontier's net
+worth, and a squadron carrier's bank shows only from the squadron's leader.
+Squadrons that never renamed their ranks now show titles (Leader, Senior
+Officer, Officer, Agent, Rookie) instead of the game's placeholder.
+
+### Fixed: the committed EDCMDR client was behind
+
+`vendor/edcmdr-client` is the client as of this release. Runs from source had
+an older copy, so the squadron refresh through EDLD's Frontier sign-in never
+ran there. Its `protocol.lock` is now committed too. Release builds vendor the newest
+client tag when they build and were not affected. A test now fails if the
+vendored engine lacks what EDLD hooks into, and `scripts/pre_release.sh` vendors
+the newest client release before each release so the copy cannot fall behind.
 
 ## Released in 20261125
 

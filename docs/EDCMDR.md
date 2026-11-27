@@ -51,7 +51,9 @@ newest `YYYYMMDD` tag on EDCMDR-client, checks it out and runs
 committed copy is what source runs use, and what a build falls back to when no
 client release is found. To refresh it, `python3 scripts/sync_edcmdr.py
 ~/projects/indevlin/EDCMDR-client`; the script checks the protocol spec against
-the client's `protocol.lock`.
+the client's `protocol.lock`. `scripts/vendor_edcmdr.sh` does the same from the
+client's newest release tag and commits the result when it changed;
+`scripts/pre_release.sh` runs it, so a release always commits the current client.
 
 What is sent, and what ED Commanders keeps, is in [PRIVACY.md](PRIVACY.md)
 and edcmdr.com's [privacy policy](https://edcmdr.com/privacy).

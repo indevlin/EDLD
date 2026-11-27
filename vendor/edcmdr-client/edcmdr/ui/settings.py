@@ -16,6 +16,7 @@ from ..uplink import Engine
 LABELS = {
     'location': 'Location and where ships are kept', 'ranks': 'Ranks and reputation',
     'statistics': 'Lifetime statistics (leaderboards)', 'fleet': 'Fleet and fittings',
+    'carriers': 'Fleet carrier and squadron carrier',
     'engineering': 'Engineers', 'powerplay': 'Powerplay', 'squadron': 'Squadron and rank',
     'portrait': 'Codex portrait', 'presence': 'Show when I am in game',
 }
@@ -210,6 +211,9 @@ class SettingsWindow(QWidget):
                              ('Tagline', self.sq_tagline)):
             form.addRow(label, field)
         lay.addLayout(form)
+        self.sq_stale = note('')
+        self.sq_stale.hide()
+        lay.addWidget(self.sq_stale)
         save = QPushButton('Save to EDCMDR')
         save.clicked.connect(self._save_squadron)
         lay.addWidget(save, alignment=Qt.AlignLeft)
@@ -224,6 +228,7 @@ class SettingsWindow(QWidget):
         elif not leaders and idx >= 0:
             self.tabs.removeTab(idx)
         self.sq_leads = {c['fid']: (c['leader_of'], c.get('leader_squadron') or {}) for c in leaders}
+        self.sq_stale_fids = {c['fid'] for c in leaders if c.get('squadron_stale')}
         items = [(c['fid'], f"CMDR {c['name']} · {self._sq_label(c['leader_of'], c.get('leader_squadron'))}") for c in leaders]
         if [(self.sq_who.itemData(i), self.sq_who.itemText(i)) for i in range(self.sq_who.count())] != items:
             cur = self.sq_who.currentData()
@@ -235,6 +240,16 @@ class SettingsWindow(QWidget):
                 self.sq_who.setCurrentIndex([f for f, _ in items].index(cur))
             self.sq_who.blockSignals(False)
             self._load_squadron()
+        self._sq_stale_note()
+
+    def _sq_stale_note(self):
+        fid = self.sq_who.currentData()
+        stale = fid in getattr(self, 'sq_stale_fids', set())
+        self.sq_stale.setText('Your journal shows this squadron under a new name. Its EDCMDR page takes the new name; '
+                              'the tag follows once a member\'s client refreshes it from Frontier. Switch on Frontier '
+                              'CAPI on the Integrations tab and this client does that by itself, or press Verify with '
+                              'Frontier on the Commanders tab.' if stale else '')
+        self.sq_stale.setVisible(stale)
 
     @staticmethod
     def _sq_label(sid, sq) -> str:
@@ -246,6 +261,7 @@ class SettingsWindow(QWidget):
         fid = self.sq_who.currentData()
         sid, sq = getattr(self, 'sq_leads', {}).get(fid, (None, {}))
         self.sq_name.setText(self._sq_label(sid, sq) if fid else '')
+        self._sq_stale_note()
         d = self.engine.settings.commander(fid).get('squadron_details') or {} if fid else {}
         if d.get('squadron_id') != sid:
             d = {}  # details saved for another squadron are not this one's
@@ -331,7 +347,9 @@ class SettingsWindow(QWidget):
             grid.addWidget(cb, r, 1, alignment=Qt.AlignCenter)
             grid.addWidget(dl, r, 2)
         lay.addLayout(grid)
-        self.wealth = QCheckBox('Include net worth (credits plus ships, modules and carriers) with lifetime statistics')
+        self.wealth = QCheckBox('Include net worth and carrier bank balances (with lifetime statistics)')
+        self.wealth.setToolTip('Frontier\'s net worth figure with your statistics, and the bank balance of each carrier '
+                               'you share. Your page adds your own fleet carrier\'s bank to Frontier\'s figure, which leaves it out.')
         self.names = QCheckBox('Let my earlier commander names find this page')
         for x in (self.wealth, self.names):
             x.toggled.connect(self._save_prefs)
@@ -376,8 +394,11 @@ class SettingsWindow(QWidget):
         w = QWidget()
         lay = QVBoxLayout(w)
         lay.addWidget(note('Optional uploads to community services, sent from this computer straight to each '
-                           'service. Each is off until you switch it on for a commander. Only what you play while '
-                           'the client runs is sent, never your history; Pause stops these uploads too.'))
+                           'service. Each is off until you switch it on for a commander, then catches up once: EDSM from '
+                           'where EDSM last saw you, EDDN and EDAstro from your current session, Inara with your '
+                           'commander as they are now. After that nothing is missed: play while the client was closed, '
+                           'offline or paused is sent when it next runs, from where each service last accepted. '
+                           'Pause holds these uploads too; switching a service off forgets its place.'))
         top = QHBoxLayout()
         top.addWidget(QLabel('Commander'))
         self.iwho = QComboBox()
@@ -409,7 +430,9 @@ class SettingsWindow(QWidget):
         self.inara_key.setPlaceholderText('From inara.cz → Settings → Inara API key')
         i.addRow(self.inara_on)
         i.addRow('API key', self.inara_key)
-        i.addRow(note('Ranks, credits, ships and their fittings, travel, missions, engineers and materials.'))
+        i.addRow(note('Ranks, credits, statistics, reputation, ships, fittings and stored modules, travel and landings, '
+                      'missions and permits, combat, engineers, cargo, materials and locker, suits, friends and '
+                      'community goals.'))
         lay.addWidget(ina)
         cap = QGroupBox('Frontier CAPI')
         k = QFormLayout(cap)
@@ -418,7 +441,8 @@ class SettingsWindow(QWidget):
         self.capi_state.setWordWrap(True)
         k.addRow(self.capi_on)
         k.addRow(self.capi_state)
-        k.addRow(note('With EDDN on, your fleet carrier bartender orders are shared from CAPI when you dock there. '
+        k.addRow(note('With EDDN on, each station you dock at shares its market, outfitting and shipyard from CAPI, '
+                      'and a fleet carrier its bartender orders. '
                       'The sign-in is kept only here, never on edcmdr.com. After switching this on, press Verify '
                       'with Frontier once to sign in.'))
         lay.addWidget(cap)
@@ -484,6 +508,8 @@ class SettingsWindow(QWidget):
                                                             'api_key': self.inara_key.text().strip()})
         self.engine.settings.set_integration(fid, 'edastro', {'enabled': self.astro_on.isChecked(),
                                                               'carrier': self.astro_carrier.isChecked()})
+        if self.engine.hub is not None:
+            self.engine.hub.wake()
 
     def _about_tab(self) -> QWidget:
         w = QWidget()
