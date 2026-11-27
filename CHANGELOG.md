@@ -4,7 +4,7 @@ Last updated: 20261126
 
 ---
 
-## Unreleased
+## Released in 20261126
 
 ### Added: carriers on ED Commanders
 
