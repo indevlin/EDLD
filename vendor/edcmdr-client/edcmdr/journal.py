@@ -3,6 +3,7 @@
 Each Journal.*.log is assigned to a commander by its first Commander or
 NewCommander event. Historic files are read once at start (prefiltered on
 the events state.py uses); the newest file per directory is then tailed.
+Each event carries _cursor, its place in the journals; cursors sort in journal order.
 """
 import json
 import re
@@ -91,11 +92,15 @@ class Watcher:
         self.offset[path] = pos + len(chunk)
         self.current = path.parent
         self.where[fid] = path.parent
-        text = self.partial.pop(path, '') + chunk.decode('utf-8', errors='replace')
-        lines = text.split('\n')
-        if lines[-1] != '':
+        head = self.partial.pop(path, b'')
+        at = pos - len(head)
+        base = f'{_stamp(path.name)}|{path.name}|'
+        lines = (head + chunk).split(b'\n')
+        if lines[-1] != b'':
             self.partial[path] = lines[-1]
-        for line in lines[:-1]:
+        for raw in lines[:-1]:
+            start, at = at, at + len(raw) + 1
+            line = raw.decode('utf-8', errors='replace')
             if not line.strip() or not self._wanted(line):
                 continue
             try:
@@ -103,6 +108,7 @@ class Watcher:
             except ValueError:
                 continue
             if isinstance(ev, dict) and isinstance(ev.get('event'), str):
+                ev['_cursor'] = f'{base}{start:012d}'
                 self.on_event(fid, ev)
 
     def _owner(self, path: Path) -> tuple[str, str] | None:

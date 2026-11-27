@@ -2,8 +2,8 @@
   "protocol": 1,
   "kinds": ["enroll", "verify-start", "verify-poll", "verify-finish", "prefs", "snapshot", "presence", "portrait", "squadron", "forget"],
   "kinds_live": ["enroll", "verify-start", "verify-poll", "verify-finish", "prefs", "snapshot", "presence", "portrait", "squadron", "forget"],
-  "categories": ["identity", "presence", "location", "ranks", "statistics", "fleet", "engineering", "powerplay", "squadron", "portrait"],
-  "snapshot_categories": ["identity", "location", "ranks", "statistics", "fleet", "engineering", "powerplay", "squadron"],
+  "categories": ["identity", "presence", "location", "ranks", "statistics", "fleet", "carriers", "engineering", "powerplay", "squadron", "portrait"],
+  "snapshot_categories": ["identity", "location", "ranks", "statistics", "fleet", "carriers", "engineering", "powerplay", "squadron"],
   "always_shared": ["identity"],
   "delays": [0, 3600, 43200, 86400, 604800],
   "limits": {
@@ -17,6 +17,8 @@
     "text_len": 64,
     "ships": 100,
     "modules": 120,
+    "carriers": 4,
+    "carrier_services": 24,
     "engineers": 60,
     "stat_sections": 30,
     "stat_keys": 60
@@ -42,6 +44,9 @@
     "Yuri Grom", "Zemina Torval"
   ],
   "recruiting": ["open", "invite", "closed"],
+  "squadron_default_ranks": ["Leader", "Senior Officer", "Officer", "Agent", "Rookie"],
+  "carrier_types": ["FleetCarrier", "SquadronCarrier"],
+  "carrier_docking": ["all", "squadron", "friends", "squadronfriends", "none"],
   "undelayed": ["portrait"],
   "codes": {
     "json": 400, "envelope": 400, "key": 400, "fid": 400, "kind": 400, "body": 400,
