@@ -22,7 +22,8 @@ Officer, Officer, Agent, Rookie) instead of the game's placeholder.
 an older copy, so the squadron refresh through EDLD's Frontier sign-in never
 ran there. Its `protocol.lock` is now committed too. Release builds vendor the newest
 client tag when they build and were not affected. A test now fails if the
-vendored engine lacks what EDLD hooks into.
+vendored engine lacks what EDLD hooks into, and `scripts/pre_release.sh` vendors
+the newest client release before each release so the copy cannot fall behind.
 
 ## Released in 20261125
 
