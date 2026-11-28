@@ -32,6 +32,7 @@ ORDER = (
     "pref-tab-automation",
     "pref-tab-survey",
     "pref-tab-data",
+    "pref-tab-edcmdr",
     "pref-tab-dossier",
     "pref-tab-overlay",
     "pref-tab-server",

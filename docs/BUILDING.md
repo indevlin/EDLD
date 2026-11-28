@@ -177,14 +177,13 @@ the checksum manifest, and publishes a release with notes taken from
 `CHANGELOG.md`.
 
 ED Commanders accepts pushes only from builds signed with a key it lists.
-The workflow writes the repository secret `EDCMDR_BUILD_KEY` into the vendored
-client (`vendor/edcmdr-client/edcmdr/_build_secret.py`) for the build and
-deletes it afterwards; without the secret the build succeeds with a warning,
+The workflow writes the repository secret `EDCMDR_BUILD_KEY` to
+`core/_edcmdr_build.py` (git-ignored) for the build and deletes it afterwards; without the secret the build succeeds with a warning,
 and its ED Commanders pushes are refused. EDLD's key is its own, not the EDCMDR
 client's: generate it with `php bin/keygen.php build edld-YYYYMM` in the EDCMDR
 server repository, put the private line in the secret, and add the public line
-to `build_keys` in the server's `config.php`. For a local build, the vendored
-client reads `$EDCMDR_BUILD_KEY` or `~/.config/edcmdr/build.key`.
+to `build_keys` in the server's `config.php`. For a local build or a source run,
+EDLD reads `$EDCMDR_BUILD_KEY` or `~/.config/edcmdr/build.key`.
 
 A version with a suffix — `20261101-rc1` — is published as a prerelease. To
 build everything without publishing, run the workflow manually from the Actions

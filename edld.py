@@ -680,6 +680,7 @@ core = CoreAPI(
     ui_mode=ui_mode,
 )
 data_provider._plugin_call = core.plugin_call
+data_provider.capi.reminders_on = lambda: bool(mgr.capi_cfg.get("SignInReminders", True))
 
 # Where the Server preferences page finds this profile's pairing files; the
 # running server itself is attached as core.server once it has started.

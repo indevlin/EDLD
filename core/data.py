@@ -433,6 +433,11 @@ class CAPISource:
         # OAuth flow or an explicit user disconnect (so the next failure
         # alerts again).  Frontier's refresh token has a ~30-day lifetime.
         self._auth_alerted: bool = False
+        # When Frontier ended the sign-in (refused a refresh), kept on disk so the
+        # reminder survives a restart; None while signed in or after Disconnect.
+        self._expired_at: float | None = None
+        # [CAPI] SignInReminders, wired up by edld.py; on unless turned off.
+        self.reminders_on = lambda: True
 
     def start(self) -> None:
         """Load saved tokens and start background poll thread."""
@@ -440,11 +445,48 @@ class CAPISource:
         if loaded.get("access_token"):
             self._tokens = loaded
             self._trace(f"Loaded saved CAPI tokens for {loaded.get('cmdr', 'unknown')}")
+        elif loaded.get("expired_at"):
+            self._expired_at = float(loaded["expired_at"])
         self._thread = threading.Thread(
             target=self._poll_worker, daemon=True, name="data-capi-poll"
         )
         self._thread.start()
         threading.Timer(STARTUP_DELAY_S, self._enqueue, args=(None, False)).start()
+        threading.Thread(target=self._reminder_loop, daemon=True, name="data-capi-reminder").start()
+
+    # ── Sign-in reminder ──────────────────────────────────────────────────────
+    #
+    # A lasting notice (alerts.push_notice): a few days before Frontier's sign-in
+    # runs out, and once it has ended. Re-checked every hour, so Clear hides it
+    # only until the next check; it goes when the player signs in again or
+    # disconnects, or for good with [CAPI] SignInReminders = false.
+
+    REMINDER_KEY = "capi-signin"
+
+    def reminder_text(self) -> str | None:
+        try:
+            from edcmdr_core.frontier import signin_notice
+        except ImportError:
+            return ("Your Frontier sign-in has ended. Reconnect CAPI in Options → Services."
+                    if self._expired_at else None)
+        text = signin_notice(self._tokens.get("signed_in"), self._expired_at)
+        return f"{text} Options → Services → Connect." if text else None
+
+    def check_reminder(self) -> None:
+        text = self.reminder_text() if self.reminders_on() else None
+        if text:
+            self._dp._plugin_call("alerts", "push_notice", self.REMINDER_KEY, "🔑", text)
+        else:
+            self._dp._plugin_call("alerts", "drop_notice", self.REMINDER_KEY)
+
+    def _reminder_loop(self) -> None:
+        time.sleep(STARTUP_DELAY_S + 5)
+        while True:
+            try:
+                self.check_reminder()
+            except Exception as exc:
+                self._trace(f"sign-in reminder failed: {exc}")
+            time.sleep(3600)
 
     def stop(self) -> None:
         try:
@@ -489,7 +531,9 @@ class CAPISource:
 
     def disconnect(self) -> None:
         self._tokens = {}
+        self._expired_at = None
         self._save_tokens({})
+        self.check_reminder()
         # User-initiated disconnect — suppress any pending "re-auth needed"
         # alert that would fire on the next refresh attempt; they already
         # know.  The flag re-arms naturally on the next successful auth.
@@ -568,8 +612,10 @@ class CAPISource:
         except urllib.error.HTTPError as e:
             if e.code in (400, 401):
                 self._tokens = {}
-                self._save_tokens({})
+                self._expired_at = time.time()
+                self._save_tokens({"expired_at": self._expired_at})
                 self._notify_reauth_needed()
+                self.check_reminder()
             return False
         except Exception:
             return False
@@ -696,8 +742,11 @@ class CAPISource:
                 "expiry":        time.time() + resp.get("expires_in", 7200),
                 "cmdr":          cmdr,
                 "scope":         SCOPE,
+                "signed_in":     time.time(),
             }
+            self._expired_at = None
             self._save_tokens(self._tokens)
+            self.check_reminder()
             # Successful re-auth — arm the notification path for the next
             # 30-day window.
             self._auth_alerted = False

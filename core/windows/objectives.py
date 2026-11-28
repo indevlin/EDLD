@@ -53,13 +53,22 @@ def time_left(expiry: str, now: datetime | None = None) -> str:
     return f"{m}m"
 
 
+def _asked(m: dict) -> int:
+    return int(m.get("total") or m.get("count") or 0)
+
+
+def tons_cell(delivered: int, asked: int, width: int = 0) -> str:
+    """Delivered of asked for, both right-aligned to ``width`` digits so a
+    column of them lines up on the slash: '  0 /  36', '120 / 289'."""
+    w = max(width, len(str(int(asked))))
+    return f"{int(delivered):>{w}} / {int(asked):>{w}}"
+
+
 def _tons(m: dict) -> str:
-    """Delivered of asked for: 0120 / 2890. Nothing is delivered until a
-    cargo depot says so."""
-    asked = int(m.get("total") or m.get("count") or 0)
-    if not asked:
-        return ""
-    return f"{int(m.get('delivered', 0) or 0):0{len(str(asked))}d} / {asked}"
+    """Delivered of asked for. Nothing is delivered until a cargo depot says
+    so. _kind_table pads a whole column to one width."""
+    asked = _asked(m)
+    return tons_cell(int(m.get("delivered", 0) or 0), asked) if asked else ""
 
 
 def _destination(m: dict) -> str:
@@ -99,7 +108,8 @@ _KINDS = {
 
 def _ore_held(core, ms: list) -> list:
     """Mining missions' commodities held: ship hold + own carrier (not the
-    squadron carrier). Green when held covers what is still to deliver."""
+    squadron carrier), and what the missions still need of each, delivered
+    tons taken off. Green when held covers what is still to deliver."""
     s = core.state
     ship = getattr(s, "cargo_items", {}) or {}
     carrier = getattr(s, "assets_carrier_hold", None) or {}
@@ -115,10 +125,11 @@ def _ore_held(core, ms: list) -> list:
     def count(hold, key):
         c = hold.get(key, 0)
         return int(c.get("count", 0) if isinstance(c, dict) else c or 0)
-    rows = [R.text(""), R.table("MINING ORE HELD", (("SHIP", 5), ("CARRIER", 7), ("HELD", 5)))]
+    rows = [R.text(""), R.table("MINING ORE HELD", (("SHIP", 5), ("CARRIER", 7), ("HELD", 5),
+                                                    ("NEEDED", 6)))]
     for key, (name, still) in sorted(need.items(), key=lambda kv: kv[1][0]):
         a, b = count(ship, key), count(carrier, key)
-        rows.append(R.cells(name, [str(a), str(b) if carrier else "—", str(a + b)],
+        rows.append(R.cells(name, [str(a), str(b) if carrier else "—", str(a + b), str(still)],
                             "val health-good" if a + b >= still > 0 else "val"))
     return rows
 
@@ -128,6 +139,11 @@ def _kind_table(category: str, ms: list, now) -> list:
         category, (f"{category.upper()} MISSION", None, lambda m: m.get("name") or "Mission", None))
     ready = [m.get("status") == "Ready" for m in ms]
     qty = [qty_of(m) if qty_of else "" for m in ms]
+    tons_w = len(str(sum(_asked(m) for m in ms))) if qty_of is _tons else 0
+    if tons_w:
+        # One width for the column, the total's included: the slashes line up.
+        qty = [tons_cell(int(m.get("delivered", 0) or 0), _asked(m), tons_w) if _asked(m) else ""
+               for m in ms]
     left = ["READY" if r else time_left(m.get("expiry", ""), now) for m, r in zip(ms, ready)]
     cols = []
     if qty_head:
@@ -147,7 +163,7 @@ def _kind_table(category: str, ms: list, now) -> list:
         if qty_head in ("TONS", "UNITS", "PAX"):
             asked = sum(int(m.get("total") or m.get("count") or m.get("passengers") or 0) for m in ms)
             if qty_head == "TONS" and asked:
-                tq = f"{sum(int(m.get('delivered', 0) or 0) for m in ms):0{len(str(asked))}d} / {asked}"
+                tq = tons_cell(sum(int(m.get("delivered", 0) or 0) for m in ms), asked, tons_w)
             else:
                 tq = str(asked) if asked else ""
         elif qty_head == "CREDITS":
@@ -406,3 +422,108 @@ def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None =
     for site in (x for x in sites if x.get("failed")):
         rows.append(R.text(f"[red]✗ {site.get('station') or site.get('system', 'Unknown')} — failed[/red]"))
     return Tab("colonisation", "Colonization", rows)
+
+
+# ── Squad Goals (ED Commanders) ──────────────────────────────────────────────
+
+SQUAD_OFF = ("Squad Goals are events your squadron's leader runs on ED Commanders. Switch on "
+             "Options › ED Commanders and verify with Frontier to see your squadron's.")
+_STATE = {"upcoming": "Starts in", "open": "Ends in", "settling": "Ended: reading late journal days",
+          "closing": "Ended: results being made final", "closed": "Final", "cancelled": "Cancelled"}
+
+
+def _amount(v, unit: str) -> str:
+    return cr(v) if unit == "cr" else f"{int(v or 0):,} t"
+
+
+def _iso(ts) -> str:
+    return datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+
+
+def _event_rows(ev: dict, me_pub: str | None, now) -> list:
+    unit = ev.get("unit") or ""
+    f = ev.get("filters") or {}
+    rows = [R.text(f"[bold cyan]{ev.get('title') or 'Squad Goal'}[/bold cyan]")]
+    if ev.get("note"):
+        rows.append(R.text(ev["note"], "dim"))
+    rows.append(R.kv("Measure", ev.get("metric_label") or ev.get("metric") or ""))
+    where = ", ".join(s.get("name", "") for s in f.get("systems") or [])
+    if where:
+        rows.append(R.kv("Where", where))
+    if f.get("commodities"):
+        rows.append(R.kv("Commodities", ", ".join(f["commodities"])))
+    if f.get("markets"):
+        rows.append(R.kv("Markets", ", ".join(str(m) for m in f["markets"])))
+    state = ev.get("state") or ""
+    if state == "upcoming":
+        rows.append(R.kv(_STATE[state], time_left(_iso(ev["starts"]), now)))
+    elif state == "open":
+        rows.append(R.kv(_STATE[state], time_left(_iso(ev["ends"]), now)))
+    else:
+        rows.append(R.kv("Status", _STATE.get(state, state),
+                         "val health-good" if state == "closed" else "val dim"))
+    rows.append(R.kv("Squadron total", _amount(ev.get("total"), unit)))
+    payout = ev.get("payout") or {}
+    if payout.get("pool"):
+        tiers = payout.get("tiers") or []
+        pool = cr(ev.get("pool"))
+        if tiers:
+            reached = ev.get("tier")
+            nxt = tiers[0 if reached is None else reached + 1] if reached is None or reached + 1 < len(tiers) else None
+            pool += f" of {cr(payout['pool'])}"
+            if nxt:
+                pool += f" · next at {_amount(nxt['target'], unit)}"
+        rows.append(R.kv("Prize pool", pool))
+    if ev.get("leader"):
+        rows.append(R.kv("Event id", ev.get("id", ""), "val dim"))
+    standings = ev.get("standings") or []
+    if not standings:
+        rows.append(R.text("No one has scored yet.", "dim"))
+        return rows
+    w = max(5, max(len(_amount(r.get("value"), unit)) for r in standings))
+    rows.append(R.table("COMMANDER", (("#", 3), ("AMOUNT", w), ("PAYOUT", 8))))
+    shown = standings[:10]
+    me = ev.get("me")
+    if me and me not in shown:
+        shown = shown + [me]
+    for r in shown:
+        mine = me_pub is not None and r.get("pub_id") == me_pub
+        rows.append(R.cells(f"CMDR {r.get('name', '')}",
+                            [str(r.get("rank", "")), _amount(r.get("value"), unit),
+                             fmt_reward(int(r.get("credits") or 0))],
+                            "val highlight" if mine else "val"))
+    return rows
+
+
+def squad_goals(core, now: datetime | None = None) -> Tab:
+    """Events of the squadron the commander is in, and those they were invited to, from ED Commanders."""
+    plugin = (getattr(core, "_plugins", None) or {}).get("edcmdr")
+    view = plugin.squad_view() if plugin is not None and hasattr(plugin, "squad_view") else {"state": "off"}
+    st = view.get("state")
+    if st == "off":
+        rows = [R.text(SQUAD_OFF, "dim")]
+    elif st == "none":
+        rows = [R.text("Waiting for EDLD to read your journals.", "dim")]
+    elif st == "switched-off":
+        rows = [R.text("You are not taking part in your squadron's events: switch on "
+                       "\"Take part in my squadron's events\" under Options › ED Commanders.", "dim")]
+    elif st == "unverified":
+        rows = [R.text(f"Verify CMDR {view.get('name', '')} with Frontier (Options › ED Commanders) "
+                       "to see your squadron's events.", "dim")]
+    else:
+        rows = []
+        if view.get("note"):
+            rows.append(R.text(f"[yellow]{view['note']}[/yellow]"))
+        if view.get("reconfirm"):
+            rows.append(R.text("Frontier has not confirmed your squadron lately: EDLD reads your journal "
+                               "from Frontier to confirm it.", "dim"))
+        events = view.get("events")
+        if events is None:
+            rows.append(R.text("Reading your squadron's events…", "dim"))
+        elif not events:
+            rows.append(R.text("No events running for your squadron.", "dim"))
+        for i, ev in enumerate(events or []):
+            if i or rows:
+                rows.append(R.text(""))
+            rows.extend(_event_rows(ev, view.get("pub_id"), now))
+    return Tab("squad", "Squad Goals", rows)

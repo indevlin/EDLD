@@ -12,6 +12,9 @@
             Action("check-gaps", "Check now"),
         )
 
+A ``"file"`` setting is a path: a text box with Browse… in the desktop window
+(``filter`` is the dialog's file filter), a text box in the terminal.
+
 ``Action`` draws a button; the component handles it in
 ``settings_action(action_id) -> str``, whose answer is shown beside it.
 """
@@ -31,10 +34,11 @@ class Heading:
 class Setting:
     key: str
     label: str
-    kind: Any                 # bool, int, float, str, or "choice"
+    kind: Any                 # bool, int, float, str, "choice", or "file" (a path, with Browse…)
     default: Any
     choices: tuple = ()       # (value, label) pairs, for "choice"
     help: str = ""
+    filter: str = ""          # for "file": the file dialog's filter, e.g. "Images (*.png *.jpg)"
 
 
 @dataclass(frozen=True)
@@ -94,7 +98,7 @@ class SettingsSpecMixin:
         out = {}
         for s in self.SETTINGS:
             if isinstance(s, Setting):
-                typ = bool if s.kind is bool else (str if s.kind == "choice" else s.kind)
+                typ = bool if s.kind is bool else (str if s.kind in ("choice", "file") else s.kind)
                 out[self._wid(s.key)] = (self.SETTINGS_SECTION, s.key, typ)
         return out
 
@@ -206,6 +210,8 @@ class SettingsSpecMixin:
                     w = dlg._bool_combo(bool(v), sec, s.key)
                 elif s.kind == "choice":
                     w = dlg._choice_pairs(str(v), sec, s.key, s.choices)
+                elif s.kind == "file":
+                    w = _file_row(dlg, str(v), sec, s.key, s.filter, s.label)
                 else:
                     w = dlg._text_edit(v, sec, s.key, s.kind)
                 if s.help:
@@ -223,3 +229,24 @@ class SettingsSpecMixin:
             return scroll
 
         return (self.SETTINGS_TAB[0], self.SETTINGS_TAB[1], _build)
+
+
+def _file_row(dlg, value: str, section: str, key: str, filt: str, title: str):
+    """A path box with Browse…, which opens the system's file chooser."""
+    from pathlib import Path
+    from PySide6.QtWidgets import QFileDialog, QHBoxLayout, QPushButton, QWidget
+    box = QWidget()
+    row = QHBoxLayout(box)
+    row.setContentsMargins(0, 0, 0, 0)
+    edit = dlg._text_edit(value, section, key, str)
+    btn = QPushButton("Browse…")
+
+    def _pick(_c=False):
+        start = str(Path(edit.text()).expanduser().parent) if edit.text().strip() else str(Path.home())
+        path, _ = QFileDialog.getOpenFileName(box, title, start, filt or "All files (*)")
+        if path:
+            edit.setText(path)          # records the setting, as typing does
+    btn.clicked.connect(_pick)
+    row.addWidget(edit, 1)
+    row.addWidget(btn, 0)
+    return box

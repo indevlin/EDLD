@@ -278,7 +278,7 @@ class SnapshotBuilder:
             "title": titles[0],
             # Shorter forms of the title, for a band too narrow for it.
             "titles": titles,
-            "sections": edcars.wire_sections(),
+            "sections": edcars.wire_sections(self.core),
             "omit": list(edcars.EDCARS_OMITS),
             "start": edcars.DEFAULT_SECTION,
             "strip": strip,

@@ -251,8 +251,9 @@ def test_every_other_kind_gets_a_table_of_its_own():
                      ("DONATION FACTION", ["CREDITS", "EXPIRES", "REWARD"])]
     cells = [(r[1], r[2], r[3]) for r in rows if r[0] == "cells"]
     assert cells[0] == ("Evacuation Shelter  (Wing)", ["1120 / 2890", "9h 10m", "5.0M"], "val")
-    assert cells[1] == ("Evacuation Shelter", ["00 / 98", "45m", "163k"], "val")
+    assert cells[1] == ("Evacuation Shelter", ["   0 /   98", "45m", "163k"], "val")
     assert cells[2] == ("Totals", ["1120 / 2988", "", "5.2M"], "val")
+    assert len({len(c[1][0]) for c in cells[:3]}) == 1, "one width: the slashes line up"
     assert cells[3] == ("Ochoa City · Hyades", ["READY", "—"], "val health-good")
     assert cells[4] == ("Eurybia Blue Mafia", ["1.0M", "EXPIRED", "—"], "val")
 
@@ -340,10 +341,30 @@ def test_mining_missions_show_the_ore_held_beneath_them():
     s.assets_squadron_carrier_hold = {"samarium": 500}          # not counted
     rows = _rows(s)
     i = next(i for i, r in enumerate(rows) if r[0] == "table" and r[1] == "MINING ORE HELD")
-    assert rows[i][2] == [("SHIP", 5), ("CARRIER", 7), ("HELD", 5)]
+    assert rows[i][2] == [("SHIP", 5), ("CARRIER", 7), ("HELD", 5), ("NEEDED", 6)]
     held = {r[1]: (r[2], r[3]) for r in rows[i + 1:] if r[0] == "cells"}
-    assert held["Bromellite"] == (["64", "150", "214"], "val health-good")      # 198 needed
-    assert held["Samarium"] == (["0", "10", "10"], "val")                       # 36 needed
+    assert held["Bromellite"] == (["64", "150", "214", "198"], "val health-good")
+    assert held["Samarium"] == (["0", "10", "10", "36"], "val")
+
+
+def test_mining_tons_line_up_and_needed_takes_off_what_is_delivered():
+    s = MonitorState()
+    s.all_missions = {
+        1: {"category": "Mining", "commodity": "Osmium", "commodity_key": "osmium", "count": 159,
+            "delivered": 20, "expiry": "2026-12-04T16:00:00Z", "reward": 23_400_000, "status": "Active"},
+        2: {"category": "Mining", "commodity": "Osmium", "commodity_key": "osmium", "count": 36,
+            "expiry": "2026-12-04T17:00:00Z", "reward": 9_300_000, "status": "Active"},
+        3: {"category": "Mining", "commodity": "Methanol Monohydrate Crystals",
+            "commodity_key": "methanolmonohydratecrystals", "count": 45,
+            "expiry": "2026-12-04T16:00:00Z", "reward": 2_100_000, "status": "Active"},
+    }
+    rows = _rows(s)
+    tons = [r[2][0] for r in rows if r[0] == "cells" and r[1] in ("Osmium", "Methanol Monohydrate Crystals", "Totals")][:4]
+    assert tons == [" 20 / 159", "  0 /  36", "  0 /  45", " 20 / 240"]
+    i = next(i for i, r in enumerate(rows) if r[0] == "table" and r[1] == "MINING ORE HELD")
+    held = {r[1]: r[2] for r in rows[i + 1:] if r[0] == "cells"}
+    assert held["Osmium"][3] == "175", "159 + 36, less the 20 delivered"
+    assert held["Methanol Monohydrate Crystals"][3] == "45"
 
 
 def test_the_mission_board_keys_a_commodity_as_the_hold_does():

@@ -1,8 +1,100 @@
 # EDLD CHANGELOG
 
-Last updated: 20261126
+Last updated: 20261128
 
 ---
+
+## Released in 20261128
+
+### Added: Squad Goals (beta)
+
+**Beta:** Squad Goals is new and still being tested, and is labelled so in
+EDLD. Feedback and bug reports are very welcome on the Indevlin Discord
+(https://discord.indevlin.com).
+
+Events a squadron's verified leader runs for their squadron on ED Commanders: a
+mining push, a bounty week, a trade run or a construction drive, with a prize
+pool shared out by place. Members take part just by playing, signed in to
+Frontier; only what Frontier's own journal confirms counts.
+
+- A **Squad Goals** button in the EDCARS rail, between Objectives and
+  Exploration, and a **Squad Goals** menu (**Ctrl+U**, in the terminal too),
+  shown only when you are signed in to Frontier and in a squadron or invited
+  to an event. Its **Events** tab shows each event with the squadron's total, the prize pool
+  and the standings, your own row highlighted; EDAM gets the same page. Nothing
+  about events is on the website.
+- **Create event**, a tab for the squadron's verified leader only, in groups
+  laid side by side on a wide window: title and
+  note, first and last day from calendars (whole UTC days, 00:00:00 to
+  23:59:59), the measure, prize pool, reward tiers, shares for the top places
+  and for everyone else, a participation floor, and an example payout that
+  updates as you type. Optionally one star system (by name or number, checked
+  to be real), a station, outpost, settlement or carrier in it chosen from a
+  list, and commodities with suggestions as you type and close misses
+  understood. Then End now, Finalize results, Cancel event, Make invitation…,
+  removing or restoring a member, and the squadron's Discord webhook with
+  Save, Forget, Announce now and automatic announcements kept by edcmdr.com.
+  Event ids stay out of sight.
+- **Options → ED Commanders** keeps **Take part in my squadron's events** (on
+  unless switched off) and **Invitation code** with **Use invitation**.
+- See docs/EDCMDR.md for the plain-language guide.
+
+### Added: one Frontier sign-in
+
+EDLD verifies your commander with ED Commanders using its own Frontier CAPI
+sign-in, by itself, within a minute of signing in: no code to compare and no
+second sign-in on edcmdr.com. **Verify with Frontier** opens Frontier's
+sign-in if there is none yet, and otherwise takes the commander over from
+another computer.
+
+### Changed: Codex portrait
+
+**Screenshot file** has a **Browse…** button that opens the file chooser,
+instead of a path to type.
+
+### Fixed: check boxes and date boxes
+
+Check boxes are drawn in the theme, so an unticked one can be seen on a dark
+theme, and date boxes have their arrow beside the date and a calendar in the
+theme's colors.
+
+### Changed: ED Commanders, built in
+
+EDLD publishes to ED Commanders itself, through EDCMDR-core (the library the
+EDCMDR client uses), instead of running a copy of the client inside it. It
+reads your journals once, from EDLD's own journal index, rather than a second
+time alongside EDLD.
+
+**Options → ED Commanders** is a page of its own, the same in the desktop
+window and the terminal dashboard (where there was no way to set it before):
+what to share and each delay, Verify with Frontier, Open my page, Push now,
+Status, your Codex portrait, a verified leader's squadron settings, and Forget
+on EDCMDR (pressed twice). Sharing saved there applies to every commander EDLD
+has a profile for and is shared with the EDCMDR client; a change made in the
+client shows up here. Your existing choices carry over.
+
+### Added: Frontier sign-in reminders
+
+A lasting notice a few days before Frontier's sign-in runs out, and once it has
+ended, until you connect CAPI again; Clear hides it until the next hourly check.
+EDLD now remembers across a restart that the sign-in ended. **Sign-in
+reminders** under Frontier CAPI in Options → Services turns it off for good.
+
+### Fixed: Objectives
+
+The TONS column of mining, delivery, collection and smuggling missions lines
+up: every row, Totals included, is padded to the same width, so the slashes
+sit in one column (`  0 /  36` under `  0 / 159`) instead of each row
+zero-padding to its own width. **Mining ore held** gains a **NEEDED** column:
+what your mining missions still need of each commodity, delivered tons taken
+off, beside what you hold.
+
+### Removed
+
+`vendor/edcmdr-client`, `scripts/sync_edcmdr.py` and `scripts/vendor_edcmdr.sh`.
+`scripts/pre_release.sh` now stops a release whose pinned EDCMDR-core tag is
+not on GitHub yet. Source runs need `edcmdr-core` (in `requirements.txt`;
+`install.sh` installs it).
 
 ## Released in 20261126
 

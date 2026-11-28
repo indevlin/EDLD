@@ -29,6 +29,8 @@ class ObjectivesBlock(TuiBlock):
                 yield VerticalScroll(id="missions-scroll")
             with TabPane("Colonization", id="obj-tab-colon"):
                 yield VerticalScroll(id="colon-scroll")
+            with TabPane("Squad Goals", id="obj-tab-squad"):
+                yield VerticalScroll(id="squad-scroll")
 
     def on_mount(self) -> None:
         # Collapse state carried over from the Colonization window:
@@ -50,6 +52,7 @@ class ObjectivesBlock(TuiBlock):
         self._fill("#missions-scroll", W.missions(self.core).rows)
         self._fill("#colon-scroll", W.colonisation(self.core, self._expanded,
                                                    self._expanded_sys).rows)
+        self._fill("#squad-scroll", W.squad_goals(self.core).rows)
 
     def _fill(self, selector: str, rows) -> None:
         try:

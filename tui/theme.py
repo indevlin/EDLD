@@ -418,6 +418,18 @@ PreferencesScreen Button { height: 3; margin-left: 1; }
 /* Cargo footer: two controls then the target name taking the slack */
 #cargo-target-lbl { width: 1fr; text-align: right; }
 
+/* ── Squad Goals screen ────────────────────────────────────────────────────── */
+SquadScreen { align: center middle; }
+#squad-outer {
+    width: 70%;
+    height: 85%;
+    background: $block-bg;
+    border: solid $accent;
+    padding: 1 2;
+}
+#block-squad   { height: 1fr; }
+#squad-scroll  { height: 1fr; }
+
 /* ── Sell table modal ──────────────────────────────────────────────────────── */
 SellModal { align: center middle; }
 

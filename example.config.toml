@@ -147,6 +147,7 @@ CarrierJumpComplete  = 2   # Carrier arrived at its destination
 #
 [CAPI]
 Enabled = false
+SignInReminders = true   # a lasting notice before and after Frontier's sign-in runs out
 
 # ── Colonisation ─────────────────────────────────────────────────────────────
 # Local tracking of construction site requirements and delivery progress needs
@@ -266,10 +267,10 @@ ApiKey        = ""                 # from Inara Settings → API Key
 
 # ── ED Commanders ────────────────────────────────────────────────────────────
 # Publishes the sections of your commander you choose to edcmdr.com, each on
-# its own delay, as the EDCMDR client does.  What to share, verification with
-# Frontier and your portrait are set in Options → Services → ED Commanders
-# settings.  Keys and settings are shared with the EDCMDR client; only one of
-# the two publishes at a time.  See docs/EDCMDR.md.
+# its own delay.  Turn it on, choose what to share, verify with Frontier and
+# send your portrait in Options → ED Commanders, which writes the rest of this
+# section.  Keys and sharing are shared with the EDCMDR client; only one of the
+# two publishes at a time.  See docs/EDCMDR.md.
 
 [EDCMDR]
 Enabled       = false

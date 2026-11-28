@@ -29,6 +29,9 @@ class ObjectivesBlock(GuiBlock):
         self._colon_scroll = RowScroll()
         self._tabs.addTab(self._colon_scroll, "Colonization")
 
+        self._squad = RowScroll()
+        self._tabs.addTab(self._squad, "Squad Goals")
+
         layout.addWidget(self._tabs, 1)
 
     def row_action(self, action: str) -> None:
@@ -44,6 +47,7 @@ class ObjectivesBlock(GuiBlock):
         from core.windows import objectives as W
         self._missions.set_rows(self.render_rows(W.missions(self.core).rows))
         self._refresh_colonisation()
+        self._squad.set_rows(self.render_rows(W.squad_goals(self.core).rows))
 
     def _on_hdr_click(self, *, system_name=None, market_id=None) -> None:
         """Collapse or expand the group whose header was clicked."""

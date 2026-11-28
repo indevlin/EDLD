@@ -328,6 +328,12 @@ class PreferencesScreen(ModalScreen):
                                          variant="primary")
                             yield Button("Disconnect", id="btn-capi-disconnect",
                                          variant="default")
+                        with Horizontal(classes="pref-row"):
+                            yield Label("Sign-in reminders", classes="key")
+                            yield Select(
+                                    [("Off", "false"), ("On", "true")],
+                                    value="true" if cfg.capi_cfg.get("SignInReminders", True) else "false",
+                                    id="capi-reminders", classes="pref-bool-sel", allow_blank=False)
                         yield Label("EDDN  (Elite Dangerous Data Network)  ⚠",
                                     classes="pref-section")
                         with Horizontal(classes="pref-row"):
@@ -619,6 +625,7 @@ class PreferencesScreen(ModalScreen):
             "edastro-enabled":("EDAstro",   "Enabled"),
             "edastro-carrier":("EDAstro",   "UploadCarrierEvents"),
             "inara-enabled":  ("Inara",     "Enabled"),
+            "capi-reminders": ("CAPI",      "SignInReminders"),
             "ksw-master":     ("SessionMgmt", "Enabled"),
             "ksw-slf":        ("SessionMgmt", "QuitOnSLFDead"),
             "ksw-fuel":       ("SessionMgmt", "QuitOnLowFuel"),

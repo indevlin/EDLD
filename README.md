@@ -15,6 +15,9 @@
 [![EDAM on Google Play](https://img.shields.io/badge/EDAM-Google%20Play-green?style=flat-square)](https://play.google.com/store/apps/details?id=com.indevlin.edam)
 [![Discord](https://img.shields.io/badge/Discord-Indevlin-5865F2?style=flat-square)](https://discord.indevlin.com)
 
+<ins>New: ED Commanders and Squad Goals (beta)</ins></br>
+Publish your commander to edcmdr.com · Run squadron events scored from Frontier's own journal
+
 <ins>Career & real-time session tracking</ins></br>
 Combat · Trade · Mining · Exploration · Missions · Exobiology · PowerPlay · On foot · Assets, and more
 
@@ -40,6 +43,8 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 
 ## Highlights
 
+- **Squad Goals: events for your squadron (beta).** A squadron leader sets up a mining push, a bounty week, a trade run or a construction drive in a few clicks: which days, what counts, where, and a prize pool shared out by place, with goal tiers that unlock more of it as the squadron gets there. Members take part just by playing. Only what Frontier's own journal confirms counts, so nothing can be typed in or edited, and the standings are for the squadron's eyes only — in EDLD, on EDAM, and posted to your Discord if you like, on a schedule the server keeps even when the leader is offline. Squad Goals is in beta and still being tested; feedback and bug reports are very welcome on the [Indevlin Discord](https://discord.indevlin.com).
+- **ED Commanders.** Publish your commander to [edcmdr.com](https://edcmdr.com): your dossier, squadron roster and leaderboards, only the sections you choose, each on its own delay. One Frontier sign-in does everything: EDLD verifies you with the sign-in it already holds.
 - **EDCARS, in four consoles.** A console-styled window with a header band and a rail of sections, dressed as EDCARS's own, ORDER (an Imperial fleet console), REBEL (a Rebel ops board) or ROGUE (an independent freighter's cockpit), each with a matching theme — on the desktop and on EDAM alike.
 - **Massacre stacks, laid out as the game counts them.** Each target faction, the kills its stack needs and has made, and under it each source faction's kills, missions done and reward. Kills are counted from bounties, conflict-zone bonds, murders of scanned target-faction ships and targets destroyed before their scan finished, and every redirect brings the count back in step with the game.
 - **Engineering, planned to the last roll.** Put any ship beside a build from an EDSY, Coriolis or EDOMH link or SLEF, and see the modules to buy, the grades and experimentals left, the materials that takes against what you hold, and a shopping list for the nearest material traders — with no downloads, from tables EDLD ships with.
@@ -88,7 +93,8 @@ All game state flows through a unified `DataProvider` — CAPI when authenticate
 | 🛡️ **Unified Data Provider** | Single source of truth for all game state — CAPI › journal › Status.json |
 | 🔐 **CAPI Authentication** | OAuth2 to Frontier's Companion API for authoritative fleet roster, market prices, fleet carrier finance, and squadron identity |
 | 🌐 **Data Contributions** | Opt-in journal uploading to EDDN, EDSM, EDAstro, and Inara, sent at every dock and undock, jump, ship or vehicle change, death and loadout change |
-| 🏅 **ED Commanders** | Opt-in publishing to [edcmdr.com](https://edcmdr.com), the public commander showcase: your dossier, squadron roster and leaderboards, only the sections you choose, each on its own delay ([guide](docs/EDCMDR.md)) |
+| 🏅 **ED Commanders** | Opt-in publishing to [edcmdr.com](https://edcmdr.com), the public commander showcase: your dossier, squadron roster and leaderboards, only the sections you choose, each on its own delay. Verified with EDLD's own Frontier sign-in: one sign-in, no second trip to a website. Sharing nothing keeps you off the site entirely ([guide](docs/EDCMDR.md)) |
+| 🏆 **Squad Goals** (beta) | In beta and still being tested; feedback and bug reports welcome on the [Indevlin Discord](https://discord.indevlin.com). Events a squadron's leader runs from EDLD's Squad Goals section (the EDCARS rail, or the menu): tons refined, bounty or combat bond value earned, tons or credits sold, or tons delivered to construction, over whole days, optionally in one system, at one station and for chosen commodities. A prize pool shared by place, with an example payout shown as you set it up, and optional reward tiers. Members take part automatically when signed in to Frontier; only Frontier-confirmed journal entries count. Standings in EDLD, the terminal (Ctrl+U) and EDAM, for the squadron and invited commanders only, and announced to Discord by edcmdr.com on a schedule if the leader wants ([guide](docs/EDCMDR.md#squad-goals)) |
 | 🏗️ **Colonization Tracking** | Construction site resource requirements, delivery progress, and Raven Colonial integration (experimental) — in the Objectives window's second tab. A site you stop tracking, or have not delivered to in seven days, is cleared |
 | 🎨 **Themes** | Twelve built-in color themes (Elite Dangerous orange; EDLD default, dark, green, blue, purple, red, yellow and light; and ORDER, REBEL and ROGUE, made for EDCARS's consoles) plus a documented template for custom themes — all render in both the terminal and desktop interfaces, and on a paired EDAM device. The desktop windows' text face and size, row shading, and values at the edge or beside their labels are set alongside ([guide](docs/THEMING.md)) |
 | 🔌 **Components and Profiles** | Every feature is a self-contained component in `components/`, with its data kept per commander. Named config profiles override any setting for one commander or one machine, selected with `-p` or automatically by commander name |
@@ -224,6 +230,7 @@ desktop window carries all of them on its menus as well.
 | `Ctrl+T` | End the game session immediately |
 | `Ctrl+D` | Add or edit the surface deposit you are parked on — which it is depends on where you are standing ([guide](docs/SURFACE_SURVEY.md)) |
 | `Ctrl+G` | Push pending deposits and ring hotspots to the shared survey sheet |
+| `Ctrl+U` | Squad Goals (beta) — when you are signed in to Frontier and in a squadron |
 | `Ctrl+Q` | Quit EDLD |
 | `Ctrl+P` | Command palette (terminal dashboard only) |
 | `F11` | Full screen (desktop window only) |
