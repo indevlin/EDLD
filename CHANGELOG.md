@@ -6,6 +6,26 @@ Last updated: 20261128
 
 ## Released in 20261128
 
+### Added: Squad Goals
+
+Events a verified squadron leader runs for their squadron on ED Commanders:
+tons refined, bounty or combat bond value earned, tons or credits sold, or
+tons delivered to construction, optionally in chosen star systems, markets
+and commodities, with a prize pool paid out by place.
+
+- **Objectives → Squad Goals** (also on EDAM) shows your squadron's events and
+  any you were invited to, with the squadron's total, the prize pool and the
+  standings, your own row highlighted. Nothing about events is on the website.
+- **Options → ED Commanders**: **Take part in my squadron's events** (on unless
+  switched off), **Invitation code** with **Use invitation**, **Update
+  standings now**, and for the leader the event's settings with **Save event**,
+  **End event now**, **Finalize results**, **Cancel event**, **Make
+  invitation**, **Remove from events** / **Restore to events** and a **Discord
+  webhook**.
+- Only what Frontier's own journal shows counts, read by ED Commanders with
+  EDLD's Frontier CAPI sign-in while an event is open; without that sign-in
+  the tab says so. See docs/EDCMDR.md.
+
 ### Changed: ED Commanders, built in
 
 EDLD publishes to ED Commanders itself, through EDCMDR-core (the library the

@@ -422,3 +422,108 @@ def colonisation(core, expanded: dict | None = None, expanded_sys: dict | None =
     for site in (x for x in sites if x.get("failed")):
         rows.append(R.text(f"[red]✗ {site.get('station') or site.get('system', 'Unknown')} — failed[/red]"))
     return Tab("colonisation", "Colonization", rows)
+
+
+# ── Squad Goals (ED Commanders) ──────────────────────────────────────────────
+
+SQUAD_OFF = ("Squad Goals are events your squadron's leader runs on ED Commanders. Switch on "
+             "Options › ED Commanders and verify with Frontier to see your squadron's.")
+_STATE = {"upcoming": "Starts in", "open": "Ends in", "settling": "Ended: reading late journal days",
+          "closing": "Ended: results being made final", "closed": "Final", "cancelled": "Cancelled"}
+
+
+def _amount(v, unit: str) -> str:
+    return cr(v) if unit == "cr" else f"{int(v or 0):,} t"
+
+
+def _iso(ts) -> str:
+    return datetime.fromtimestamp(int(ts), timezone.utc).isoformat()
+
+
+def _event_rows(ev: dict, me_pub: str | None, now) -> list:
+    unit = ev.get("unit") or ""
+    f = ev.get("filters") or {}
+    rows = [R.text(f"[bold cyan]{ev.get('title') or 'Squad Goal'}[/bold cyan]")]
+    if ev.get("note"):
+        rows.append(R.text(ev["note"], "dim"))
+    rows.append(R.kv("Measure", ev.get("metric_label") or ev.get("metric") or ""))
+    where = ", ".join(s.get("name", "") for s in f.get("systems") or [])
+    if where:
+        rows.append(R.kv("Where", where))
+    if f.get("commodities"):
+        rows.append(R.kv("Commodities", ", ".join(f["commodities"])))
+    if f.get("markets"):
+        rows.append(R.kv("Markets", ", ".join(str(m) for m in f["markets"])))
+    state = ev.get("state") or ""
+    if state == "upcoming":
+        rows.append(R.kv(_STATE[state], time_left(_iso(ev["starts"]), now)))
+    elif state == "open":
+        rows.append(R.kv(_STATE[state], time_left(_iso(ev["ends"]), now)))
+    else:
+        rows.append(R.kv("Status", _STATE.get(state, state),
+                         "val health-good" if state == "closed" else "val dim"))
+    rows.append(R.kv("Squadron total", _amount(ev.get("total"), unit)))
+    payout = ev.get("payout") or {}
+    if payout.get("pool"):
+        tiers = payout.get("tiers") or []
+        pool = cr(ev.get("pool"))
+        if tiers:
+            reached = ev.get("tier")
+            nxt = tiers[0 if reached is None else reached + 1] if reached is None or reached + 1 < len(tiers) else None
+            pool += f" of {cr(payout['pool'])}"
+            if nxt:
+                pool += f" · next at {_amount(nxt['target'], unit)}"
+        rows.append(R.kv("Prize pool", pool))
+    if ev.get("leader"):
+        rows.append(R.kv("Event id", ev.get("id", ""), "val dim"))
+    standings = ev.get("standings") or []
+    if not standings:
+        rows.append(R.text("No one has scored yet.", "dim"))
+        return rows
+    w = max(5, max(len(_amount(r.get("value"), unit)) for r in standings))
+    rows.append(R.table("COMMANDER", (("#", 3), ("AMOUNT", w), ("PAYOUT", 8))))
+    shown = standings[:10]
+    me = ev.get("me")
+    if me and me not in shown:
+        shown = shown + [me]
+    for r in shown:
+        mine = me_pub is not None and r.get("pub_id") == me_pub
+        rows.append(R.cells(f"CMDR {r.get('name', '')}",
+                            [str(r.get("rank", "")), _amount(r.get("value"), unit),
+                             fmt_reward(int(r.get("credits") or 0))],
+                            "val highlight" if mine else "val"))
+    return rows
+
+
+def squad_goals(core, now: datetime | None = None) -> Tab:
+    """Events of the squadron the commander is in, and those they were invited to, from ED Commanders."""
+    plugin = (getattr(core, "_plugins", None) or {}).get("edcmdr")
+    view = plugin.squad_view() if plugin is not None and hasattr(plugin, "squad_view") else {"state": "off"}
+    st = view.get("state")
+    if st == "off":
+        rows = [R.text(SQUAD_OFF, "dim")]
+    elif st == "none":
+        rows = [R.text("Waiting for EDLD to read your journals.", "dim")]
+    elif st == "switched-off":
+        rows = [R.text("You are not taking part in your squadron's events: switch on "
+                       "\"Take part in my squadron's events\" under Options › ED Commanders.", "dim")]
+    elif st == "unverified":
+        rows = [R.text(f"Verify CMDR {view.get('name', '')} with Frontier (Options › ED Commanders) "
+                       "to see your squadron's events.", "dim")]
+    else:
+        rows = []
+        if view.get("note"):
+            rows.append(R.text(f"[yellow]{view['note']}[/yellow]"))
+        if view.get("reconfirm"):
+            rows.append(R.text("Frontier has not confirmed your squadron lately: EDLD reads your journal "
+                               "from Frontier to confirm it.", "dim"))
+        events = view.get("events")
+        if events is None:
+            rows.append(R.text("Reading your squadron's events…", "dim"))
+        elif not events:
+            rows.append(R.text("No events running for your squadron.", "dim"))
+        for i, ev in enumerate(events or []):
+            if i or rows:
+                rows.append(R.text(""))
+            rows.extend(_event_rows(ev, view.get("pub_id"), now))
+    return Tab("squad", "Squad Goals", rows)

@@ -210,7 +210,7 @@ SECTIONS: tuple[Section, ...] = (
     Section(
         "objectives", "Objectives",
         parts=(Part("objectives", title="Objectives"),),
-        groups=("missions", "colonisation"),
+        groups=("missions", "colonisation", "squad_goals"),
     ),
     Section(
         "exploration", "Exploration",

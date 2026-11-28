@@ -92,7 +92,7 @@ def test_every_desktop_window_has_its_panels():
             "commander.info",
             "commander.ranks", "commander.wallet", "commander.ships",
             "commander.stored-modules", "crew.crew", "exploration.system",
-            "missions.missions", "colonisation.colonisation",
+            "missions.missions", "colonisation.colonisation", "squad_goals.events",
             "session.session", "career.summary"} <= ids
 
 

@@ -13,6 +13,7 @@
                  in the header as "tools"
     missions     missions.missions                          Objectives
     colonization colonisation.colonisation                  Objectives
+    squad_goals  squad_goals.events                         Objectives (Squad Goals)
     mining       mining.hotspots, mining.sites (filter)     Mining
     session      session.session                            Career / Session
     career       career.summary, .combat, … .powerplay      Career / Session
@@ -98,6 +99,9 @@ def panels(core, fault=lambda name, exc: None) -> list[dict]:
     t = _safe(fault, "colonisation", objectives.colonisation, core)
     if t is not None:
         out.append(panel("colonisation.colonisation", t.title, "colonisation", t, 1600))
+    t = _safe(fault, "squad goals", objectives.squad_goals, core)
+    if t is not None:
+        out.append(panel("squad_goals.events", t.title, "squad_goals", t, 1650))
     for order, fn in ((1700, mining.hotspots), (1701, mining.surface_sites)):
         t = _safe(fault, "mining", fn, core, "", False)
         if t is not None:

@@ -110,7 +110,7 @@ def test_wire_panels_find_their_section(pid, group, want):
 #: Every group EDLD sends that EDCARS draws: core/windows/wire.py's, and the
 #: protocol's own. "status" is the Dashboard style's (H.EDCARS_OMITS).
 WIRE_GROUPS = {"commander", "ship", "crew", "exploration", "navigation", "missions",
-               "colonisation", "vessel", "session", "career", "alerts", "engineering"}
+               "colonisation", "squad_goals", "vessel", "session", "career", "alerts", "engineering"}
 
 
 def test_every_group_edld_sends_has_a_section():
