@@ -108,7 +108,12 @@ def event_rows(ev: dict, me_pub: str | None, now=None) -> list:
     return rows
 
 
-def events_tab(core, now: datetime | None = None) -> Tab:
+BETA_NOTE = ("[bold yellow]BETA[/bold yellow] · Squad Goals is new and still being tested: check standings and payouts before "
+             "paying anyone. Feedback and bug reports are welcome on the Indevlin Discord (discord.indevlin.com).")
+
+
+def events_tab(core, now: datetime | None = None, beta: bool = True) -> Tab:
+    """The events, under the beta notice unless ``beta`` is off (the desktop panel shows its own)."""
     p = plugin(core)
     view = p.squad_view() if p is not None and hasattr(p, "squad_view") else {"state": "off"}
     st = view.get("state")
@@ -134,7 +139,9 @@ def events_tab(core, now: datetime | None = None) -> Tab:
             if i or rows:
                 rows.append(R.text(""))
             rows.extend(event_rows(ev, view.get("pub_id"), now))
-    return Tab("squad", "Squad Goals", rows)
+    if beta:
+        rows = [R.text(BETA_NOTE), R.text("")] + rows
+    return Tab("squad", "Squad Goals · Beta", rows)
 
 
 # ── The leader's payout preview ─────────────────────────────────────────────
@@ -191,12 +198,16 @@ def preview(p: dict, people: int = 10) -> str:
     full = dict(p, tiers=[])
     res = payouts(vals, full)
     by_place = [r["credits"] for r in res["standings"]]
-    parts = [f"{_ordinal(i + 1)} {fmt_reward(c)}" for i, c in enumerate(by_place[:5])]
-    if len(by_place) > 5:
-        rest = sorted(set(by_place[5:]), reverse=True)
-        parts.append("the rest " + (fmt_reward(rest[0]) if len(rest) == 1 else
-                                    f"{fmt_reward(rest[-1])} to {fmt_reward(rest[0])}") + " each")
+    paid = [c for c in by_place if c > 0]
+    parts = [f"{_ordinal(i + 1)} {fmt_reward(c)}" for i, c in enumerate(paid[:5])]
+    if len(paid) > 5:
+        rest = sorted(set(paid[5:]), reverse=True)
+        parts.append(f"{_ordinal(6)} to {_ordinal(len(paid))} "
+                     + (fmt_reward(rest[0]) if len(rest) == 1 else f"{fmt_reward(rest[-1])} to {fmt_reward(rest[0])}")
+                     + " each")
     line = f"With {people} commanders taking part: " + ", ".join(parts) + "."
+    if len(paid) < len(by_place):
+        line += " Nobody below " + _ordinal(len(paid)) + " is paid." if paid else " Nobody is paid."
     tiers = p.get("tiers") or []
     if tiers:
         line += " That is the full pool; " + "; ".join(

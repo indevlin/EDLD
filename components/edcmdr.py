@@ -23,10 +23,11 @@ membership current, and lets the server read Frontier's journal for Squad
 Goals. There is no second sign-in in the browser.
 
 Squad Goals: EDCMDR-core reads the commander's events and, while one is open,
-has the server read Frontier's journal. The Squad Goals window
-(gui/squad_goals.py; core/windows/squad.py, also on EDAM and in the terminal)
-shows them to a commander signed in to Frontier and in a squadron, and gives
-the squadron's verified leader the event form. Options → ED Commanders holds
+has the server read Frontier's journal. The Squad Goals section of EDCARS (or
+the menu's window in the Dashboard style; gui/squad_goals.py, and
+core/windows/squad.py for EDAM and the terminal) shows them to a commander
+signed in to Frontier and in a squadron, and gives the squadron's verified
+leader the Create event tab. Squad Goals is in beta. Options → ED Commanders holds
 the take-part switch and invitation codes.
 
 Release builds sign pushes with EDLD's own build key, written to
@@ -113,10 +114,11 @@ def _settings_spec() -> tuple:
         Setting("SqRecruiting", "Recruiting", "choice", "", choices=RECRUITING),
         Setting("SqTagline", "Tagline", str, ""),
         Action("squadron", "Save squadron"),
-        Heading("Squad Goals",
-                "Your squadron's events are under the Squad Goals menu once you are signed in to Frontier "
-                "(Options › Services › Frontier CAPI) and in a squadron; a leader runs them from there. If you were "
-                "invited to an event, paste the code here."),
+        Heading("Squad Goals (beta)",
+                "Beta, still being tested: feedback and bug reports are welcome on the Indevlin Discord. Your "
+                "squadron's events are in the Squad Goals section (the EDCARS rail, or the Squad Goals menu) once you "
+                "are signed in to Frontier (Options › Services › Frontier CAPI) and in a squadron; a leader creates "
+                "them there. If you were invited to an event, paste the code here."),
         Setting("JoinCode", "Invitation code", str, ""),
         Action("ev_join", "Use invitation"),
         Heading("Forget"),
@@ -425,7 +427,7 @@ class EDCMDRPlugin(SettingsSpecMixin, BasePlugin):
         sq = (c or {}).get("leader_squadron") or {}
         return f"Saved for {sq.get('name') or 'your squadron'}. Its page shows it now."
 
-    # ── Squad Goals ─────────────────────────────────────────────────────────
+    # ── Frontier sign-in: one for EDLD and ED Commanders ────────────────────
     def _capi(self):
         return getattr(getattr(self.core, "data", None), "capi", None)
 
@@ -506,7 +508,7 @@ class EDCMDRPlugin(SettingsSpecMixin, BasePlugin):
                 return "Paste the invitation code into Invitation code and save Options first."
             j = self.engine.event_join(fid, code)
             return (f"You are in {j.get('event', {}).get('title') or 'the event'}. "
-                    "It shows under the Squad Goals menu.")
+                    "It shows in Squad Goals.")
         return ""
 
     # ── status ──────────────────────────────────────────────────────────────

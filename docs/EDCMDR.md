@@ -34,6 +34,10 @@ you turn it on, and nothing is published until you choose what to share.
 
 ## Squad Goals
 
+> **Beta.** Squad Goals is new and still being tested: expect rough edges, and
+> check standings and payouts before paying anyone out. Feedback and bug
+> reports are very welcome on the [Indevlin Discord](https://discord.indevlin.com).
+
 Squad Goals are events your squadron's leader runs: a mining push, a bounty
 week, a trade run, a construction drive. Everyone in the squadron who is
 signed in to Frontier takes part just by playing. Only what Frontier's own
@@ -43,8 +47,10 @@ faked, and a session the game rolled back does not count either.
 ### Taking part
 
 - Sign in to Frontier in **Options → Services → Frontier CAPI**. That is all.
-  A **Squad Goals** menu appears once you are signed in and in a squadron
-  (or invited to an event), and **Ctrl+U** opens it in the terminal too.
+  Once you are signed in and in a squadron (or invited to an event), a
+  **Squad Goals** button appears in the EDCARS rail between Objectives and
+  Exploration. In the Dashboard style it is the **Squad Goals** menu, and
+  **Ctrl+U** opens it in either, and in the terminal.
 - The **Events** tab shows each event: what counts, where, which days, the
   time left, the squadron's total, the prize pool and the standings, with
   your own row highlighted. EDAM shows the same. Nothing about events is ever
@@ -64,7 +70,9 @@ faked, and a session the game rolled back does not count either.
 
 ### Running an event (squadron leaders)
 
-The **Run an event** tab appears for the squadron's verified leader.
+The **Create event** tab appears for the squadron's verified leader. The form
+is in groups (the event, when, what counts, prize, Discord, members), side by
+side on a wide window, with the buttons along the bottom always in view.
 
 1. **Event:** "New event", or one of yours to change it.
 2. **Title**, and a **Note** for your squadron if you like.
@@ -89,7 +97,8 @@ The **Run an event** tab appears for the squadron's verified leader.
 9. **Participation floor:** the least a commander must bring in to share in
    the prize. Everyone still shows in the standings.
 10. **Example** shows what each place would be paid with 10 commanders, so
-    you can see the effect before saving.
+    you can see the effect before saving. While Squad Goals is in beta, check
+    the final results before paying anyone.
 11. Optionally, where it counts: a **Star system** (its name, or its system
     address if you know it; **Find** checks it is real), a **Station** in it
     (any station, outpost, settlement or carrier with a market; "Anywhere in
@@ -102,7 +111,7 @@ Ties share the places they span equally. Payouts are whole credits; anything
 left over by rounding is shown in the results. EDLD and edcmdr.com use the
 same rule, and paying the credits out is up to you.
 
-Under the form: **End now** (the event stops counting now and finalizes 24
+Along the bottom: **Save event**, **End now** (the event stops counting now and finalizes 24
 hours later), **Finalize results** (after the end, without waiting the 24
 hours), **Cancel event**, and **Make invitation…** for one named commander,
 or anyone verified who has the code, optionally expiring after some days or
@@ -115,7 +124,7 @@ encrypted, for your squadron and used for every event until you press
 **Forget**. **Announce now** posts the event as it stands: when it starts, or
 the time left and standings, or the closing standings with a reminder that
 results are final in 24 hours, or the final results with rewards. Tick
-**Automatic announcements to Discord** and edcmdr.com posts by itself, whether
+**Post to Discord automatically** and edcmdr.com posts by itself, whether
 you are online or not: when the event is saved, when it starts, while it runs
 (every 6 hours for an event of one day, every 12 for two, daily for longer),
 when it ends and when the results are final. Nobody is ever mentioned.

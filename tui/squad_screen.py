@@ -16,7 +16,7 @@ from tui.block_base import TuiBlock
 
 
 class SquadBlock(TuiBlock):
-    BLOCK_TITLE = "SQUAD GOALS"
+    BLOCK_TITLE = "SQUAD GOALS · BETA"
 
     def _compose_body(self) -> ComposeResult:
         yield VerticalScroll(id="squad-scroll")

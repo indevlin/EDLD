@@ -358,7 +358,7 @@ class EdldWindow(QMainWindow):
         # Squad Goals: only for a commander signed in to Frontier and in a
         # squadron (core/windows/squad.access); checked as the window polls.
         self._squad_menu = bar.addMenu("S&quad Goals")
-        squad_act = QAction("&Squad Goals…", self)
+        squad_act = QAction("&Squad Goals (beta)…", self)
         squad_act.setShortcut(QKeySequence("Ctrl+U"))
         squad_act.triggered.connect(self.action_squad_goals)
         self._squad_menu.addAction(squad_act)
@@ -611,6 +611,10 @@ class EdldWindow(QMainWindow):
         from core.windows import squad
         show = bool(squad.access(self._core).get("show"))
         self._squad_menu.menuAction().setVisible(show)
+        edcars = getattr(self, "_edcars", None)
+        if edcars is not None:
+            from core import edcars as H
+            edcars.set_shown(H.SQUAD_SECTION, show)
         if not show and self._squad_window is not None and self._squad_window.isVisible():
             self._squad_window.close()
 
@@ -618,6 +622,14 @@ class EdldWindow(QMainWindow):
         """Open the Squad Goals window, or bring it forward."""
         from core.windows import squad
         if not squad.access(self._core).get("show"):
+            return
+        edcars = getattr(self, "_edcars", None)
+        if edcars is not None:
+            # EDCARS: the Squad Goals section, in the main window.
+            from core import edcars as H
+            self._squad_checked = 0.0
+            self._check_squad()
+            edcars.show_section(H.SQUAD_SECTION)
             return
         if self._squad_window is None:
             from gui.squad_goals import SquadGoalsWindow

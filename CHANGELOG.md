@@ -6,19 +6,25 @@ Last updated: 20261128
 
 ## Released in 20261128
 
-### Added: Squad Goals
+### Added: Squad Goals (beta)
+
+**Beta:** Squad Goals is new and still being tested, and is labelled so in
+EDLD. Feedback and bug reports are very welcome on the Indevlin Discord
+(https://discord.indevlin.com).
 
 Events a squadron's verified leader runs for their squadron on ED Commanders: a
 mining push, a bounty week, a trade run or a construction drive, with a prize
 pool shared out by place. Members take part just by playing, signed in to
 Frontier; only what Frontier's own journal confirms counts.
 
-- A **Squad Goals** menu (and **Ctrl+U** in the terminal), shown only when you
-  are signed in to Frontier and in a squadron or invited to an event. Its
-  **Events** tab shows each event with the squadron's total, the prize pool
+- A **Squad Goals** button in the EDCARS rail, between Objectives and
+  Exploration, and a **Squad Goals** menu (**Ctrl+U**, in the terminal too),
+  shown only when you are signed in to Frontier and in a squadron or invited
+  to an event. Its **Events** tab shows each event with the squadron's total, the prize pool
   and the standings, your own row highlighted; EDAM gets the same page. Nothing
   about events is on the website.
-- **Run an event**, a tab for the squadron's verified leader only: title and
+- **Create event**, a tab for the squadron's verified leader only, in groups
+  laid side by side on a wide window: title and
   note, first and last day from calendars (whole UTC days, 00:00:00 to
   23:59:59), the measure, prize pool, reward tiers, shares for the top places
   and for everyone else, a participation floor, and an example payout that
@@ -45,6 +51,12 @@ another computer.
 
 **Screenshot file** has a **Browse…** button that opens the file chooser,
 instead of a path to type.
+
+### Fixed: check boxes and date boxes
+
+Check boxes are drawn in the theme, so an unticked one can be seen on a dark
+theme, and date boxes have their arrow beside the date and a calendar in the
+theme's colors.
 
 ### Changed: ED Commanders, built in
 

@@ -132,7 +132,7 @@ class EdldTui(App):
         Binding("ctrl+t", "kill_session",   "Quit Game",    show=True),
         Binding("ctrl+d", "deposit",        "Deposit",      show=True),
         Binding("ctrl+g", "push_survey",    "Push Survey",  show=False),
-        Binding("ctrl+u", "squad_goals",    "Squad Goals",  show=True),
+        Binding("ctrl+u", "squad_goals",    "Squad Goals (beta)", show=True),
     ]
 
     def __init__(self, core: "CoreAPI", program: str, version: str,

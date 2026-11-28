@@ -74,8 +74,12 @@ def test_every_window_has_a_place():
 
 def test_the_agreed_sections_in_order():
     assert [s.id for s in H.SECTIONS] == [
-        "alerts", "command", "helm", "objectives", "exploration", "mining", "fleet",
+        "alerts", "command", "helm", "objectives", "squad_goals", "exploration", "mining", "fleet",
         "engineering", "career"]
+    assert [s.id for s in H.SECTIONS if s.when] == ["squad_goals"], "only while it applies"
+    assert [s.id for s in H.numbered()] == [
+        "alerts", "command", "helm", "objectives", "exploration", "mining", "fleet",
+        "engineering", "career"], "Ctrl+1 to Ctrl+9 keep their sections"
     assert H.DEFAULT_SECTION == "command"
     assert H.section("helm").label == "Helm"
     command = H.section("command")
@@ -148,7 +152,10 @@ def test_every_group_lands_in_a_frame_that_names_it():
 
 def test_the_wire_carries_the_desktop_layout():
     wire = {s["id"]: s for s in H.wire_sections()}
-    for sec in H.SECTIONS:
+    assert "squad_goals" not in wire, "not without Squad Goals"
+    on = SimpleNamespace(_plugins={"edcmdr": SimpleNamespace(squad_access=lambda: {"show": True, "lead": False})})
+    assert "squad_goals" in {s["id"] for s in H.wire_sections(on)}
+    for sec in (s for s in H.SECTIONS if not s.when):
         w = wire[sec.id]
         assert w["columns"] == H.section_columns(sec)
         assert len(w["columns"]) == max(p.column for p in sec.parts) + 1
@@ -336,7 +343,7 @@ def test_the_header_carries_style_and_edcars():
     assert h["style"] == {"id": "edcars", "name": H.EDCARS_NAME}
     e = h["edcars"]
     assert e["name"] == H.EDCARS_NAME
-    assert [s["id"] for s in e["sections"]] == [s.id for s in H.SECTIONS]
+    assert [s["id"] for s in e["sections"]] == [s.id for s in H.SECTIONS if not s.when]
     assert e["alerts"] == "switch"
     strip = {f["id"]: f for f in e["strip"]}
     assert strip["cargo"]["value"] == "66/1,024 t" and strip["hull"]["tone"] == "good"
@@ -449,6 +456,7 @@ def test_edcars_builds_every_section_and_every_block():
     assert set(BLOCK_ID.values()) <= set(w._blocks), set(BLOCK_ID.values()) - set(w._blocks)
     assert list(w._edcars._pages) == [s.id for s in H.SECTIONS]
     for s in H.SECTIONS:
+        w._edcars.set_shown(s.id, True)
         w._edcars.show_section(s.id)
         assert w._edcars.current_section() == s.id
     w._refresh_all()                          # every block refreshes without raising
@@ -505,7 +513,8 @@ def test_section_shortcuts_exist():
     from PySide6.QtGui import QShortcut
     w, _ = _window()
     keys = {s.key().toString() for s in w._edcars.findChildren(QShortcut)}
-    assert {f"Ctrl+{i}" for i in range(1, len(H.SECTIONS) + 1)} <= keys
+    assert {f"Ctrl+{i}" for i in range(1, len(H.numbered()) + 1)} <= keys
+    assert "Ctrl+10" not in keys
 
 
 # ── Options ───────────────────────────────────────────────────────────────────
@@ -567,6 +576,10 @@ def test_every_edcars_tab_reaches_edam():
     tools = [t.title for t in tooltab.tabs(core)]
     assert tools[:3] == ["FSD", "Neutron", "Carrier"]
     for sec in H.SECTIONS:
+        if sec.when:
+            # Squad Goals reaches a device only while it applies, as one page; its Create event tab is the
+            # leader's, on the desktop.
+            continue
         page = w._edcars.stack.widget(w._edcars._pages[sec.id])
         desktop = [[t.tabText(i) for i in range(t.count())]
                    for t in page.findChildren(QTabWidget)]
@@ -599,3 +612,37 @@ def test_edcars_caps_are_bold_without_kerning():
     rail = EdcarsRail(Ink("default"), lambda _sid: None)
     for w in [head.cmdr, head.clock, *rail.pills.values()]:
         assert not w.font().kerning(), w.objectName()
+
+
+def test_squad_goals_in_the_rail_only_while_it_applies():
+    """Between Objectives and Exploration, shown only to a commander signed in to Frontier and in a squadron; its
+    Create event tab only for the squadron's verified leader."""
+    access = {"show": False, "lead": False, "why": "x"}
+    plug = SimpleNamespace(squad_view=lambda: {"state": "on", "events": []}, squad_access=lambda: access)
+    w, _ = _window(plugins={"edcmdr": plug})
+    pills = w._edcars.rail.pills
+    order = [sid for sid in pills]
+    assert order.index("squad_goals") == order.index("objectives") + 1 == order.index("exploration") - 1
+    w._squad_checked = 0
+    w._check_squad()
+    assert pills["squad_goals"].isHidden(), "not signed in or not in a squadron: no pill"
+    w._edcars.show_section("squad_goals")
+    assert w._edcars.current_section() != "squad_goals"
+    access.update(show=True)
+    w._squad_checked = 0
+    w._check_squad()
+    assert not pills["squad_goals"].isHidden()
+    w.action_squad_goals()                       # the menu, or Ctrl+U
+    assert w._edcars.current_section() == "squad_goals", "in the main window, not a window of its own"
+    assert w._squad_window is None
+    panel = w._edcars.squad_panel
+    panel.refresh(force=True)
+    assert panel.tabs.isTabVisible(1) is False and panel.tabs.tabText(1) == "Create event"
+    access.update(lead=True)
+    panel.refresh(force=True)
+    assert panel.tabs.isTabVisible(1) is True
+    assert "BETA" in panel.findChild(__import__("PySide6.QtWidgets", fromlist=["QLabel"]).QLabel, "squadBeta").text()
+    access.update(show=False, lead=False)
+    w._squad_checked = 0
+    w._check_squad()
+    assert pills["squad_goals"].isHidden() and w._edcars.current_section() == H.DEFAULT_SECTION

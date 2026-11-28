@@ -332,13 +332,16 @@ class EdcarsRail(QWidget):
         lay.setContentsMargins(0, GAP, 0, 0)
         lay.setSpacing(GAP)
         self.pills: dict[str, QPushButton] = {}
-        for i, sec in enumerate(H.SECTIONS):
+        keys = {s.id: i + 1 for i, s in enumerate(H.numbered())}
+        for sec in H.SECTIONS:
             b = RailPill(sec.label.upper(), ink)
             b.setObjectName("edcarsPill")
             b.setFont(caps_font(12))
             b.setCheckable(True)
             b.setAutoExclusive(True)
-            b.setToolTip(f"{sec.label}  (Ctrl+{i + 1})")
+            b.setToolTip(f"{sec.label}  (Ctrl+{keys[sec.id]})" if sec.id in keys
+                         else f"{sec.label} (beta)  (Ctrl+U)" if sec.id == H.SQUAD_SECTION else sec.label)
+            b.setVisible(not sec.when)
             b.setCursor(Qt.PointingHandCursor)
             b.clicked.connect(lambda _c=False, sid=sec.id: on_pick(sid))
             lay.addWidget(b)
@@ -615,7 +618,7 @@ class EdcarsShell(QWidget):
 
         self._build_sections(block_classes, block_ids, on_clear_alerts)
 
-        for i, sec in enumerate(H.SECTIONS[:9]):
+        for i, sec in enumerate(H.numbered()):
             sc = QShortcut(QKeySequence(f"Ctrl+{i + 1}"), self)
             sc.activated.connect(lambda sid=sec.id: self.show_section(sid))
 
@@ -637,6 +640,11 @@ class EdcarsShell(QWidget):
             self._alerts_view = w
             self._register("block-status", w)
             return w
+        if window == "squad_goals":
+            from gui.squad_goals import SquadGoalsPanel
+            panel = SquadGoalsPanel(self.core, theme=self.theme)
+            self.squad_panel = panel
+            return panel
         cls = classes.get(window)
         if cls is None:
             return None
@@ -694,8 +702,22 @@ class EdcarsShell(QWidget):
 
     # ── Sections ──────────────────────────────────────────────────────────────
 
+    def set_shown(self, sid: str, show: bool) -> None:
+        """Show or hide a section that comes and goes (Squad Goals); leaving it if it goes."""
+        pill = self.rail.pills.get(sid)
+        if pill is None or pill.isVisible() == show:
+            return
+        pill.setVisible(show)
+        if not show and self._current == sid:
+            self.show_section(H.DEFAULT_SECTION)
+
+    def section_shown(self, sid: str) -> bool:
+        pill = self.rail.pills.get(sid)
+        sec = H.section(sid)
+        return pill is not None and sec is not None and (not sec.when or not pill.isHidden())
+
     def show_section(self, sid: str) -> None:
-        if sid not in self._pages:
+        if sid not in self._pages or not self.section_shown(sid):
             return
         self._current = sid
         self.stack.setCurrentIndex(self._pages[sid])

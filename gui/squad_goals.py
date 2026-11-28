@@ -83,14 +83,14 @@ def _today() -> QDate:
 
 
 class EventsBlock(GuiBlock):
-    BLOCK_TITLE = "SQUAD GOALS"
+    BLOCK_TITLE = "EVENTS"
 
     def _build_body(self, layout) -> None:
         self._rows = RowScroll()
         layout.addWidget(self._rows, 1)
 
     def refresh_data(self) -> None:
-        self._rows.set_rows(self.render_rows(W.events_tab(self.core).rows))
+        self._rows.set_rows(self.render_rows(W.events_tab(self.core, beta=False).rows))
 
 
 class _Table(QWidget):
@@ -174,104 +174,158 @@ class _InviteDialog(QDialog):
         return b
 
 
-class LeaderForm(QWidget):
-    """Run an event: the leader's form."""
+#: Field widths, in pixels: wide enough for what goes in them, so a box's arrow sits beside its text and the
+#: form reads down one column at any window size.
+W_SHORT, W_DATE, W_MID, W_WIDE, W_TABLE = 170, 190, 320, 520, 520
+#: The form goes to two columns of groups from this width; the Events list keeps to EVENTS_MAX.
+TWO_COLUMNS, EVENTS_MAX = 1480, 860
 
-    def __init__(self, win: "SquadGoalsWindow") -> None:
+
+class _Wrapped(QLabel):
+    """Wrapped text at a set width whose height is measured in the font it is drawn in, at layout time, so a
+    form row never cuts off its last line."""
+
+    def __init__(self, text: str = "", width: int = 520) -> None:
+        super().__init__(text)
+        self.setWordWrap(True)
+        self.setFixedWidth(width)
+
+    def _height(self) -> int:
+        if not self.text():
+            return 0
+        from PySide6.QtCore import QRect
+        self.ensurePolished()                       # the style sheet's font, not the default one
+        m = self.contentsMargins()
+        w = self.width() - m.left() - m.right()
+        r = self.fontMetrics().boundingRect(QRect(0, 0, w, 100000), int(Qt.TextWordWrap), self.text())
+        return r.height() + m.top() + m.bottom() + 2
+
+    def minimumSizeHint(self):
+        from PySide6.QtCore import QSize
+        return QSize(self.width(), self._height())
+
+    def sizeHint(self):
+        return self.minimumSizeHint()
+
+    def hasHeightForWidth(self) -> bool:
+        return False
+
+    def setText(self, text: str) -> None:
+        super().setText(text)
+        self.updateGeometry()
+
+
+def _sized(w, width: int):
+    w.setFixedWidth(width)
+    return w
+
+
+def _group(title: str):
+    from PySide6.QtWidgets import QGroupBox
+    box = QGroupBox(title)
+    form = QFormLayout(box)
+    form.setFieldGrowthPolicy(QFormLayout.FieldsStayAtSizeHint)
+    form.setLabelAlignment(Qt.AlignRight | Qt.AlignVCenter)
+    form.setHorizontalSpacing(14)
+    form.setVerticalSpacing(8)
+    return box, form
+
+
+class LeaderForm(QWidget):
+    """Create event: the squadron leader's form."""
+
+    def __init__(self, win: "SquadGoalsPanel") -> None:
         super().__init__()
         self.win = win
         self.eid: str | None = None
+        self.events: dict = {}
         self.stations_for: str = ""
         self.want_market: int | None = None
         outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 6, 0, 0)
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QScrollArea.NoFrame)
         page = QWidget()
         scroll.setWidget(page)
         outer.addWidget(scroll, 1)
-        lay = QVBoxLayout(page)
+        self._scroll = scroll
+        top = QVBoxLayout(page)
+        top.setContentsMargins(4, 0, 4, 0)
+        top.setSpacing(12)
         intro = QLabel(HELP_INTRO)
         intro.setWordWrap(True)
         intro.setProperty("role", "dim")
-        lay.addWidget(intro)
+        intro.setMaximumWidth(2 * (W_WIDE + 260))
+        top.addWidget(intro)
+        cols = QHBoxLayout()
+        cols.setSpacing(18)
+        self._col = [QVBoxLayout(), QVBoxLayout()]
+        for c in self._col:
+            c.setSpacing(12)
+            cols.addLayout(c, 0)
+        cols.addStretch(1)
+        top.addLayout(cols)
+        top.addStretch(1)
+        self._groups: list = []
+        self._cols = 0
 
-        f = QFormLayout()
-        lay.addLayout(f)
-        self.pick = QComboBox()
+        # The event
+        box, f = _group("The event")
+        self.pick = _sized(QComboBox(), W_MID)
         self.pick.currentIndexChanged.connect(self._picked)
         f.addRow("Event", self.pick)
-        self.title = QLineEdit()
+        self.title = _sized(QLineEdit(), W_MID)
         self.title.setMaxLength(64)
         self.title.setPlaceholderText("Osmium Rush")
         f.addRow("Title", self.title)
-        self.note = QLineEdit()
+        self.note = _sized(QLineEdit(), W_WIDE)
         self.note.setMaxLength(280)
         self.note.setPlaceholderText("Optional: a line for your squadron")
         f.addRow("Note", self.note)
+        self._groups.append(box)
+
+        # When
+        box, f = _group("When (UTC, whole days)")
         self.starts, self.ends = QDateEdit(), QDateEdit()
         for d in (self.starts, self.ends):
             d.setCalendarPopup(True)
             d.setDisplayFormat("ddd d MMM yyyy")
             d.setDate(_today())
+            d.setFixedWidth(W_DATE)
         self.starts.dateChanged.connect(self._dates)
         self.ends.dateChanged.connect(self._dates)
-        f.addRow("First day (UTC)", self.starts)
-        f.addRow("Last day (UTC)", self.ends)
-        self.days = QLabel()
-        self.days.setProperty("role", "dim")
+        f.addRow("First day", self.starts)
+        f.addRow("Last day", self.ends)
+        self.days = self._hint("")
         f.addRow("", self.days)
-        self.measure = QComboBox()
+        self._groups.append(box)
+
+        # What counts
+        box, f = _group("What counts")
+        self.measure = _sized(QComboBox(), W_MID)
         for key, (label, _unit) in METRICS.items():
             self.measure.addItem(label, key)
         self.measure.currentIndexChanged.connect(self._units)
         f.addRow("Measure", self.measure)
-
-        self.pool = QLineEdit()
-        self.pool.setPlaceholderText("100M")
-        self.pool.textChanged.connect(self._preview)
-        f.addRow("Prize pool (credits)", self.pool)
-        f.addRow("", self._hint(HELP_POOL))
-        self.tiers = _Table(("Squadron total reaches", "Share of the pool paid (%)"), self._preview)
-        self.tiers_label = QLabel("Reward tiers")
-        f.addRow(self.tiers_label, self.tiers)
-        f.addRow("", self._hint(HELP_TIERS))
-        self.places = QLineEdit()
-        self.places.setPlaceholderText("50, 30, 20")
-        self.places.textChanged.connect(self._preview)
-        f.addRow("Shares for the top places", self.places)
-        f.addRow("", self._hint(HELP_PLACES))
-        self.bands = _Table(("The next … % of the rest", "Shares each"), self._preview)
-        f.addRow("Shares for everyone else", self.bands)
-        f.addRow("", self._hint(HELP_BANDS))
-        self.floor = QLineEdit()
-        self.floor.setPlaceholderText("0")
-        self.floor.textChanged.connect(self._preview)
-        self.floor_label = QLabel("Participation floor")
-        f.addRow(self.floor_label, self.floor)
-        f.addRow("", self._hint(HELP_FLOOR))
-        self.preview = QLabel()
-        self.preview.setWordWrap(True)
-        f.addRow("Example", self.preview)
-
-        f.addRow(QLabel(""))
         f.addRow("", self._hint(HELP_WHERE))
         srow = QHBoxLayout()
-        self.system = QLineEdit()
-        self.system.setPlaceholderText("Anywhere: or a system name, such as Ogmar")
+        self.system = _sized(QLineEdit(), W_MID)
+        self.system.setPlaceholderText("Anywhere, or a system such as Ogmar")
         self.system.editingFinished.connect(self._find)
         find = QPushButton("Find")
         find.clicked.connect(self._find)
-        srow.addWidget(self.system, 1)
+        srow.addWidget(self.system)
         srow.addWidget(find)
+        srow.addStretch(1)
         f.addRow("Star system", srow)
-        self.found = QLabel()
-        self.found.setProperty("role", "dim")
+        self.found = self._hint("")
         f.addRow("", self.found)
-        self.station = QComboBox()
+        self.station = _sized(QComboBox(), W_WIDE)
         self.station.addItem("Anywhere in the system", None)
         f.addRow("Station", self.station)
-        self.commodities = QLineEdit()
-        self.commodities.setPlaceholderText("Anything: or names, such as Osmium, Low Temperature Diamonds")
+        self.commodities = _sized(QLineEdit(), W_WIDE)
+        self.commodities.setPlaceholderText("Anything, or names such as Osmium, Low Temperature Diamonds")
         self.commodities.editingFinished.connect(self._check_commodities)
         self.completer = _ListCompleter([], self.commodities)
         self.completer.setCaseSensitivity(Qt.CaseInsensitive)
@@ -279,17 +333,85 @@ class LeaderForm(QWidget):
         self.commodities.setCompleter(self.completer)
         self.names_loaded = False
         f.addRow("Commodities", self.commodities)
-        self.commodity_note = QLabel()
-        self.commodity_note.setProperty("role", "dim")
-        self.commodity_note.setWordWrap(True)
+        self.commodity_note = self._hint("")
         f.addRow("", self.commodity_note)
-        self.auto = QCheckBox("Automatic announcements to Discord")
-        self.auto.setToolTip(HELP_AUTO)
-        f.addRow("", self.auto)
-        f.addRow("", self._hint(HELP_AUTO))
+        self._groups.append(box)
 
-        buttons = QHBoxLayout()
+        # Prize
+        box, f = _group("Prize")
+        self.pool = _sized(QLineEdit(), W_SHORT)
+        self.pool.setPlaceholderText("100M")
+        self.pool.textChanged.connect(self._preview)
+        f.addRow("Prize pool (credits)", self.pool)
+        f.addRow("", self._hint(HELP_POOL))
+        self.tiers = _Table(("Squadron total reaches", "Share of the pool paid (%)"), self._preview)
+        self.tiers.setFixedWidth(W_TABLE)
+        f.addRow("Reward tiers", self.tiers)
+        f.addRow("", self._hint(HELP_TIERS))
+        self.places = _sized(QLineEdit(), W_MID)
+        self.places.setPlaceholderText("50, 30, 20")
+        self.places.textChanged.connect(self._preview)
+        f.addRow("Shares for the top places", self.places)
+        f.addRow("", self._hint(HELP_PLACES))
+        self.bands = _Table(("The next … % of the rest", "Shares each"), self._preview)
+        self.bands.setFixedWidth(W_TABLE)
+        f.addRow("Shares for everyone else", self.bands)
+        f.addRow("", self._hint(HELP_BANDS))
+        self.floor = _sized(QLineEdit(), W_SHORT)
+        self.floor.setPlaceholderText("0")
+        self.floor.textChanged.connect(self._preview)
+        self.floor_label = QLabel("Participation floor")
+        f.addRow(self.floor_label, self.floor)
+        f.addRow("", self._hint(HELP_FLOOR))
+        self.preview = _Wrapped("", W_WIDE)
+        self.preview.setProperty("role", "highlight")
+        f.addRow("Example", self.preview)
+        self._groups.append(box)
+
+        # Discord
+        box, f = _group("Discord")
+        self.auto = QCheckBox("Post to Discord automatically")
+        self.auto.setToolTip(HELP_AUTO)
+        f.addRow("Announcements", self.auto)
+        f.addRow("", self._hint(HELP_AUTO))
+        hook = QHBoxLayout()
+        self.hook = _sized(QLineEdit(), W_WIDE)
+        self.hook.setPlaceholderText("https://discord.com/api/webhooks/…")
+        hs, hf, ha = QPushButton("Save"), QPushButton("Forget"), QPushButton("Announce now")
+        hs.setToolTip("Saved for your squadron and used for every event until you forget it.")
+        hf.setToolTip("Forget the squadron's webhook.")
+        ha.setToolTip("Post the event to Discord as it stands now: before it starts, when; while it runs, time "
+                      "left and standings; after it ends, closing standings; once final, the results with rewards.")
+        hs.clicked.connect(self._hook_save)
+        hf.clicked.connect(self._hook_forget)
+        ha.clicked.connect(lambda: self._act("announce", "Posted to Discord."))
+        hook.addWidget(self.hook)
+        for b in (hs, hf, ha):
+            hook.addWidget(b)
+        hook.addStretch(1)
+        f.addRow("Webhook", hook)
+        self._groups.append(box)
+
+        # Members
+        box, f = _group("Members")
+        member = QHBoxLayout()
+        self.member = _sized(QLineEdit(), W_MID)
+        self.member.setPlaceholderText("Commander name")
+        rm, rs = QPushButton("Remove from events"), QPushButton("Restore")
+        rm.clicked.connect(lambda: self._member("remove"))
+        rs.clicked.connect(lambda: self._member("restore"))
+        member.addWidget(self.member)
+        member.addWidget(rm)
+        member.addWidget(rs)
+        member.addStretch(1)
+        f.addRow("Member", member)
+        self._groups.append(box)
+        self._place(1)
+
+        # The actions, always in view under the form.
+        bar = QHBoxLayout()
         self.b_save = QPushButton("Save event")
+        self.b_save.setProperty("role", "primary")
         self.b_end = QPushButton("End now")
         self.b_final = QPushButton("Finalize results")
         self.b_cancel = QPushButton("Cancel event")
@@ -303,38 +425,9 @@ class LeaderForm(QWidget):
         self.b_cancel.clicked.connect(lambda: self._act("cancel", "Cancelled."))
         self.b_invite.clicked.connect(self._invite)
         for b in (self.b_save, self.b_end, self.b_final, self.b_cancel, self.b_invite):
-            buttons.addWidget(b)
-        buttons.addStretch(1)
-        outer.addLayout(buttons)
-
-        member = QHBoxLayout()
-        member.addWidget(QLabel("Member"))
-        self.member = QLineEdit()
-        self.member.setPlaceholderText("Commander name")
-        rm, rs = QPushButton("Remove from events"), QPushButton("Restore")
-        rm.clicked.connect(lambda: self._member("remove"))
-        rs.clicked.connect(lambda: self._member("restore"))
-        member.addWidget(self.member, 1)
-        member.addWidget(rm)
-        member.addWidget(rs)
-        outer.addLayout(member)
-
-        hook = QHBoxLayout()
-        hook.addWidget(QLabel("Discord webhook"))
-        self.hook = QLineEdit()
-        self.hook.setPlaceholderText("https://discord.com/api/webhooks/…")
-        hs, hf, ha = QPushButton("Save"), QPushButton("Forget"), QPushButton("Announce now")
-        hs.setToolTip("Saved for your squadron and used for every event until you forget it.")
-        ha.setToolTip("Post the event to Discord as it stands now: before it starts, when; while it runs, time "
-                      "left and standings; after it ends, closing standings; once final, the results with rewards.")
-        hs.clicked.connect(self._hook_save)
-        hf.clicked.connect(self._hook_forget)
-        ha.clicked.connect(lambda: self._act("announce", "Posted to Discord."))
-        hook.addWidget(self.hook, 1)
-        for b in (hs, hf, ha):
-            hook.addWidget(b)
-        outer.addLayout(hook)
-
+            bar.addWidget(b)
+        bar.addStretch(1)
+        outer.addLayout(bar)
         self.status = QLabel("")
         self.status.setWordWrap(True)
         outer.addWidget(self.status)
@@ -343,13 +436,37 @@ class LeaderForm(QWidget):
         self._fill_pick([])
         self._buttons()
 
+    # ── layout ──────────────────────────────────────────────────────────────
+    #: Which groups go in the left column when there are two: the event, when, and what counts; the prize,
+    #: Discord and members on the right.
+    LEFT = 3
+
+    def _place(self, cols: int) -> None:
+        if cols == self._cols:
+            return
+        self._cols = cols
+        for c in self._col:
+            while c.count():
+                c.takeAt(0)
+        for i, g in enumerate(self._groups):
+            self._col[1 if cols == 2 and i >= self.LEFT else 0].addWidget(g)
+        for c in self._col:
+            c.addStretch(1)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        self._place(2 if event.size().width() >= TWO_COLUMNS else 1)
+
     # ── helpers ─────────────────────────────────────────────────────────────
     @staticmethod
     def _hint(text: str) -> QLabel:
-        lab = QLabel(text)
-        lab.setWordWrap(True)
+        lab = _Wrapped(text, W_WIDE)
         lab.setProperty("role", "dim")
         return lab
+
+    @staticmethod
+    def _set(lab: QLabel, text: str) -> None:
+        lab.setText(text)
 
     def say(self, text: str, bad: bool = False) -> None:
         self.status.setText(f"<span style='color:#e06c5a'>{text}</span>" if bad else text)
@@ -369,7 +486,7 @@ class LeaderForm(QWidget):
         if self.eid is None:
             self.starts.setMinimumDate(_today().addDays(-14))
         n = self.starts.date().daysTo(self.ends.date()) + 1
-        self.days.setText(f"{n} day{'s' if n != 1 else ''}: from 00:00:00 UTC on the first to 23:59:59 UTC on the last.")
+        self._set(self.days, f"{n} day{'s' if n != 1 else ''}: from 00:00:00 UTC on the first to 23:59:59 UTC on the last.")
 
     def payout(self) -> dict:
         tiers = [{"target": parse_credits(a), "pct": int(float(b))} for a, b in self.tiers.rows()]
@@ -382,6 +499,7 @@ class LeaderForm(QWidget):
             self.preview.setText(W.preview(self.payout()))
         except (ValueError, TypeError):
             self.preview.setText("…")
+
 
     # ── events in the picker ────────────────────────────────────────────────
     def _fill_pick(self, events: list) -> None:
@@ -483,29 +601,29 @@ class LeaderForm(QWidget):
     def _find(self) -> None:
         text = self.system.text().strip()
         if not text:
-            self.found.setText("")
+            self._set(self.found, "")
             self._stations([], None)
             self.stations_for = ""
             return
         if text == self.stations_for:
             return
         self.stations_for = text
-        self.found.setText("Looking it up…")
+        self._set(self.found, "Looking it up…")
         want = self.want_market if self.want_market is not None else self.station.currentData()
 
         def done(j, err):
             if err is not None:
-                self.found.setText(str(err))
+                self._set(self.found, str(err))
                 return
             if not j.get("system"):
-                self.found.setText(f"No known star system is called {text}. Check the spelling.")
+                self._set(self.found, f"No known star system is called {text}. Check the spelling.")
                 self._stations([], None)
                 return
             sy = j["system"]
             self.system.setText(sy["name"])
             self.stations_for = sy["name"]
             n = len(j.get("stations") or [])
-            self.found.setText(f"{sy['name']} (system address {sy['id64']}): {n} place{'s' if n != 1 else ''} "
+            self._set(self.found, f"{sy['name']} (system address {sy['id64']}): {n} place{'s' if n != 1 else ''} "
                                f"with a market." if n else f"{sy['name']} (system address {sy['id64']}).")
             self._stations(j.get("stations") or [], want)
             self.want_market = None
@@ -514,14 +632,14 @@ class LeaderForm(QWidget):
     def _check_commodities(self, then=None) -> None:
         typed = [x.strip() for x in self.commodities.text().split(",") if x.strip()]
         if not typed:
-            self.commodity_note.setText("")
+            self._set(self.commodity_note, "")
             if then:
                 then([])
             return
 
         def done(j, err):
             if err is not None:
-                self.commodity_note.setText(str(err))
+                self._set(self.commodity_note, str(err))
                 return
             names, bad = [], []
             for c in j.get("commodities") or []:
@@ -531,10 +649,10 @@ class LeaderForm(QWidget):
                     sug = c.get("suggest") or []
                     bad.append(f"{c['typed']}" + (f" (did you mean {', '.join(sug)}?)" if sug else ""))
             if bad:
-                self.commodity_note.setText("Not found: " + "; ".join(bad))
+                self._set(self.commodity_note, "Not found: " + "; ".join(bad))
                 return
             self.commodities.setText(", ".join(names))
-            self.commodity_note.setText("")
+            self._set(self.commodity_note, "")
             if then:
                 then(names)
         self.win.call(lambda: self.win.plugin().squad_admin("lookup", commodities=typed), done)
@@ -644,22 +762,41 @@ class LeaderForm(QWidget):
         self.win.call(lambda: self.win.plugin().squad_admin("forget-webhook"), done)
 
 
-class SquadGoalsWindow(QWidget):
+BETA_TEXT = ("BETA · Squad Goals is new and still being tested. Standings, payouts and announcements may "
+             "change as it is fixed, so check them before paying anyone. Feedback and bug reports are very welcome "
+             "on the Indevlin Discord: discord.indevlin.com")
+
+
+class SquadGoalsPanel(QWidget):
+    """The Squad Goals page: the beta notice, then Events and, for the squadron's leader, Create event. It sits
+    in EDCARS's Squad Goals section and in the window the menu opens."""
+
+    REFRESH_MS = REFRESH_MS
+
     def __init__(self, core, theme: str = "default", parent=None) -> None:
-        super().__init__(parent, Qt.Window)
+        super().__init__(parent)
         self.core = core
-        self.setWindowTitle("Squad Goals")
-        self.resize(820, 760)
         self._bridge = _Bridge()
         self._bridge.done.connect(lambda cb, res, err: cb(res, err))
+        self.setObjectName("squadPanel")
+        # Labels and check boxes take their group's background, not the window's.
+        self.setStyleSheet("#squadPanel QGroupBox QLabel, #squadPanel QGroupBox QCheckBox "
+                           "{ background: transparent; }")
         lay = QVBoxLayout(self)
+        lay.setContentsMargins(0, 0, 0, 0)
+        beta = QLabel(BETA_TEXT)
+        beta.setWordWrap(True)
+        beta.setProperty("role", "beta")
+        beta.setObjectName("squadBeta")
+        lay.addWidget(beta)
         self.tabs = QTabWidget()
-        lay.addWidget(self.tabs)
+        lay.addWidget(self.tabs, 1)
 
         ev = QWidget()
         el = QVBoxLayout(ev)
         el.setContentsMargins(0, 0, 0, 0)
         self.block = EventsBlock(core, theme=theme)
+        self.block.setMaximumWidth(EVENTS_MAX)
         el.addWidget(self.block, 1)
         row = QHBoxLayout()
         join, sync = QPushButton("Use invitation…"), QPushButton("Update standings")
@@ -673,10 +810,11 @@ class SquadGoalsWindow(QWidget):
         self.tabs.addTab(ev, "Events")
 
         self.form = LeaderForm(self)
-        self.tabs.addTab(self.form, "Run an event")
+        self.tabs.addTab(self.form, "Create event")
+        self.tabs.setTabVisible(1, False)
         self._timer = QTimer(self)
         self._timer.timeout.connect(self.refresh)
-        self._timer.start(REFRESH_MS)
+        self._timer.start(self.REFRESH_MS)
         self.refresh(force=True)
 
     def plugin(self):
@@ -692,12 +830,18 @@ class SquadGoalsWindow(QWidget):
             self._bridge.done.emit(cb, res, err)
         threading.Thread(target=run, daemon=True, name="squad-goals-call").start()
 
+    def refresh_data(self) -> None:
+        self.refresh()
+
     def refresh(self, force: bool = False) -> None:
         if not (force or self.isVisible()):
             return
         acc = W.access(self.core)
-        self.tabs.setTabVisible(1, bool(acc.get("lead")))
-        if acc.get("lead"):
+        lead = bool(acc.get("lead"))
+        self.tabs.setTabVisible(1, lead)
+        if not lead and self.tabs.currentIndex() == 1:
+            self.tabs.setCurrentIndex(0)
+        if lead:
             self.form.load_names()
         self.block.refresh_data()
         p = self.plugin()
@@ -721,3 +865,19 @@ class SquadGoalsWindow(QWidget):
     def _sync(self) -> None:
         self.plugin().squad_sync_now()
         self.ev_status.setText("Reading your events, and your journal from Frontier, now.")
+
+
+class SquadGoalsWindow(QWidget):
+    """The panel in a window of its own: the Squad Goals menu's, in the Dashboard style."""
+
+    def __init__(self, core, theme: str = "default", parent=None) -> None:
+        super().__init__(parent, Qt.Window)
+        self.setWindowTitle("Squad Goals (beta)")
+        self.resize(900, 820)
+        lay = QVBoxLayout(self)
+        self.panel = SquadGoalsPanel(core, theme=theme)
+        lay.addWidget(self.panel)
+        self.tabs, self.form = self.panel.tabs, self.panel.form
+
+    def refresh(self, force: bool = False) -> None:
+        self.panel.refresh(force=force)

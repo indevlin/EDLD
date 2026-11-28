@@ -308,7 +308,8 @@ def test_payout_preview_in_plain_words():
     text = preview({"pool": 100_000_000, "places": [50, 30, 20], "bands": [{"pct": 100, "w": 5}],
                     "tiers": [{"target": 10000, "pct": 50}, {"target": 25000, "pct": 100}]})
     assert text.startswith("With 10 commanders taking part: 1st ")
-    assert "the rest " in text and "50% of it once the squadron reaches 10,000" in text
+    assert "6th to 10th " in text and "50% of it once the squadron reaches 10,000" in text
+    assert preview({"pool": 100_000_000, "places": [50, 30, 20]}).endswith("Nobody below 3rd is paid.")
 
 
 def test_options_keep_only_what_belongs_there():

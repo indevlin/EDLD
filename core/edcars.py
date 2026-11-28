@@ -180,10 +180,16 @@ class Section:
     panels: tuple[str, ...] = ()
     #: Column widths, relative, left to right.
     columns: tuple[int, ...] = (1,)
+    #: Shown only while this holds (see shown()); such a section takes no
+    #: Ctrl+number, so the others keep theirs.
+    when: str = ""
 
 
 #: The Commander window's tabs EDCARS moves to the Fleet section.
 FLEET_TABS = ("Ships", "Modules", "Carrier", "S. Carrier")
+
+#: Squad Goals: only for a commander signed in to Frontier and in a squadron.
+SQUAD_SECTION = "squad_goals"
 
 SECTIONS: tuple[Section, ...] = (
     Section(
@@ -210,7 +216,13 @@ SECTIONS: tuple[Section, ...] = (
     Section(
         "objectives", "Objectives",
         parts=(Part("objectives", title="Objectives"),),
-        groups=("missions", "colonisation", "squad_goals"),
+        groups=("missions", "colonisation"),
+    ),
+    Section(
+        SQUAD_SECTION, "Squad Goals",
+        parts=(Part("squad_goals", title="Squad Goals · Beta", tabs=False),),
+        groups=("squad_goals",),
+        when="squad",
     ),
     Section(
         "exploration", "Exploration",
@@ -255,6 +267,21 @@ DEFAULT_SECTION = "command"
 EDCARS_OMITS: tuple[str, ...] = ("status",)
 
 
+def shown(sec: Section, core=None) -> bool:
+    """Whether a section is on the rail now: always, unless it has a ``when``."""
+    if sec.when == "squad":
+        if core is None:
+            return False
+        from core.windows import squad
+        return bool(squad.access(core).get("show"))
+    return True
+
+
+def numbered() -> list[Section]:
+    """The sections Ctrl+1 to Ctrl+9 go to: those always on the rail."""
+    return [s for s in SECTIONS if not s.when][:9]
+
+
 def section(sid: str) -> Optional[Section]:
     return next((s for s in SECTIONS if s.id == sid), None)
 
@@ -291,8 +318,8 @@ def section_columns(sec: Section) -> list[int]:
     return list(sec.columns[:n]) + [1] * (n - len(sec.columns))
 
 
-def wire_sections() -> list[dict]:
-    """The sections as EDAM receives them, in rail order.
+def wire_sections(core=None) -> list[dict]:
+    """The sections as EDAM receives them, in rail order: those shown now.
 
     ``columns`` and ``parts`` are the desktop window's own layout — the frames,
     their titles, which column each sits in and its share of it — so EDAM draws
@@ -305,7 +332,7 @@ def wire_sections() -> list[dict]:
                         "groups": list(p.groups), "panels": list(p.panels),
                         "header": p.header, "tools": p.tools}
                        for p in s.parts]}
-            for s in SECTIONS]
+            for s in SECTIONS if shown(s, core)]
 
 
 # ── Header strip ──────────────────────────────────────────────────────────────

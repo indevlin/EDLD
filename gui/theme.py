@@ -198,8 +198,8 @@ def stylesheet(theme_name: str = "default") -> str:
     f = sizes()
     mono = mono_families()
     arrow = _arrow_png(c["dim"])
-    arrow_rule = (f'QComboBox::down-arrow {{ image: url("{arrow}"); '
-                  f'width: 10px; height: 6px; }}') if arrow else ""
+    arrow_rule = (f'QComboBox::down-arrow {{ image: url("{arrow}"); width: 10px; height: 6px; }}\n'
+                  f'QDateEdit::down-arrow {{ image: url("{arrow}"); width: 10px; height: 6px; }}') if arrow else ""
     return f"""
 QWidget {{
     background-color: {c['bg']};
@@ -263,6 +263,14 @@ QLabel[health="good"] {{ color: {c['green']}; }}
 QLabel[health="warn"] {{ color: {c['amber']}; }}
 QLabel[health="crit"] {{ color: {c['red']}; }}
 QLabel[role="highlight"] {{ color: {c['accent']}; background: transparent; }}
+/* An experimental feature's notice (Squad Goals). */
+QLabel[role="beta"] {{
+    color: {c['amber']};
+    background-color: {c['title-bg']};
+    border: 1px solid {c['amber']};
+    border-radius: 3px;
+    padding: 6px 10px;
+}}
 
 /* Rows (gui/block_base.py): every other row of a group in the stripe the
    tables use, while [UI] RowStripes is on. */
@@ -370,7 +378,7 @@ QLabel#helmGroupTitle {{ color: {c['accent']}; font-weight: 600; }}
 QLabel#helmNote {{ color: {c['amber']}; padding: 4px 8px; }}
 QLabel#helmStatus {{ color: {c['dim']}; }}
 
-QLineEdit, QSpinBox, QComboBox {{
+QLineEdit, QSpinBox, QComboBox, QDateEdit {{
     background-color: {c['bg']};
     border: 1px solid {c['border']};
     border-radius: 3px;
@@ -379,8 +387,8 @@ QLineEdit, QSpinBox, QComboBox {{
     selection-background-color: {c['accent']};
     selection-color: {c['bg']};
 }}
-QLineEdit:focus, QSpinBox:focus, QComboBox:focus {{ border-color: {c['accent']}; }}
-QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled {{
+QLineEdit:focus, QSpinBox:focus, QComboBox:focus, QDateEdit:focus {{ border-color: {c['accent']}; }}
+QLineEdit:disabled, QSpinBox:disabled, QComboBox:disabled, QDateEdit:disabled {{
     color: {c['dim']};
     background-color: {c['block-bg']};
 }}
@@ -403,7 +411,29 @@ QRadioButton::indicator:checked {{
 QRadioButton:disabled {{ color: {c['dim']}; }}
 QRadioButton::indicator:disabled {{ border-color: {c['dim']}; }}
 QComboBox::drop-down {{ border: none; width: 18px; }}
+QDateEdit::drop-down {{ border: none; width: 18px; subcontrol-position: center right; }}
 {arrow_rule}
+/* Check boxes. Without a rule the platform indicator is drawn in the window
+   color, and on a dark theme an unchecked box cannot be seen at all. */
+QCheckBox {{ spacing: 8px; }}
+QCheckBox::indicator {{
+    width: 14px; height: 14px;
+    border: 1px solid {c['fg']};
+    border-radius: 2px;
+    background-color: {c['bg']};
+}}
+QCheckBox::indicator:hover {{ border-color: {c['accent']}; }}
+QCheckBox::indicator:checked {{ border-color: {c['accent']}; background-color: {c['accent']}; }}
+QCheckBox:disabled {{ color: {c['dim']}; }}
+QCheckBox::indicator:disabled {{ border-color: {c['dim']}; }}
+/* The calendar a date box drops: in the theme, its arrows visible. */
+QCalendarWidget QWidget {{ background-color: {c['block-bg']}; color: {c['fg']}; }}
+QCalendarWidget QToolButton {{ background: transparent; color: {c['fg']}; font-weight: 600; padding: 2px 6px; }}
+QCalendarWidget QAbstractItemView:enabled {{
+    background-color: {c['bg']}; color: {c['fg']};
+    selection-background-color: {c['accent']}; selection-color: {c['bg']};
+}}
+QCalendarWidget QAbstractItemView:disabled {{ color: {c['dim']}; }}
 QComboBox QAbstractItemView {{
     background-color: {c['block-bg']};
     border: 1px solid {c['border']};

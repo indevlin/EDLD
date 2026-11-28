@@ -137,6 +137,8 @@ def test_the_window_builds_in_every_console(qt, cid, monkeypatch):
     assert all(isinstance(p, RailPill) and p.ink is not None for p in shell.rail.pills.values())
     assert len(shell.findChildren(EdcarsFrame)) >= len(H.SECTIONS)
     for s in H.SECTIONS:
+        if s.when:
+            shell.set_shown(s.id, True)
         shell.show_section(s.id)
         assert shell.current_section() == s.id
     # Pulsing paints in every console, painted pills included.
