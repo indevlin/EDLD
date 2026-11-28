@@ -811,6 +811,14 @@ class PreferencesDialog(QDialog):
         row.addWidget(disconnect)
         row.addStretch(1)
         lay.addLayout(row)
+        fcapi = QFormLayout()
+        fcapi.addRow("Sign-in reminders",
+                     self._bool_combo(cfg.capi_cfg.get("SignInReminders", True),
+                                      "CAPI", "SignInReminders"))
+        lay.addLayout(fcapi)
+        lay.addWidget(_note(
+            "A lasting notice a few days before Frontier's sign-in runs out, and "
+            "once it has ended, until you connect again. Off hides it for good."))
 
         lay.addWidget(_section("EDDN  (Elite Dangerous Data Network)  ⚠"))
         f1 = QFormLayout()
@@ -847,30 +855,6 @@ class PreferencesDialog(QDialog):
                   self._text_edit(inara.get("ApiKey", ""), "Inara", "ApiKey",
                                   password=True))
         lay.addLayout(f4)
-
-        lay.addWidget(_section("ED COMMANDERS  (edcmdr.com)"))
-        lay.addWidget(_note(
-            "Publish the sections of your commander you choose to edcmdr.com, each "
-            "on its own delay, as the EDCMDR client does. Choose what to share, "
-            "verify with Frontier and set your portrait in ED Commanders settings. "
-            "EDLD and the EDCMDR client share keys and settings; only one "
-            "publishes at a time."))
-        f6 = QFormLayout()
-        f6.addRow("Enable ED Commanders",
-                  self._bool_combo(cfg.load_setting("EDCMDR", {"Enabled": False}, False)
-                                   .get("Enabled", False), "EDCMDR", "Enabled"))
-        lay.addLayout(f6)
-        row6 = QHBoxLayout()
-        edcmdr_btn = QPushButton("ED Commanders settings…")
-        edcmdr_btn.clicked.connect(self._edcmdr_settings)
-        row6.addWidget(edcmdr_btn)
-        row6.addStretch(1)
-        lay.addLayout(row6)
-        self._edcmdr_status = QLabel(self._core.plugin_call("edcmdr", "status")
-                                     or "ED Commanders is not loaded.")
-        self._edcmdr_status.setProperty("role", "dim")
-        self._edcmdr_status.setWordWrap(True)
-        lay.addWidget(self._edcmdr_status)
 
         lay.addWidget(_section("RAVEN COLONIAL"))
         lay.addWidget(_note(
@@ -970,11 +954,6 @@ class PreferencesDialog(QDialog):
             return "Not connected"
         except Exception:
             return "Status unavailable"
-
-    def _edcmdr_settings(self) -> None:
-        if not self._core.plugin_call("edcmdr", "open_settings", self):
-            self._edcmdr_status.setText(
-                "Turn on Enable ED Commanders and restart EDLD, then open the settings.")
 
     def _capi_connect(self) -> None:
         capi = self._capi_provider()

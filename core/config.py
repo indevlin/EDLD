@@ -550,6 +550,7 @@ CFG_DEFAULTS_INARA = {
 
 CFG_DEFAULTS_CAPI = {
     "Enabled": False,   # set True automatically after first successful auth
+    "SignInReminders": True,   # notice before and after Frontier's sign-in runs out
 }
 
 # Stations for the Radio tab (Crew / Alerts window), two keys per station:

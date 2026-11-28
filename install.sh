@@ -183,6 +183,25 @@ for PKG in "${PIP_PACKAGES[@]}"; do
     fi
 done
 
+# EDCMDR-core, for ED Commanders: a git URL, so not in PIP_PACKAGES (whose
+# entries split on the first colon). The pin is requirements.txt's.
+EDCMDR_CORE_SPEC="$(grep -E '^edcmdr-core' "$REPO_DIR/requirements.txt" | head -1)"
+if [ -n "$EDCMDR_CORE_SPEC" ]; then
+    if $PYTHON -c "import edcmdr_core" &>/dev/null 2>&1; then
+        ok "edcmdr-core already installed"
+    else
+        info "Installing edcmdr-core..."
+        if $PYTHON -m pip install "$EDCMDR_CORE_SPEC" --quiet 2>/dev/null; then
+            ok "edcmdr-core installed"
+        elif $PYTHON -m pip install "$EDCMDR_CORE_SPEC" --break-system-packages --quiet 2>/dev/null; then
+            ok "edcmdr-core installed (--break-system-packages)"
+        else
+            warn "Could not install edcmdr-core automatically (ED Commanders stays off without it)."
+            warn "Run manually: pip install '${EDCMDR_CORE_SPEC}' --break-system-packages"
+        fi
+    fi
+fi
+
 # ── Config setup ──────────────────────────────────────────────────────────────
 section "Configuration"
 

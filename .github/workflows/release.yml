@@ -103,7 +103,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.read.outputs.version }}
-      edcmdr_client: ${{ steps.client.outputs.tag }}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -129,24 +128,6 @@ jobs:
               exit 1
             fi
           fi
-
-      # The ED Commanders conduit is the EDCMDR client's code. Every build vendors
-      # the client's latest release (a YYYYMMDD tag on its main), so EDLD ships
-      # the current client without anyone remembering to sync it. All build jobs
-      # use the tag found here, so every platform carries the same client.
-      - id: client
-        name: Find the latest EDCMDR client release
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="$(git ls-remote --tags --refs https://github.com/indevlin/EDCMDR-client.git \
-                   | sed -n 's#.*refs/tags/\([0-9]\{8\}\)$#\1#p' | sort -r | head -n 1 || true)"
-          if [ -z "$TAG" ]; then
-            echo "::warning::No EDCMDR client release found: building with the vendored copy in vendor/edcmdr-client"
-          else
-            echo "EDCMDR client ${TAG}"
-          fi
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
 
       # Everything the build needs must be in the checkout. A file missing here
       # fails in seconds with a clear message; without this check the same
@@ -260,32 +241,15 @@ jobs:
             libxcb-icccm4 libxcb-keysyms1 libxcb-shape0 libxcb-randr0 \
             libxcb-render-util0 libxcb-xinerama0 xvfb
 
-      - name: Check out the EDCMDR client
-        if: needs.verify.outputs.edcmdr_client != ''
-        uses: actions/checkout@v6
-        with:
-          repository: indevlin/EDCMDR-client
-          ref: ${{ needs.verify.outputs.edcmdr_client }}
-          path: _edcmdr-client
-          fetch-depth: 1
-
-      - name: Vendor the EDCMDR client
-        if: needs.verify.outputs.edcmdr_client != ''
-        shell: bash
-        run: |
-          python scripts/sync_edcmdr.py _edcmdr-client
-          cat vendor/edcmdr-client/VENDORED
-          rm -rf _edcmdr-client
-
       # ED Commanders accepts pushes only from builds signed with a key it lists.
-      # EDLD's own key goes into the vendored client for this build only.
+      # EDLD's own key goes into core/_edcmdr_build.py for this build only.
       - name: EDCMDR build key
         shell: bash
         env:
           EDCMDR_BUILD_KEY: ${{ secrets.EDCMDR_BUILD_KEY }}
         run: |
           if [ -n "$EDCMDR_BUILD_KEY" ]; then
-            printf "BUILD_KEY = '%s'\n" "$EDCMDR_BUILD_KEY" > vendor/edcmdr-client/edcmdr/_build_secret.py
+            printf "BUILD_KEY = '%s'\n" "$EDCMDR_BUILD_KEY" > core/_edcmdr_build.py
           else
             echo '::warning::EDCMDR_BUILD_KEY is not set: this build cannot publish to ED Commanders'
           fi
@@ -298,7 +262,7 @@ jobs:
       - name: Remove the EDCMDR build key
         if: always()
         shell: bash
-        run: rm -f vendor/edcmdr-client/edcmdr/_build_secret.py
+        run: rm -f core/_edcmdr_build.py
 
       # ----------------------------------------------------------------- #
       # Code signing. Every step is skipped when its secret is absent, so
@@ -747,10 +711,10 @@ jobs:
             echo "| macOS (Apple silicon) | \`EDLD-${VERSION}-macos.zip\` |"
             echo "| EDLD-server, Linux | \`EDLD-server-${VERSION}-linux.tar.gz\` |"
             echo "| EDLD-server, Windows | \`EDLD-server-${VERSION}-windows.zip\` |"
-            CLIENT="${{ needs.verify.outputs.edcmdr_client }}"
-            if [ -n "$CLIENT" ]; then
+            CORE="$(sed -n 's/^edcmdr-core @ .*@\([0-9]\{8\}\)$/\1/p' requirements.txt)"
+            if [ -n "$CORE" ]; then
               echo ""
-              echo "Publishing to ED Commanders uses the EDCMDR client ${CLIENT}."
+              echo "Publishing to ED Commanders uses EDCMDR-core ${CORE}."
             fi
             echo ""
             echo "No Python install is needed for the binaries. Each archive"

@@ -29,6 +29,10 @@ miniaudio>=1.71
 cryptography>=42.0
 segno>=1.5
 #
+# ED Commanders (edcmdr.com): the shared EDCMDR publishing core, by release tag.
+# MIT.  Needs cryptography (above).  install.sh installs it from this line.
+edcmdr-core @ git+https://github.com/indevlin/EDCMDR-core@20261128
+#
 # ── UI frontends ─────────────────────────────────────────────────────────────
 #
 # Both are optional and independent: install whichever interfaces you want.

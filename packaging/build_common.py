@@ -57,10 +57,6 @@ DATA_FILES = [
     # open(); that needs real files on disk. Without this entry the binary
     # builds, starts, and shows a dashboard with every window empty.
     (str(ROOT / "components"), "components"),
-    # The vendored EDCMDR client (components/edcmdr.py): the protocol spec and
-    # ship table it reads, at the paths its own builds use.
-    (str(ROOT / "vendor" / "edcmdr-client" / "protocol" / "v1" / "spec.json"), "protocol/v1"),
-    (str(ROOT / "vendor" / "edcmdr-client" / "edcmdr" / "data"), "edcmdr/data"),
 ]
 
 
@@ -118,7 +114,7 @@ def _norm(name: str) -> str:
 #: inside a preferences builder or a front end — so excluding it costs the
 #: server nothing.
 SERVER_SKIPPED_DISTS = {"pyside6", "textual", "rich", "miniaudio"}
-SERVER_EXCLUDES = ["PySide6", "shiboken6", "textual", "rich", "miniaudio", "edcmdr.ui",
+SERVER_EXCLUDES = ["PySide6", "shiboken6", "textual", "rich", "miniaudio",
                    "_miniaudio", "tui", "gui", "core.radio"]
 
 
@@ -263,19 +259,14 @@ def _component_imports() -> list[str]:
     ]
 
 
-#: The vendored EDCMDR client is imported by components/edcmdr.py at runtime,
-#: from vendor/edcmdr-client (on pathex). The settings window needs Qt, so the
-#: server variant leaves edcmdr.ui out (SERVER_EXCLUDES).
-EDCMDR_ROOT = ROOT / "vendor" / "edcmdr-client"
-
-
 def _edcmdr_imports() -> list[str]:
-    pkg = EDCMDR_ROOT / "edcmdr"
-    mods = set()
-    for p in pkg.rglob("*.py"):
-        parts = p.relative_to(EDCMDR_ROOT).with_suffix("").parts
-        mods.add(".".join(parts[:-1] if parts[-1] == "__init__" else parts))
-    return sorted(mods)
+    """edcmdr_core, imported by components/edcmdr.py (loaded by path at runtime). Its spec and ship
+    table come with it through the package's own PyInstaller hook (pyinstaller40 entry point)."""
+    try:
+        from PyInstaller.utils.hooks import collect_submodules
+        return collect_submodules("edcmdr_core")
+    except Exception:
+        return []
 
 
 def _block_imports() -> list[str]:
@@ -307,6 +298,8 @@ def _textual_submodules() -> list[str]:
 HIDDEN_IMPORTS = (
     _component_imports()
     + _edcmdr_imports()
+    # EDLD's EDCMDR build key, present only during a release build (see the release workflow).
+    + (["core._edcmdr_build"] if (ROOT / "core" / "_edcmdr_build.py").exists() else [])
     + _block_imports()
     + _textual_submodules()
     + [
@@ -384,7 +377,7 @@ def analysis_kwargs(extra_hidden: list[str] | None = None,
         datas = [d for d in datas if d[1] not in ("gui/resources", "fonts", "sounds")]
     return {
         "scripts": [str(ROOT / "edld.py")],
-        "pathex": [str(ROOT), str(EDCMDR_ROOT)],
+        "pathex": [str(ROOT)],
         "binaries": [],
         "datas": datas + licence_files(variant) + [_variant_marker(variant)],
         "hiddenimports": hidden,

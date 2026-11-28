@@ -8,52 +8,53 @@ you turn it on, and nothing is published until you choose what to share.
 
 ## Turning it on
 
-1. **Options → Services → ED Commanders:** set **Enable ED Commanders** to on,
-   or `Enabled = true` under `[EDCMDR]` in `config.toml`, and restart EDLD.
-2. **ED Commanders settings…** opens the publishing settings:
-   - **Commanders:** every commander found in your journal folders, and where
-     each stands on ED Commanders. EDLD's journal folder is added for you;
-     add others here.
-   - **Sharing:** for each commander, the sections to publish and a delay for
-     each: none, 1 hour, 12 hours, 1 day or 1 week. ED Commanders holds a
-     delayed section back until its time.
+1. **Options → ED Commanders:** set **Enable ED Commanders** to on (or
+   `Enabled = true` under `[EDCMDR]` in `config.toml`) and restart EDLD. The
+   page is the same in the desktop window and the terminal dashboard.
+2. On the same page:
+   - **Sharing:** the sections to publish, each with a delay: none, 1 hour,
+     12 hours, 1 day or 1 week. ED Commanders holds a delayed section back
+     until its time; switching a section off deletes it from the site. What
+     you save applies to every commander EDLD has a profile for.
    - **Verify with Frontier:** a one-time sign-in on Frontier's own site that
-     proves the commander is yours. It puts you on the leaderboards and gives
-     a squadron leader the **Squadron** tab.
-   - **Portrait…:** a screenshot of the Codex hub with your commander tile
-     highlighted becomes your portrait.
-   - **Forget on EDCMDR…** removes the commander from the site entirely.
+     proves the commander is yours. EDLD shows a code; continue on edcmdr.com
+     only if it shows the same one. It puts you on the leaderboards and lets a
+     squadron leader save the **Squadron** settings.
+   - **Codex portrait:** set **Screenshot file** to a screenshot of the Codex
+     hub with your commander tile highlighted, save, then **Send portrait**.
+   - **Squadron:** home system, power, factions, recruiting and tagline, for
+     a verified squadron leader; **Save squadron** publishes them.
+   - **Forget on EDCMDR**, pressed twice, removes the commander from the site.
+   - **Status** shows where each commander stands.
 
 ## EDLD and the EDCMDR client together
 
-EDLD uses the EDCMDR client's own keys and settings, in the client's config
-folder, so a commander published by one is the same installation to ED
-Commanders when published by the other, and verification carries over. Only
-one publishes at a time: whichever starts second stands by, says so in its
-status, and takes over when the first stops.
+EDLD uses EDCMDR's own keys and sharing settings, in the EDCMDR config folder,
+so a commander published by one is the same installation to ED Commanders when
+published by the other, and verification carries over. Only one publishes at a
+time: whichever starts second stands by, says so in its status, and takes over
+when the first stops.
+
+Sharing saved in EDLD's Options is written to that shared settings file; a
+change made in the client is copied back into EDLD's Options. The last change,
+in either, is what both publish.
 
 With `PrimaryInstance = false`, as on a second machine reading the same
 journals, EDLD does not publish.
 
 ## How it works
 
-EDLD runs the EDCMDR client's publishing engine on its own thread. It reads
-your journals itself (your history once, then the game as you play), keeps one
-state per commander, and pushes only the sections you switched on, signed with
-a key made for each commander on this computer. Release builds of EDLD carry
-EDLD's own build key, which ED Commanders lists; a build without one runs, but
-ED Commanders refuses what it sends.
+EDLD reads the journals as always. The ED Commanders component builds each
+commander's sections from them with EDCMDR-core, the library the EDCMDR client
+uses too, and hands them to EDCMDR-core's publisher, which pushes only the
+sections you switched on, signed with a key made for each commander on this
+computer. At start it reads your history once, from EDLD's journal index, then
+follows the game as you play.
 
-The engine is the client's code, vendored in `vendor/edcmdr-client`. Release
-builds vendor the client's latest release automatically: the workflow finds the
-newest `YYYYMMDD` tag on EDCMDR-client, checks it out and runs
-`scripts/sync_edcmdr.py` on it, and the release notes name that client. The
-committed copy is what source runs use, and what a build falls back to when no
-client release is found. To refresh it, `python3 scripts/sync_edcmdr.py
-~/projects/indevlin/EDCMDR-client`; the script checks the protocol spec against
-the client's `protocol.lock`. `scripts/vendor_edcmdr.sh` does the same from the
-client's newest release tag and commits the result when it changed;
-`scripts/pre_release.sh` runs it, so a release always commits the current client.
+Release builds carry EDLD's own build key, which ED Commanders lists; a build
+without one runs, but ED Commanders refuses what it sends. EDCMDR-core is
+pinned by release tag in `requirements.txt`; `scripts/pre_release.sh` (run by
+`grel`) stops a release whose pinned tag is not on GitHub yet.
 
 What is sent, and what ED Commanders keeps, is in [PRIVACY.md](PRIVACY.md)
 and edcmdr.com's [privacy policy](https://edcmdr.com/privacy).

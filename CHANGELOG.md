@@ -1,8 +1,39 @@
 # EDLD CHANGELOG
 
-Last updated: 20261126
+Last updated: 20261128
 
 ---
+
+## Released in 20261128
+
+### Changed: ED Commanders, built in
+
+EDLD publishes to ED Commanders itself, through EDCMDR-core (the library the
+EDCMDR client uses), instead of running a copy of the client inside it. It
+reads your journals once, from EDLD's own journal index, rather than a second
+time alongside EDLD.
+
+**Options → ED Commanders** is a page of its own, the same in the desktop
+window and the terminal dashboard (where there was no way to set it before):
+what to share and each delay, Verify with Frontier, Open my page, Push now,
+Status, your Codex portrait, a verified leader's squadron settings, and Forget
+on EDCMDR (pressed twice). Sharing saved there applies to every commander EDLD
+has a profile for and is shared with the EDCMDR client; a change made in the
+client shows up here. Your existing choices carry over.
+
+### Added: Frontier sign-in reminders
+
+A lasting notice a few days before Frontier's sign-in runs out, and once it has
+ended, until you connect CAPI again; Clear hides it until the next hourly check.
+EDLD now remembers across a restart that the sign-in ended. **Sign-in
+reminders** under Frontier CAPI in Options → Services turns it off for good.
+
+### Removed
+
+`vendor/edcmdr-client`, `scripts/sync_edcmdr.py` and `scripts/vendor_edcmdr.sh`.
+`scripts/pre_release.sh` now stops a release whose pinned EDCMDR-core tag is
+not on GitHub yet. Source runs need `edcmdr-core` (in `requirements.txt`;
+`install.sh` installs it).
 
 ## Released in 20261126
 
