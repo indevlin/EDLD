@@ -53,13 +53,22 @@ def time_left(expiry: str, now: datetime | None = None) -> str:
     return f"{m}m"
 
 
+def _asked(m: dict) -> int:
+    return int(m.get("total") or m.get("count") or 0)
+
+
+def tons_cell(delivered: int, asked: int, width: int = 0) -> str:
+    """Delivered of asked for, both right-aligned to ``width`` digits so a
+    column of them lines up on the slash: '  0 /  36', '120 / 289'."""
+    w = max(width, len(str(int(asked))))
+    return f"{int(delivered):>{w}} / {int(asked):>{w}}"
+
+
 def _tons(m: dict) -> str:
-    """Delivered of asked for: 0120 / 2890. Nothing is delivered until a
-    cargo depot says so."""
-    asked = int(m.get("total") or m.get("count") or 0)
-    if not asked:
-        return ""
-    return f"{int(m.get('delivered', 0) or 0):0{len(str(asked))}d} / {asked}"
+    """Delivered of asked for. Nothing is delivered until a cargo depot says
+    so. _kind_table pads a whole column to one width."""
+    asked = _asked(m)
+    return tons_cell(int(m.get("delivered", 0) or 0), asked) if asked else ""
 
 
 def _destination(m: dict) -> str:
@@ -99,7 +108,8 @@ _KINDS = {
 
 def _ore_held(core, ms: list) -> list:
     """Mining missions' commodities held: ship hold + own carrier (not the
-    squadron carrier). Green when held covers what is still to deliver."""
+    squadron carrier), and what the missions still need of each, delivered
+    tons taken off. Green when held covers what is still to deliver."""
     s = core.state
     ship = getattr(s, "cargo_items", {}) or {}
     carrier = getattr(s, "assets_carrier_hold", None) or {}
@@ -115,10 +125,11 @@ def _ore_held(core, ms: list) -> list:
     def count(hold, key):
         c = hold.get(key, 0)
         return int(c.get("count", 0) if isinstance(c, dict) else c or 0)
-    rows = [R.text(""), R.table("MINING ORE HELD", (("SHIP", 5), ("CARRIER", 7), ("HELD", 5)))]
+    rows = [R.text(""), R.table("MINING ORE HELD", (("SHIP", 5), ("CARRIER", 7), ("HELD", 5),
+                                                    ("NEEDED", 6)))]
     for key, (name, still) in sorted(need.items(), key=lambda kv: kv[1][0]):
         a, b = count(ship, key), count(carrier, key)
-        rows.append(R.cells(name, [str(a), str(b) if carrier else "—", str(a + b)],
+        rows.append(R.cells(name, [str(a), str(b) if carrier else "—", str(a + b), str(still)],
                             "val health-good" if a + b >= still > 0 else "val"))
     return rows
 
@@ -128,6 +139,11 @@ def _kind_table(category: str, ms: list, now) -> list:
         category, (f"{category.upper()} MISSION", None, lambda m: m.get("name") or "Mission", None))
     ready = [m.get("status") == "Ready" for m in ms]
     qty = [qty_of(m) if qty_of else "" for m in ms]
+    tons_w = len(str(sum(_asked(m) for m in ms))) if qty_of is _tons else 0
+    if tons_w:
+        # One width for the column, the total's included: the slashes line up.
+        qty = [tons_cell(int(m.get("delivered", 0) or 0), _asked(m), tons_w) if _asked(m) else ""
+               for m in ms]
     left = ["READY" if r else time_left(m.get("expiry", ""), now) for m, r in zip(ms, ready)]
     cols = []
     if qty_head:
@@ -147,7 +163,7 @@ def _kind_table(category: str, ms: list, now) -> list:
         if qty_head in ("TONS", "UNITS", "PAX"):
             asked = sum(int(m.get("total") or m.get("count") or m.get("passengers") or 0) for m in ms)
             if qty_head == "TONS" and asked:
-                tq = f"{sum(int(m.get('delivered', 0) or 0) for m in ms):0{len(str(asked))}d} / {asked}"
+                tq = tons_cell(sum(int(m.get("delivered", 0) or 0) for m in ms), asked, tons_w)
             else:
                 tq = str(asked) if asked else ""
         elif qty_head == "CREDITS":

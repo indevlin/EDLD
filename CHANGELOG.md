@@ -28,6 +28,15 @@ ended, until you connect CAPI again; Clear hides it until the next hourly check.
 EDLD now remembers across a restart that the sign-in ended. **Sign-in
 reminders** under Frontier CAPI in Options → Services turns it off for good.
 
+### Fixed: Objectives
+
+The TONS column of mining, delivery, collection and smuggling missions lines
+up: every row, Totals included, is padded to the same width, so the slashes
+sit in one column (`  0 /  36` under `  0 / 159`) instead of each row
+zero-padding to its own width. **Mining ore held** gains a **NEEDED** column:
+what your mining missions still need of each commodity, delivered tons taken
+off, beside what you hold.
+
 ### Removed
 
 `vendor/edcmdr-client`, `scripts/sync_edcmdr.py` and `scripts/vendor_edcmdr.sh`.
