@@ -276,50 +276,74 @@ def test_squadron_needs_a_verified_leader(plugin):
     assert "verified squadron leader" in p.settings_action("squadron")
 
 
-def test_squad_fields_parse():
-    mod = _load_component()
-    assert mod.parse_utc("2026-12-01 18:00") == 1796148000
-    assert mod.parse_utc("2026-12-01") == 1796083200
-    assert [mod.parse_credits(x) for x in ("100M", "1.5B", "250k", "100,000,000", "", "12 cr")] == \
-        [100_000_000, 1_500_000_000, 250_000, 100_000_000, 0, 12]
-    assert mod.parse_weights("5, 3,2") == [5.0, 3.0, 2.0]
-    assert mod.parse_pairs("50:2, 100:1", "pct", "w") == [{"pct": 50.0, "w": 2.0}, {"pct": 100.0, "w": 1.0}]
-    assert mod.parse_pairs("10k:50", "target", "pct", amount_a=True) == [{"target": 10000, "pct": 50.0}]
-    for bad in (lambda: mod.parse_utc("tomorrow"), lambda: mod.parse_credits("lots"),
-                lambda: mod.parse_pairs("50", "a", "b")):
+class _Capi:
+    """EDLD's Frontier CAPI sign-in, as the component sees it."""
+
+    def __init__(self, token="capi-token"):
+        self.token, self.auth_calls = token, 0
+
+    def is_connected(self):
+        return self.token is not None
+
+    def _valid_token(self):
+        return self.token
+
+    def authenticate(self):
+        self.auth_calls += 1
+
+
+def test_squad_amounts_parse():
+    from core.windows.squad import parse_credits, parse_weights
+    assert [parse_credits(x) for x in ("100M", "1.5B", "250k", "100,000,000", "", "12 cr", "25,000 t")] == \
+        [100_000_000, 1_500_000_000, 250_000, 100_000_000, 0, 12, 25_000]
+    assert parse_weights("50, 30,20") == [50.0, 30.0, 20.0]
+    for bad in (lambda: parse_credits("lots"), lambda: parse_weights("five")):
         with pytest.raises(ValueError):
             bad()
 
 
-def test_squad_settings_listed():
+def test_payout_preview_in_plain_words():
+    from core.windows.squad import preview
+    assert preview({"pool": 0}) == "No prize pool: standings only."
+    text = preview({"pool": 100_000_000, "places": [50, 30, 20], "bands": [{"pct": 100, "w": 5}],
+                    "tiers": [{"target": 10000, "pct": 50}, {"target": 25000, "pct": 100}]})
+    assert text.startswith("With 10 commanders taking part: 1st ")
+    assert "the rest " in text and "50% of it once the squadron reaches 10,000" in text
+
+
+def test_options_keep_only_what_belongs_there():
     mod = _load_component()
-    ids = {getattr(x, "key", None) or getattr(x, "id", None) for x in mod.EDCMDRPlugin.SETTINGS}
-    assert {"SquadEvents", "JoinCode", "EvTitle", "EvMetric", "EvPool", "ev_save", "ev_invite", "ev_join",
-            "Webhook"} <= ids
+    keys_ = {getattr(x, "key", None) or getattr(x, "id", None) for x in mod.EDCMDRPlugin.SETTINGS}
+    assert {"SquadEvents", "JoinCode", "ev_join", "PortraitFile"} <= keys_
+    assert not {k for k in keys_ if k and (k.startswith("Ev") or k in ("Webhook", "MemberName", "InvKind"))}, \
+        "the event form lives in the Squad Goals window"
+    portrait = next(x for x in mod.EDCMDRPlugin.SETTINGS if getattr(x, "key", None) == "PortraitFile")
+    assert portrait.kind == "file" and "*.png" in portrait.filter
 
 
-def _view_core(view):
-    plug = SimpleNamespace(squad_view=lambda: view)
+def _view_core(view, access=None):
+    plug = SimpleNamespace(squad_view=lambda: view,
+                           squad_access=lambda: access or {"show": True, "lead": False, "why": ""})
     return SimpleNamespace(_plugins={"edcmdr": plug}, state=SimpleNamespace())
 
 
-def test_squad_tab_shows_standings():
-    from core.windows import objectives as W
+def test_squad_window_shows_standings():
+    from core.windows import squad as W
     now = int(time.time())
     ev = {"id": "e0123456789abcde", "title": "Osmium Rush", "note": "Ogmar rings", "metric": "mined_tons",
           "metric_label": "Tons refined", "unit": "t", "state": "open", "starts": now - 3600, "ends": now + 90000,
-          "filters": {"systems": [{"id64": 1, "name": "Ogmar"}], "commodities": ["osmium"], "markets": []},
+          "filters": {"systems": [{"id64": 1, "name": "Ogmar"}], "commodities": ["osmium"],
+                      "commodity_names": ["Osmium"], "markets": []},
           "payout": {"pool": 100_000_000, "tiers": [{"target": 1000, "pct": 50}, {"target": 2000, "pct": 100}]},
           "total": 1200, "tier": 0, "pool": 50_000_000, "leader": True,
           "standings": [{"name": "ONE", "pub_id": "a", "value": 800, "rank": 1, "credits": 40_000_000},
                         {"name": "TWO", "pub_id": "b", "value": 400, "rank": 2, "credits": 10_000_000}],
           "me": {"name": "TWO", "pub_id": "b", "value": 400, "rank": 2, "credits": 10_000_000}}
-    tab = W.squad_goals(_view_core({"state": "on", "pub_id": "b", "events": [ev]}))
+    tab = W.events_tab(_view_core({"state": "on", "pub_id": "b", "events": [ev]}))
     text = json.dumps(tab.rows)
-    assert tab.title == "Squad Goals"
-    for want in ("Osmium Rush", "Ogmar", "osmium", "1,200 t", "next at 2,000 t", "e0123456789abcde", "CMDR ONE",
-                 "40.0M"):
+    for want in ("Osmium Rush", "Ogmar", "Osmium", "1,200 t", "next at 2,000 t", "CMDR ONE", "40.0M"):
         assert want in text, want
+    assert "e0123456789abcde" not in text, "the event id stays out of sight"
     mine = [r for r in tab.rows if r[0] == "cells" and r[1] == "CMDR TWO"][0]
     assert "highlight" in mine[3], "your own row stands out"
 
@@ -327,20 +351,54 @@ def test_squad_tab_shows_standings():
 @pytest.mark.parametrize("view, want", [
     ({"state": "off"}, "Options › ED Commanders"),
     ({"state": "switched-off", "name": "X"}, "Take part in my squadron"),
-    ({"state": "unverified", "name": "X"}, "Verify CMDR X"),
+    ({"state": "unverified", "name": "X"}, "Verifying CMDR X"),
     ({"state": "on", "events": [], "note": "Sign in to Frontier to count in Squad Goals."}, "Sign in to Frontier"),
     ({"state": "on", "events": []}, "No events running"),
 ])
-def test_squad_tab_explains_itself(view, want):
-    from core.windows import objectives as W
-    assert want in json.dumps(W.squad_goals(_view_core(view)).rows, ensure_ascii=False)
+def test_squad_window_explains_itself(view, want):
+    from core.windows import squad as W
+    assert want in json.dumps(W.events_tab(_view_core(view)).rows, ensure_ascii=False)
 
 
-def test_squad_goals_panel_for_edam():
-    from core.windows import wire
-    core = _view_core({"state": "on", "events": []})
-    panels = {p["id"]: p for p in wire.panels(core) if p["id"].startswith("squad_goals")}
-    assert panels["squad_goals.events"]["group"] == "squad_goals"
+def test_squad_goals_not_in_objectives_and_edam_only_when_it_applies():
+    from core.windows import objectives, wire
+    assert not hasattr(objectives, "squad_goals")
+    on = _view_core({"state": "on", "events": []})
+    off = _view_core({"state": "on", "events": []}, {"show": False, "lead": False, "why": "x"})
+    ids = lambda core: {p["id"] for p in wire.panels(core)}
+    assert "squad_goals.events" in ids(on)
+    assert "squad_goals.events" not in ids(off)
+
+
+def test_squad_access(plugin):
+    make, _, _ = plugin
+    p = make()
+    _wait(lambda: _snapshots(), "first snapshot")
+    assert p.squad_access()["show"] is False and "Sign in to Frontier" in p.squad_access()["why"]
+    p.core.data = SimpleNamespace(capi=_Capi())
+    p.core.state.pilot_squadron_name = ""
+    assert "not in a squadron" in p.squad_access()["why"]
+    p.core.state.pilot_squadron_name = "GOAL WING"
+    acc = p.squad_access()
+    assert acc["show"] is True and acc["lead"] is False, acc
+
+
+def test_one_sign_in(plugin):
+    make, _, _ = plugin
+    p = make()
+    _wait(lambda: _snapshots(), "first snapshot")
+    capi = _Capi(token=None)
+    p.core.data = SimpleNamespace(capi=capi)
+    msg = p.settings_action("verify")
+    assert capi.auth_calls == 1 and "browser" in msg, "no sign-in yet: EDLD's own Frontier sign-in starts"
+    assert not any(e["kind"] == "verify-start" for e in Fake.log), "never the second, edcmdr.com sign-in"
+    capi.token = "capi-token"
+    p.engine.rt[FID].auto_verify_next = 0          # within a minute of signing in; not waited for here
+    p.engine.push_now()
+    _wait(lambda: any(e["kind"] == "verify-finish" for e in Fake.log), "verified by itself once signed in", 15)
+    vf = [e for e in Fake.log if e["kind"] == "verify-finish"][-1]["body"]
+    assert vf == {"access_token": "capi-token", "direct": True}
+    assert "verified" in p.settings_action("verify")
 
 
 def test_switching_events_off_reaches_shared_settings(plugin):
@@ -353,31 +411,6 @@ def test_switching_events_off_reaches_shared_settings(plugin):
     _wait(lambda: any(e["kind"] == "prefs" and e["body"].get("events") is False for e in Fake.log), "sent")
 
 
-def test_leader_saves_and_invites_from_options(plugin):
-    make, _, _ = plugin
-    p = make()
-    _wait(lambda: _snapshots(), "first snapshot")
-    p.core.cfg.set(EvTitle="Osmium Rush", EvMetric="mined_tons", EvStart="2026-12-01 18:00",
-                   EvEnd="2026-12-08", EvSystems="Ogmar, Sol", EvCommodities="osmium", EvPool="100M",
-                   EvPlaces="5,3", EvBands="100:1", EvTiers="10k:50, 20k:100", EvMin="1")
-    msg = p.settings_action("ev_save")
-    assert "e0123456789abcde" in msg, msg
-    sent = [e for e in Fake.log if e["kind"] == "event-admin"][-1]["body"]
-    assert sent["action"] == "save" and "id" not in sent
-    assert (sent["starts"], sent["ends"]) == (1796148000, 1796688000)
-    assert sent["filters"] == {"systems": ["Ogmar", "Sol"], "markets": [], "commodities": ["osmium"]}
-    assert sent["payout"] == {"pool": 100_000_000, "places": [5.0, 3.0], "bands": [{"pct": 100.0, "w": 1.0}],
-                              "min": 1, "tiers": [{"target": 10000, "pct": 50}, {"target": 20000, "pct": 100}]}
-    assert p.settings()["EvId"] == "e0123456789abcde", "the saved event's id goes into Options"
-    p.core.cfg.set(InvKind="personal", InvName="GUEST PILOT", InvDays="2")
-    msg = p.settings_action("ev_invite")
-    assert "ABCD-EFGH-JKLM" in msg and "GUEST PILOT" in msg, msg
-    sent = [e for e in Fake.log if e["kind"] == "event-admin"][-1]["body"]
-    assert sent["id"] == "e0123456789abcde" and sent["kind"] == "personal" and "max_uses" not in sent
-    p.core.cfg.set(EvStart="soon")
-    assert "UTC date" in p.settings_action("ev_save"), "a bad field says which"
-
-
 def test_invitation_code_from_options(plugin):
     make, _, _ = plugin
     p = make()
@@ -386,6 +419,55 @@ def test_invitation_code_from_options(plugin):
     p.core.cfg.set(JoinCode=" abcd-efgh-jklm ")
     assert "Osmium Rush" in p.settings_action("ev_join")
     assert [e for e in Fake.log if e["kind"] == "event-join"][-1]["body"] == {"code": "abcd-efgh-jklm"}
+
+
+@pytest.fixture
+def qapp():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    pytest.importorskip("PySide6")
+    from PySide6 import QtWidgets
+    yield QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
+
+
+def test_squad_window_form(qapp):
+    from PySide6.QtCore import QDate
+    from gui import squad_goals as G
+    calls = []
+    plug = SimpleNamespace(
+        squad_view=lambda: {"state": "on", "events": [], "webhook": True},
+        squad_access=lambda: {"show": True, "lead": False, "why": ""},
+        squad_admin=lambda action, **b: calls.append((action, b)) or {"event": {"id": "e1", "title": b.get("title")}})
+    core = SimpleNamespace(_plugins={"edcmdr": plug}, state=SimpleNamespace(), cfg=None)
+    win = G.SquadGoalsWindow(core)
+    assert win.tabs.isTabVisible(1) is False, "the event form only for the squadron's verified leader"
+    plug.squad_access = lambda: {"show": True, "lead": True, "why": ""}
+    win.refresh(force=True)
+    assert win.tabs.isTabVisible(1) is True
+    f = win.form
+    f.title.setText("Osmium Rush")
+    f.starts.setDate(QDate(2026, 12, 1))
+    f.ends.setDate(QDate(2026, 12, 7))
+    f.measure.setCurrentIndex(f.measure.findData("mined_tons"))
+    f.pool.setText("100M")
+    f.places.setText("50, 30, 20")
+    f.bands.set_rows([("50", "5"), ("100", "2")])
+    f.tiers.set_rows([("10,000", "50"), ("25k", "100")])
+    f.floor.setText("10")
+    f.system.setText("Ogmar")
+    body = f._body(["Osmium"])
+    assert (body["starts"], body["ends"]) == (1796083200, 1796688000 - 1), "00:00:00 first day to 23:59:59 last"
+    assert body["filters"] == {"systems": ["Ogmar"], "markets": [], "commodities": ["Osmium"]}
+    assert body["payout"] == {"pool": 100_000_000, "places": [50.0, 30.0, 20.0],
+                              "bands": [{"pct": 50.0, "w": 5.0}, {"pct": 100.0, "w": 2.0}], "min": 10,
+                              "tiers": [{"target": 10000, "pct": 50}, {"target": 25000, "pct": 100}]}
+    assert "id" not in body, "a new event: no id"
+    assert "With 10 commanders" in f.preview.text()
+    assert "saved for your squadron" in f.hook.placeholderText()
+    assert "23:59:59" in f.days.text() and "7 days" in f.days.text()
+    f.title.clear()
+    with pytest.raises(ValueError):
+        f._body([])
+    win.close()
 
 
 @pytest.mark.skipif(not os.environ.get("EDCMDR_SERVER_REPO"), reason="EDCMDR_SERVER_REPO not set")
@@ -426,8 +508,9 @@ def test_publishes_to_edcmdr(tmp_path, monkeypatch):
 
 @pytest.mark.skipif(not os.environ.get("EDCMDR_SERVER_REPO"), reason="EDCMDR_SERVER_REPO not set")
 def test_squad_goals_end_to_end(tmp_path, monkeypatch):
-    """A leader verified on the real server saves an event from Options; the server reads the (fake) Frontier
-    journal through EDLD's sign-in; the Squad Goals tab shows the standings."""
+    """One sign-in: EDLD's own Frontier sign-in verifies the leader on the real server, no browser. The leader
+    saves an event; the server reads the (fake) Frontier journal; the window shows the standings. And EDLD's
+    payout preview pays what the server pays."""
     from datetime import datetime, timedelta, timezone as tz
     repo = Path(os.environ["EDCMDR_SERVER_REPO"]).expanduser()
     spec = importlib.util.spec_from_file_location("edcmdr_server_tests_sg", repo / "tests" / "test_server.py")
@@ -449,24 +532,8 @@ def test_squad_goals_end_to_end(tmp_path, monkeypatch):
         monkeypatch.setattr(mod, "EDLD_DATA_DIR", data)
         import core.state
         monkeypatch.setattr(core.state, "cmdr_data_dir", lambda: data / "commanders" / fid)
-        s = Settings()
-        prefs = s.prefs(fid)
-        prefs["share"]["ranks"] = True
-        s.set_prefs(fid, prefs)
-        core = _core(tmp_path, jdir, enabled=True)
-        core.state.pilot_fid = fid
-        p = mod.EDCMDRPlugin()
-        p.storage = PluginStorage("edcmdr")
-        p.on_load(core)
-        _wait(lambda: p.engine.rt.get(fid) and p.engine.rt[fid].last_push, "published", 20)
-
-        # Verify EDLD's own commander key as the squadron's leader, through the server's fake Frontier.
         profile = {"commander": {"id": 8800001, "name": name},
                    "squadron": {"id": 8800, "name": "EDLD WING", "tag": "EDLW", "rank": 0}}
-        p.engine.pause()
-        time.sleep(1.5)
-        st, j, *_ = ts.follow_verify(ts.Client(fid=fid, key=keys.commander_key(fid)), name, profile)
-        assert st == 200, j
         ts.Frontier.profile = profile
         ts.Frontier.systems = {"Ogmar": 1234567}
         y = (datetime.now(tz.utc) - timedelta(days=1)).strftime("%Y-%m-%dT12:00:00Z")
@@ -475,28 +542,141 @@ def test_squad_goals_end_to_end(tmp_path, monkeypatch):
                                + line(event="MiningRefined", Type="$osmium_name;")
                                + line(event="MiningRefined", Type="$osmium_name;")
                                + line(event="MiningRefined", Type="$painite_name;")}
-        p.engine.frontier_token = lambda f: ts.Frontier.token
-        p.engine.rt[fid].prefs_sent = None     # verified outside the engine: its next prefs reply says so
-        p.engine.resume()
-        p.engine.push_now()
+        core = _core(tmp_path, jdir, enabled=True)
+        core.state.pilot_fid = fid
+        core.state.pilot_squadron_name = "EDLD WING"
+        core.data = SimpleNamespace(capi=_Capi(token=ts.Frontier.token))
+        p = mod.EDCMDRPlugin()
+        p.storage = PluginStorage("edcmdr")
+        p.on_load(core)
+        core._plugins = {"edcmdr": p}
+        _wait(lambda: p.engine.rt.get(fid) and p.engine.rt[fid].verified, "verified with EDLD's sign-in", 30)
         _wait(lambda: p.engine.rt[fid].leader_of == 8800, "leader known", 20)
+        from core.windows import squad as W
+        _wait(lambda: W.access(core)["lead"], "the event form is offered", 20)
 
-        fmt = lambda d: (datetime.now(tz.utc) + timedelta(days=d)).strftime("%Y-%m-%d %H:%M")
-        core.cfg.set(EvTitle="Osmium Rush", EvMetric="mined_tons", EvStart=fmt(-3), EvEnd=fmt(3),
-                     EvSystems="ogmar", EvCommodities="osmium", EvPool="10M", EvPlaces="1")
-        msg = p.settings_action("ev_save")
-        assert "event id" in msg, msg
-        p.engine.sync_events_now(fid)
+        today = datetime.now(tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+        starts = int((today - timedelta(days=3)).timestamp())
+        j = p.squad_admin("lookup", system="ogmar", commodities=["osmim"])
+        assert j["system"]["name"] == "Ogmar" and j["commodities"][0]["symbol"] == "osmium", j
+        j = p.squad_admin("save", title="Osmium Rush", metric="mined_tons", starts=starts,
+                          ends=starts + 7 * 86400 - 1, filters={"systems": ["ogmar"], "commodities": ["Osmium"]},
+                          payout={"pool": 10_000_000, "places": [1]})
+        assert j["event"]["title"] == "Osmium Rush"
+        p.squad_sync_now()
 
         def mine():
             ev = (p.engine.events_of(fid) or {}).get("events") or []
             return ev and (ev[0].get("me") or {}).get("value") == 2
         _wait(mine, "the journal read from Frontier and scored", 40)
-        from core.windows import objectives as W
-        core._plugins = {"edcmdr": p}
-        text = json.dumps(W.squad_goals(core).rows)
+        text = json.dumps(W.events_tab(core).rows)
         assert "Osmium Rush" in text and f"CMDR {name}" in text and "10.0M" in text, text
+
+        import random
+        rnd = random.Random(3)
+        cases = []
+        for _ in range(150):
+            places = sorted((rnd.randint(1, 50) for _ in range(rnd.randint(0, 4))), reverse=True)
+            bw = sorted((rnd.randint(1, places[-1] if places else 40) for _ in range(rnd.randint(0, 3))), reverse=True)
+            pcts = sorted(rnd.sample(range(1, 101), len(bw)))
+            cases.append({"v": {f"c{i}": rnd.choice([0, 1, 3, 5, 5, 10, 40]) for i in range(rnd.randint(1, 25))},
+                          "p": {"pool": rnd.randint(0, 10**9), "places": places, "min": rnd.randint(0, 6),
+                                "bands": [{"pct": a, "w": b} for a, b in zip(pcts, bw)],
+                                "tiers": [{"target": 20, "pct": 40}, {"target": 60, "pct": 100}][:rnd.randint(0, 2)]}})
+        out = json.loads(ts.php("-r", 'require "lib/bootstrap.php"; $in = json_decode(stream_get_contents(STDIN), true);'
+                                ' echo json_encode(array_map(fn($c) => Edcmdr\\SquadGoals::payouts($c["v"], $c["p"]), $in));',
+                                stdin=json.dumps(cases)))
+        for case, server in zip(cases, out):
+            mine_ = W.payouts(case["v"], case["p"])
+            assert [(r["cid"], r["rank"], r["credits"]) for r in mine_["standings"]] == \
+                [(r["cid"], r["rank"], r["credits"]) for r in server["standings"]], case
         p.on_unload()
     finally:
         ts.Frontier.days = {}
         ts.tearDownModule()
+
+
+def test_squad_goals_terminal_screen():
+    """The terminal's read-only Squad Goals screen draws the events, and closes with Escape."""
+    import asyncio
+    from textual.app import App
+    from tui.squad_screen import SquadScreen
+    from tui.theme import build_css
+    now = int(time.time())
+    ev = {"id": "e1", "title": "Bounty Week", "metric": "bounty_value", "metric_label": "Bounty value earned",
+          "unit": "cr", "state": "open", "starts": now - 60, "ends": now + 86000, "filters": {}, "payout": {},
+          "total": 125000, "standings": [{"name": "ONE", "pub_id": "a", "value": 125000, "rank": 1, "credits": 0}]}
+    core = _view_core({"state": "on", "events": [ev]})
+    core.cfg = None
+    out = {}
+
+    class _Host(App):
+        CSS = build_css("default")
+
+    async def _run():
+        app = _Host()
+        async with app.run_test(size=(110, 40)) as pilot:
+            await app.push_screen(SquadScreen(core))
+            await pilot.pause()
+            out["lines"] = "\n".join("".join(seg.text for seg in strip)
+                                     for strip in app.screen._compositor.render_strips())
+            await pilot.press("escape")
+            await pilot.pause()
+            out["stack"] = [type(s).__name__ for s in app.screen_stack]
+    asyncio.run(_run())
+    assert "Bounty Week" in out["lines"] and "CMDR ONE" in out["lines"], out["lines"]
+    assert "SquadScreen" not in out["stack"]
+
+
+def test_squad_goals_menu_follows_access(qapp):
+    """The Squad Goals menu shows only while Squad Goals applies, and opens its window."""
+    import queue
+
+    class State:
+        in_preload = False
+
+        def __getattr__(self, name):
+            if name.startswith("_"):
+                raise AttributeError(name)
+            return None
+
+    class Cfg:
+        config: dict = {}
+
+        def save(self):
+            pass
+
+    access = {"show": False, "lead": False, "why": "x"}
+    plug = SimpleNamespace(squad_view=lambda: {"state": "on", "events": []}, squad_access=lambda: access)
+
+    class Core:
+        state = State()
+        cfg = Cfg()
+        gui_queue = queue.Queue()
+        journal_dir = "/tmp"
+        _plugins = {"edcmdr": plug}
+        session_providers: list = []
+        app_settings: dict = {}
+
+        def plugin_call(self, *a, **k):
+            return None
+
+        def register_session_provider(self, provider):
+            pass
+
+    from gui.app import EdldWindow
+    w = EdldWindow(Core(), "EDLD", "test", "owner", "owner/repo")
+    w._check_squad()
+    assert w._squad_menu.menuAction().isVisible() is False
+    access.update(show=True)
+    w._squad_checked = 0
+    w._check_squad()
+    assert w._squad_menu.menuAction().isVisible() is True
+    w.action_squad_goals()
+    assert w._squad_window is not None and w._squad_window.isVisible()
+    assert w._squad_window.tabs.isTabVisible(1) is False, "not the leader: no event form"
+    access.update(show=False)
+    w._squad_checked = 0
+    w._check_squad()
+    assert not w._squad_window.isVisible(), "closed once it no longer applies"
+    w.close()

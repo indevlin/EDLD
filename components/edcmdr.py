@@ -17,11 +17,17 @@ Options → ED Commanders edits them: what is saved there is written to that
 settings file for every commander EDLD has a profile for, and a change made in
 the client is copied back into Options.
 
+One sign-in: EDLD's own Frontier CAPI sign-in verifies the commander with ED
+Commanders (EDCMDR-core verifies by itself once it is there), keeps squadron
+membership current, and lets the server read Frontier's journal for Squad
+Goals. There is no second sign-in in the browser.
+
 Squad Goals: EDCMDR-core reads the commander's events and, while one is open,
-has the server read Frontier's journal with EDLD's own Frontier sign-in. The
-Objectives window's Squad Goals tab shows them (core/windows/objectives.py,
-also on EDAM); Options → ED Commanders holds the switch, invitation codes and
-a verified leader's event controls.
+has the server read Frontier's journal. The Squad Goals window
+(gui/squad_goals.py; core/windows/squad.py, also on EDAM and in the terminal)
+shows them to a commander signed in to Frontier and in a squadron, and gives
+the squadron's verified leader the event form. Options → ED Commanders holds
+the take-part switch and invitation codes.
 
 Release builds sign pushes with EDLD's own build key, written to
 core/_edcmdr_build.py by the release workflow and removed after the build.
@@ -36,10 +42,8 @@ from __future__ import annotations
 import collections
 import hashlib
 import json
-import re
 import time
 import webbrowser
-from datetime import datetime, timezone
 from pathlib import Path
 
 from core import debug as _dbg
@@ -65,62 +69,6 @@ except Exception as _e:  # pragma: no cover - only without the dependency
 PLUGIN_VERSION = "2.0.0"
 FORGET_WINDOW = 30
 RECRUITING = (("", "—"), ("open", "Open"), ("invite", "By invitation"), ("closed", "Closed"))
-#: Squad Goals measures: label, unit.
-METRICS = {
-    "mined_tons": ("Tons refined", "t"), "bounty_value": ("Bounty value earned", "cr"),
-    "bond_value": ("Combat bond value earned", "cr"), "sold_tons": ("Tons sold", "t"),
-    "sold_value": ("Credits from sales", "cr"), "construction_tons": ("Tons delivered to construction", "t"),
-}
-
-
-# ── Squad Goals: what Options fields hold, as the server wants it ────────────
-def parse_utc(s: str) -> int:
-    """'2026-12-01 18:00' or '2026-12-01' (UTC), or 'now', as a Unix time."""
-    s = str(s or "").strip()
-    if s.lower() == "now":
-        return int(time.time())
-    for f in ("%Y-%m-%d %H:%M", "%Y-%m-%dT%H:%M", "%Y-%m-%d"):
-        try:
-            return int(datetime.strptime(s, f).replace(tzinfo=timezone.utc).timestamp())
-        except ValueError:
-            pass
-    raise ValueError(f"'{s}' is not a UTC date and time such as 2026-12-01 18:00.")
-
-
-def parse_credits(s) -> int:
-    """'100M', '1.5B', '250k', '100,000,000' or blank (0)."""
-    t = str(s or "").strip().replace(",", "").replace(" ", "").lower().removesuffix("cr")
-    if not t:
-        return 0
-    m = re.fullmatch(r"(\d+(?:\.\d+)?)([kmb]?)", t)
-    if not m:
-        raise ValueError(f"'{s}' is not an amount of credits such as 100M.")
-    return int(float(m.group(1)) * {"": 1, "k": 1e3, "m": 1e6, "b": 1e9}[m.group(2)])
-
-
-def parse_list(s) -> list[str]:
-    return [x.strip() for x in str(s or "").split(",") if x.strip()]
-
-
-def parse_weights(s) -> list[float]:
-    try:
-        return [float(x) for x in parse_list(s)]
-    except ValueError:
-        raise ValueError(f"'{s}' is not a list of weights such as 5, 3, 2.") from None
-
-
-def parse_pairs(s, a: str, b: str, amount_a: bool = False) -> list[dict]:
-    """'50:2, 100:1' → [{a: 50, b: 2}, …]; with amount_a the first of each pair may be 100M."""
-    out = []
-    for item in parse_list(s):
-        x, sep, y = item.partition(":")
-        try:
-            if not sep:
-                raise ValueError
-            out.append({a: parse_credits(x) if amount_a else float(x), b: float(y)})
-        except ValueError:
-            raise ValueError(f"'{item}' should be two numbers with a colon, such as 50:2.") from None
-    return out
 
 
 def _settings_spec() -> tuple:
@@ -139,7 +87,6 @@ def _settings_spec() -> tuple:
         spec.append(Setting(f"Share_{c}", LABELS.get(c, c), bool, False))
         if c not in SPEC.get("undelayed", []) and c != "presence":
             spec.append(Setting(f"Delay_{c}", "    delay", "choice", "0", choices=delay_choices))
-    metric_choices = tuple((m, METRICS.get(m, (m,))[0]) for m in SPEC.get("event_metrics", []) or METRICS)
     spec += [
         Setting("Wealth", "Include net worth and carrier bank balances", bool, False,
                 help="With lifetime statistics only."),
@@ -148,13 +95,16 @@ def _settings_spec() -> tuple:
                 help=EVENTS_HELP),
         Heading("Your commander", "Acts on the commander you are playing, or the last one EDLD saw."),
         Action("verify", "Verify with Frontier",
-               help="Proves you hold this commander: needed for leaderboards and squadron-leader settings."),
+               help="Uses EDLD's own Frontier sign-in (Options › Services › Frontier CAPI): one sign-in for both. "
+                    "Needed for leaderboards, Squad Goals and squadron-leader settings. EDLD verifies by itself "
+                    "once you are signed in; press this to take the commander over from another installation."),
         Action("open", "Open my page"),
         Action("push", "Push now"),
         Action("status", "Status"),
-        Heading("Codex portrait", "A screenshot of the Codex hub with your commander tile highlighted. "
-                                  "Sending one switches portrait sharing on."),
-        Setting("PortraitFile", "Screenshot file", str, ""),
+        Heading("Codex portrait", "A screenshot of the Codex hub with your commander tile highlighted: choose it "
+                                  "with Browse…, save, then Send portrait. Sending one switches portrait sharing on."),
+        Setting("PortraitFile", "Screenshot file", "file", "",
+                filter="Images (*.png *.jpg *.jpeg *.bmp *.webp);;All files (*)"),
         Action("portrait", "Send portrait"),
         Heading("Squadron", "For a verified squadron leader: what your squadron's page shows."),
         Setting("SqHome", "Home system", str, ""),
@@ -164,47 +114,11 @@ def _settings_spec() -> tuple:
         Setting("SqTagline", "Tagline", str, ""),
         Action("squadron", "Save squadron"),
         Heading("Squad Goals",
-                "Your squadron's events show in Objectives → Squad Goals. Only what Frontier's own journal "
-                "shows counts, read with EDLD's Frontier sign-in (Options → Services → Frontier CAPI)."),
+                "Your squadron's events are under the Squad Goals menu once you are signed in to Frontier "
+                "(Options › Services › Frontier CAPI) and in a squadron; a leader runs them from there. If you were "
+                "invited to an event, paste the code here."),
         Setting("JoinCode", "Invitation code", str, ""),
         Action("ev_join", "Use invitation"),
-        Action("ev_sync", "Update standings now"),
-        Heading("Squad Goals: run an event",
-                "For a verified squadron leader. Times are UTC, such as 2026-12-01 18:00. Leave Event id blank "
-                "to make a new event; the one saved fills it in. Weights: 1st, 2nd, 3rd… never rising; bands "
-                "for the rest as percent:weight (50:2, 100:1); tiers as squadron total:percent of the pool "
-                "(10000:50, 25000:100). No places or bands shares the pool by amount."),
-        Setting("EvId", "Event id", str, ""),
-        Setting("EvTitle", "Title", str, ""),
-        Setting("EvNote", "Note", str, ""),
-        Setting("EvMetric", "Measure", "choice", "mined_tons", choices=metric_choices),
-        Setting("EvStart", "Starts (UTC)", str, ""),
-        Setting("EvEnd", "Ends (UTC)", str, ""),
-        Setting("EvSystems", "Star systems (comma separated, blank for anywhere)", str, ""),
-        Setting("EvMarkets", "Market ids (comma separated)", str, ""),
-        Setting("EvCommodities", "Commodities (comma separated)", str, ""),
-        Setting("EvPool", "Prize pool (credits, such as 100M)", str, ""),
-        Setting("EvPlaces", "Place weights", str, ""),
-        Setting("EvBands", "Band weights", str, ""),
-        Setting("EvMin", "Least amount that qualifies", str, ""),
-        Setting("EvTiers", "Squadron goal tiers", str, ""),
-        Action("ev_save", "Save event"),
-        Action("ev_close", "End event now"),
-        Action("ev_finalize", "Finalize results",
-               help="After the end, without waiting the 48 hours late journal days are read for."),
-        Action("ev_cancel", "Cancel event"),
-        Setting("InvKind", "Invitation for", "choice", "general",
-                choices=(("general", "Anyone verified with the code"), ("personal", "One commander"))),
-        Setting("InvName", "    commander name", str, ""),
-        Setting("InvDays", "    expires after days (blank: when the event ends)", str, ""),
-        Setting("InvUses", "    uses (blank: no limit)", str, ""),
-        Action("ev_invite", "Make invitation"),
-        Setting("MemberName", "Member", str, ""),
-        Action("ev_remove", "Remove from events"),
-        Action("ev_restore", "Restore to events"),
-        Setting("Webhook", "Discord webhook (blank to remove)", str, "",
-                help="Announces events opening, being cancelled and final standings. Kept encrypted by edcmdr.com."),
-        Action("ev_webhook", "Save webhook"),
         Heading("Forget"),
         Action("forget", "Forget on EDCMDR",
                help=f"Deletes everything edcmdr.com holds for this commander. Press twice within {FORGET_WINDOW} s."),
@@ -451,10 +365,7 @@ class EDCMDRPlugin(SettingsSpecMixin, BasePlugin):
         name = self.cmdrs[fid].name if fid in self.cmdrs else fid
         try:
             if action_id == "verify":
-                v = self.engine.verify_start(fid)
-                webbrowser.open(v["url"])
-                return (f"CMDR {name}: code {v['code']}. Continue on edcmdr.com only if it shows the same code, "
-                        f"then sign in with Frontier; EDLD finishes the rest. If no browser opened: {v['url']}")
+                return self._verify(fid, name)
             if action_id == "open":
                 pub = self.engine.settings.commander(fid).get("pub_id")
                 if not pub:
@@ -515,8 +426,38 @@ class EDCMDRPlugin(SettingsSpecMixin, BasePlugin):
         return f"Saved for {sq.get('name') or 'your squadron'}. Its page shows it now."
 
     # ── Squad Goals ─────────────────────────────────────────────────────────
+    def _capi(self):
+        return getattr(getattr(self.core, "data", None), "capi", None)
+
+    def signed_in(self) -> bool:
+        """EDLD holds a Frontier (CAPI) sign-in, for the commander being played."""
+        capi = self._capi()
+        try:
+            return bool(capi is not None and capi.is_connected())
+        except Exception:
+            return False
+
+    def _verify(self, fid: str, name: str) -> str:
+        """One sign-in: verify with EDLD's own Frontier sign-in, starting it if there is none yet."""
+        if not self.signed_in():
+            capi = self._capi()
+            if capi is None:
+                return "Switch on Frontier CAPI under Options › Services first."
+            capi.authenticate()
+            return (f"Sign in to Frontier in the browser that opened. EDLD verifies CMDR {name} with that "
+                    f"sign-in as soon as it is done; nothing more to press.")
+        try:
+            self.engine.verify_with_token(fid)
+        except ProtoError as e:
+            if e.code == "signin":
+                return ("EDLD's Frontier sign-in is for another commander or has ended: sign in again under "
+                        "Options › Services › Frontier CAPI.")
+            raise
+        return f"CMDR {name} is verified with your Frontier sign-in."
+
+    # ── Squad Goals ─────────────────────────────────────────────────────────
     def squad_view(self) -> dict:
-        """What the Squad Goals tab shows for the commander being played: state, note, events."""
+        """What the Squad Goals window shows for the commander being played: state, note, events."""
         if self.engine is None:
             return {"state": "off", "reason": self.reason}
         fid = self._current()
@@ -527,88 +468,45 @@ class EDCMDRPlugin(SettingsSpecMixin, BasePlugin):
             return {"state": "switched-off", "name": snap["name"]}
         if not snap["verified"]:
             return {"state": "unverified", "name": snap["name"]}
-        return {"state": "on", "name": snap["name"], "note": snap.get("events_note"),
-                "pub_id": snap.get("pub_id"), **(snap.get("events") or {"events": None})}
+        return {"state": "on", "name": snap["name"], "note": snap.get("events_note"), "fid": fid,
+                "pub_id": snap.get("pub_id"), "leader_of": snap.get("leader_of"),
+                "leader_squadron": snap.get("leader_squadron"), **(snap.get("events") or {"events": None})}
 
-    def _event_id(self, fid: str) -> str:
-        eid = str(self.settings().get("EvId") or "").strip()
-        if eid:
-            return eid
-        ev = (self.engine.events_of(fid) or {}).get("events") or []
-        mine = [e for e in ev if e.get("leader") and e.get("state") in ("upcoming", "open", "settling", "closing")]
-        if len(mine) == 1:
-            return mine[0]["id"]
-        raise ValueError("Set Event id (shown in Objectives → Squad Goals) and save Options first."
-                         if mine else "You have no open event.")
+    def squad_access(self) -> dict:
+        """The Squad Goals window: signed in to Frontier, and in a squadron or invited to an event. Its leader
+        tab: the squadron's verified leader as well."""
+        if self.engine is None:
+            return {"show": False, "lead": False, "why": f"ED Commanders is {self.reason}."}
+        if not self.signed_in():
+            return {"show": False, "lead": False, "why": "Sign in to Frontier under Options › Services › Frontier CAPI."}
+        view = self.squad_view()
+        in_squadron = bool(str(getattr(self.core.state, "pilot_squadron_name", "") or "").strip()
+                           or view.get("member_of"))
+        invited = any(e.get("invited") for e in view.get("events") or [])
+        if not (in_squadron or invited):
+            return {"show": False, "lead": False, "why": "You are not in a squadron."}
+        lead = view.get("state") == "on" and view.get("leader_of") is not None
+        return {"show": True, "lead": lead, "why": ""}
 
-    def _event_body(self) -> dict:
-        s = self.settings()
-        places, bands = parse_weights(s.get("EvPlaces")), parse_pairs(s.get("EvBands"), "pct", "w")
-        return {
-            "title": str(s.get("EvTitle") or "").strip(), "note": str(s.get("EvNote") or "").strip() or None,
-            "metric": str(s.get("EvMetric") or ""), "starts": parse_utc(s.get("EvStart")),
-            "ends": parse_utc(s.get("EvEnd")),
-            "filters": {"systems": parse_list(s.get("EvSystems")),
-                        "markets": [int(x) for x in parse_list(s.get("EvMarkets")) if x.isdigit()],
-                        "commodities": parse_list(s.get("EvCommodities"))},
-            "payout": {"pool": parse_credits(s.get("EvPool")), "places": places, "bands": bands,
-                       "min": parse_credits(s.get("EvMin")),
-                       "tiers": [{"target": int(t["target"]), "pct": int(t["pct"])}
-                                 for t in parse_pairs(s.get("EvTiers"), "target", "pct", amount_a=True)]},
-        }
+    def squad_admin(self, action: str, **body) -> dict:
+        """A leader's call (see EDCMDR's PROTOCOL: save, close, finalize, cancel, invite, remove, restore,
+        webhook, forget-webhook, announce, lookup). Raises ProtoError."""
+        return self.engine.event_admin(self._current(), action, **body)
+
+    def squad_join(self, code: str) -> dict:
+        return self.engine.event_join(self._current(), code.strip())
+
+    def squad_sync_now(self) -> None:
+        self.engine.sync_events_now(self._current())
 
     def _event_action(self, fid: str, act: str) -> str:
-        e, s = self.engine, self.settings()
-        if act == "sync":
-            e.sync_events_now(fid)
-            return "Reading your events, and your journal from Frontier, now."
         if act == "join":
-            code = str(s.get("JoinCode") or "").strip()
+            code = str(self.settings().get("JoinCode") or "").strip()
             if not code:
                 return "Paste the invitation code into Invitation code and save Options first."
-            j = e.event_join(fid, code)
-            return f"You are in {j.get('event', {}).get('title') or 'the event'}. It shows in Objectives → Squad Goals."
-        if act == "save":
-            body = self._event_body()
-            if s.get("EvId"):
-                body["id"] = str(s["EvId"]).strip()
-            j = e.event_admin(fid, "save", **body)
-            ev = j.get("event") or {}
-            self._write_config({"EvId": ev.get("id", "")})
-            return f"Saved {ev.get('title')}: event id {ev.get('id')}. Your squadron sees it in Objectives → Squad Goals."
-        if act in ("close", "finalize", "cancel"):
-            eid = self._event_id(fid)
-            e.event_admin(fid, act, id=eid)
-            if act == "cancel":
-                self._write_config({"EvId": ""})
-            return {"close": "Ended now. Late journal days are still read for 48 hours, then results are final.",
-                    "finalize": "Results are final.", "cancel": "Cancelled."}[act]
-        if act == "invite":
-            kind = str(s.get("InvKind") or "general")
-            body: dict = {"id": self._event_id(fid), "kind": kind}
-            if kind == "personal":
-                body["name"] = str(s.get("InvName") or "").strip()
-            days = str(s.get("InvDays") or "").strip()
-            if days:
-                body["expires"] = int(time.time() + float(days) * 86400)
-            uses = str(s.get("InvUses") or "").strip()
-            if uses and kind == "general":
-                body["max_uses"] = int(uses)
-            j = e.event_admin(fid, "invite", **body)
-            who = f"CMDR {j['for']} only" if j.get("for") else "anyone verified who has it"
-            return f"Invitation code {j['code']} ({who}). They enter it under Options → ED Commanders → Invitation code."
-        if act in ("remove", "restore"):
-            name = str(s.get("MemberName") or "").strip()
-            j = e.event_admin(fid, act, name=name)
-            return (f"CMDR {j.get('removed')} no longer counts in your squadron's events." if act == "remove"
-                    else f"CMDR {j.get('restored')} counts in your squadron's events again.")
-        if act == "webhook":
-            url = str(s.get("Webhook") or "").strip()
-            j = e.event_admin(fid, "webhook", url=url, test=bool(url))
-            if not j.get("webhook"):
-                return "Webhook removed."
-            return "Webhook saved" + (" and a test message posted." if j.get("tested") else
-                                      ", but the test message did not go: check the address.")
+            j = self.engine.event_join(fid, code)
+            return (f"You are in {j.get('event', {}).get('title') or 'the event'}. "
+                    "It shows under the Squad Goals menu.")
         return ""
 
     # ── status ──────────────────────────────────────────────────────────────

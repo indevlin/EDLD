@@ -564,6 +564,7 @@ the desktop's tab order.
 | `navigation` | `navigation.route`: the followed route and the next legs | Navigation |
 | `missions`, `colonisation` | `missions.missions`, `colonisation.colonisation` | Objectives |
 | `mining` | `mining.hotspots`, `mining.sites` (both `filter`) | Mining |
+| `squad_goals` | `squad_goals.events`, sent only while you are signed in to Frontier and in a squadron (or invited) | Squad Goals |
 | `session`, `career` | `session.session`, `career.summary` … `career.powerplay` | Career / Session |
 
 A client should show a group it does not recognize rather than drop it: EDAM

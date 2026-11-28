@@ -8,23 +8,43 @@ Last updated: 20261128
 
 ### Added: Squad Goals
 
-Events a verified squadron leader runs for their squadron on ED Commanders:
-tons refined, bounty or combat bond value earned, tons or credits sold, or
-tons delivered to construction, optionally in chosen star systems, markets
-and commodities, with a prize pool paid out by place.
+Events a squadron's verified leader runs for their squadron on ED Commanders: a
+mining push, a bounty week, a trade run or a construction drive, with a prize
+pool shared out by place. Members take part just by playing, signed in to
+Frontier; only what Frontier's own journal confirms counts.
 
-- **Objectives → Squad Goals** (also on EDAM) shows your squadron's events and
-  any you were invited to, with the squadron's total, the prize pool and the
-  standings, your own row highlighted. Nothing about events is on the website.
-- **Options → ED Commanders**: **Take part in my squadron's events** (on unless
-  switched off), **Invitation code** with **Use invitation**, **Update
-  standings now**, and for the leader the event's settings with **Save event**,
-  **End event now**, **Finalize results**, **Cancel event**, **Make
-  invitation**, **Remove from events** / **Restore to events** and a **Discord
-  webhook**.
-- Only what Frontier's own journal shows counts, read by ED Commanders with
-  EDLD's Frontier CAPI sign-in while an event is open; without that sign-in
-  the tab says so. See docs/EDCMDR.md.
+- A **Squad Goals** menu (and **Ctrl+U** in the terminal), shown only when you
+  are signed in to Frontier and in a squadron or invited to an event. Its
+  **Events** tab shows each event with the squadron's total, the prize pool
+  and the standings, your own row highlighted; EDAM gets the same page. Nothing
+  about events is on the website.
+- **Run an event**, a tab for the squadron's verified leader only: title and
+  note, first and last day from calendars (whole UTC days, 00:00:00 to
+  23:59:59), the measure, prize pool, reward tiers, shares for the top places
+  and for everyone else, a participation floor, and an example payout that
+  updates as you type. Optionally one star system (by name or number, checked
+  to be real), a station, outpost, settlement or carrier in it chosen from a
+  list, and commodities with suggestions as you type and close misses
+  understood. Then End now, Finalize results, Cancel event, Make invitation…,
+  removing or restoring a member, and the squadron's Discord webhook with
+  Save, Forget, Announce now and automatic announcements kept by edcmdr.com.
+  Event ids stay out of sight.
+- **Options → ED Commanders** keeps **Take part in my squadron's events** (on
+  unless switched off) and **Invitation code** with **Use invitation**.
+- See docs/EDCMDR.md for the plain-language guide.
+
+### Added: one Frontier sign-in
+
+EDLD verifies your commander with ED Commanders using its own Frontier CAPI
+sign-in, by itself, within a minute of signing in: no code to compare and no
+second sign-in on edcmdr.com. **Verify with Frontier** opens Frontier's
+sign-in if there is none yet, and otherwise takes the commander over from
+another computer.
+
+### Changed: Codex portrait
+
+**Screenshot file** has a **Browse…** button that opens the file chooser,
+instead of a path to type.
 
 ### Changed: ED Commanders, built in
 

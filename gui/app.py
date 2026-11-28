@@ -355,6 +355,17 @@ class EdldWindow(QMainWindow):
         self._ksw_toggle.setEnabled(has_ksw)
         self._ksw_kill.setEnabled(has_ksw)
 
+        # Squad Goals: only for a commander signed in to Frontier and in a
+        # squadron (core/windows/squad.access); checked as the window polls.
+        self._squad_menu = bar.addMenu("S&quad Goals")
+        squad_act = QAction("&Squad Goals…", self)
+        squad_act.setShortcut(QKeySequence("Ctrl+U"))
+        squad_act.triggered.connect(self.action_squad_goals)
+        self._squad_menu.addAction(squad_act)
+        self._squad_menu.menuAction().setVisible(False)
+        self._squad_checked = 0.0
+        self._squad_window = None
+
         view_menu = bar.addMenu("&View")
         full = QAction("&Full Screen", self)
         full.setShortcut(QKeySequence("F11"))
@@ -390,6 +401,7 @@ class EdldWindow(QMainWindow):
         if _typography.signature(self._ui_cfg()) != self._type_sig:
             self.apply_text_and_rows()
         self._check_fit()
+        self._check_squad()
         dirty: set[str] = set()
         try:
             while True:
@@ -589,6 +601,32 @@ class EdldWindow(QMainWindow):
             sell.setStyleSheet(stylesheet(self._theme) + dialog_qss(self._theme))
         for top in QApplication.topLevelWidgets():
             rearrange(top)
+
+    def _check_squad(self) -> None:
+        """Show the Squad Goals menu only while it applies; at most every two seconds."""
+        import time as _t
+        if _t.monotonic() - self._squad_checked < 2:
+            return
+        self._squad_checked = _t.monotonic()
+        from core.windows import squad
+        show = bool(squad.access(self._core).get("show"))
+        self._squad_menu.menuAction().setVisible(show)
+        if not show and self._squad_window is not None and self._squad_window.isVisible():
+            self._squad_window.close()
+
+    def action_squad_goals(self) -> None:
+        """Open the Squad Goals window, or bring it forward."""
+        from core.windows import squad
+        if not squad.access(self._core).get("show"):
+            return
+        if self._squad_window is None:
+            from gui.squad_goals import SquadGoalsWindow
+            self._squad_window = SquadGoalsWindow(self._core, theme=self._theme, parent=self)
+            self._squad_window.setStyleSheet(self.styleSheet())
+        self._squad_window.refresh(force=True)
+        self._squad_window.show()
+        self._squad_window.raise_()
+        self._squad_window.activateWindow()
 
     def action_sell_table(self) -> None:
         """Open the sell table, or close it if it is already open."""

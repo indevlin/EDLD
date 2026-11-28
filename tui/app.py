@@ -132,6 +132,7 @@ class EdldTui(App):
         Binding("ctrl+t", "kill_session",   "Quit Game",    show=True),
         Binding("ctrl+d", "deposit",        "Deposit",      show=True),
         Binding("ctrl+g", "push_survey",    "Push Survey",  show=False),
+        Binding("ctrl+u", "squad_goals",    "Squad Goals",  show=True),
     ]
 
     def __init__(self, core: "CoreAPI", program: str, version: str,
@@ -353,6 +354,9 @@ class EdldTui(App):
         """Disable the session-management bindings when the plugin is not loaded."""
         if action in ("toggle_ksw", "kill_session"):
             return self._core._plugins.get("ksw") is not None
+        if action == "squad_goals":
+            from core.windows import squad
+            return bool(squad.access(self._core).get("show"))
         return True
 
     def action_options(self) -> None:
@@ -375,6 +379,14 @@ class EdldTui(App):
         msg = push_all(self._core)
         if msg:
             self.notify(msg, title="Survey")
+
+    def action_squad_goals(self) -> None:
+        """Squad Goals, read only, while they apply."""
+        from core.windows import squad
+        from tui.squad_screen import SquadScreen
+        if not squad.access(self._core).get("show") or any(isinstance(s, SquadScreen) for s in self.screen_stack):
+            return
+        self.push_screen(SquadScreen(self._core))
 
     def action_sell_table(self) -> None:
         """Open the sell table, or close it if it is already open.
